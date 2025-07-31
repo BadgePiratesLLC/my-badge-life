@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase, type Badge, type Ownership } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
+import type { Badge, Ownership } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useBadges() {
