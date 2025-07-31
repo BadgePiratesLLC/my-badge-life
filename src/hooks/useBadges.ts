@@ -31,7 +31,7 @@ export function useBadges() {
       if (error) {
         console.error('Error fetching badges:', error)
       } else {
-        setBadges(data || [])
+        setBadges((data as unknown as Badge[]) || [])
       }
     } catch (error) {
       console.error('Error fetching badges:', error)
@@ -52,7 +52,7 @@ export function useBadges() {
       if (error) {
         console.error('Error fetching ownership:', error)
       } else {
-        setOwnership(data || [])
+        setOwnership((data as unknown as Ownership[]) || [])
       }
     } catch (error) {
       console.error('Error fetching ownership:', error)
@@ -97,7 +97,7 @@ export function useBadges() {
         throw error
       }
 
-      setOwnership(prev => [...prev, data])
+      setOwnership(prev => [...prev, data as unknown as Ownership])
     }
   }
 
@@ -124,7 +124,7 @@ export function useBadges() {
       throw error
     }
 
-    setBadges(prev => [data, ...prev])
+    setBadges(prev => [data as unknown as Badge, ...prev])
     return data
   }
 

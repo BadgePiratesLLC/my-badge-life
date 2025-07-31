@@ -46,7 +46,7 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching profile:', error)
       } else {
-        setProfile(data)
+        setProfile(data as unknown as Profile)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -92,8 +92,8 @@ export function useAuth() {
       throw error
     }
 
-    setProfile(data)
-    return data
+    setProfile(data as unknown as Profile)
+    return data as unknown as Profile
   }
 
   const requestMakerStatus = async () => {
