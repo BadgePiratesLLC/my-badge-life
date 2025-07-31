@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      badges: {
+        Row: {
+          created_at: string
+          description: string | null
+          external_link: string | null
+          id: string
+          image_url: string | null
+          maker_id: string | null
+          name: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          external_link?: string | null
+          id?: string
+          image_url?: string | null
+          maker_id?: string | null
+          name: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          external_link?: string | null
+          id?: string
+          image_url?: string | null
+          maker_id?: string | null
+          name?: string
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badges_maker_id_fkey"
+            columns: ["maker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ownership: {
+        Row: {
+          badge_id: string
+          created_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          created_at?: string
+          id?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ownership_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ownership_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          maker_approved: boolean
+          role: string
+          updated_at: string
+          wants_to_be_maker: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          maker_approved?: boolean
+          role?: string
+          updated_at?: string
+          wants_to_be_maker?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          maker_approved?: boolean
+          role?: string
+          updated_at?: string
+          wants_to_be_maker?: boolean
+        }
+        Relationships: []
+      }
+      uploads: {
+        Row: {
+          badge_guess_id: string | null
+          created_at: string
+          id: string
+          image_url: string
+          user_id: string | null
+        }
+        Insert: {
+          badge_guess_id?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          user_id?: string | null
+        }
+        Update: {
+          badge_guess_id?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uploads_badge_guess_id_fkey"
+            columns: ["badge_guess_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uploads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
