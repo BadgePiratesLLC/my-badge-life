@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
 // For Lovable projects with native Supabase integration
+// The URL and key will be automatically provided by Lovable
 export const supabase = createClient(
-  'https://your-project.supabase.co', // This will be automatically configured
-  'your-anon-key' // This will be automatically configured
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 )
 
 // Database types
