@@ -3,104 +3,115 @@ import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { CameraCapture } from "@/components/CameraCapture";
 import { BadgeCard } from "@/components/BadgeCard";
-import { Search, Filter, Plus } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
+import { AddBadgeModal } from "@/components/AddBadgeModal";
+import { Search, Filter, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useBadges } from "@/hooks/useBadges";
 
 const Index = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCamera, setShowCamera] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showAddBadge, setShowAddBadge] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  
+  // Real authentication and data
+  const { user, profile, loading: authLoading, isAuthenticated } = useAuth();
+  const { 
+    badges, 
+    loading: badgesLoading, 
+    toggleOwnership, 
+    isOwned, 
+    isWanted, 
+    getOwnershipStats,
+    uploadBadgeImage 
+  } = useBadges();
 
-  // Mock badge data for demo
-  const mockBadges = [
-    {
-      id: "1",
-      name: "DEF CON 31 Badge",
-      year: 2023,
-      maker: "DC Organization",
-      description: "Official conference badge with interactive LED matrix and crypto challenges.",
-      imageUrl: "/placeholder.svg",
-      externalLink: "https://defcon.org",
-      isOwned: false,
-      isWanted: true,
-    },
-    {
-      id: "2", 
-      name: "BSides LV 2023",
-      year: 2023,
-      maker: "BSides Team",
-      description: "Community badge featuring NFC capabilities and custom firmware.",
-      imageUrl: "/placeholder.svg",
-      isOwned: true,
-      isWanted: false,
-    },
-    {
-      id: "3",
-      name: "Hacker Summer Camp",
-      year: 2023,
-      maker: "Independent Maker",
-      description: "Artistic badge with RGB lighting and sound reactive features.",
-      imageUrl: "/placeholder.svg",
-      isOwned: false,
-      isWanted: false,
-    },
-  ];
+  // Show welcome screen for new users
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('mybadgelife-visited');
+    if (hasVisited) {
+      setShowWelcome(false);
+    }
+  }, []);
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleGetStarted = () => {
     setShowWelcome(false);
+    localStorage.setItem('mybadgelife-visited', 'true');
   };
 
   const handleCameraClick = () => {
     setShowCamera(true);
   };
 
-  const handleImageCapture = (file: File) => {
-    toast({
-      title: "Badge Scanned!",
-      description: "Analyzing badge image... This feature will identify badges using AI in the full version.",
-    });
-  };
-
-  const handleOwnershipToggle = (badgeId: string, type: 'own' | 'want') => {
-    if (!isAuthenticated) {
+  const handleImageCapture = async (file: File) => {
+    try {
+      const { url } = await uploadBadgeImage(file);
       toast({
-        title: "Authentication Required",
-        description: "Please sign in to track badge ownership.",
+        title: "Badge Image Uploaded!",
+        description: "Image uploaded successfully. In the full version, AI will identify the badge automatically.",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload image. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleOwnershipToggle = async (badgeId: string, type: 'own' | 'want') => {
+    if (!isAuthenticated) {
+      setShowAuth(true);
       return;
     }
     
-    toast({
-      title: `Badge ${type === 'own' ? 'Owned' : 'Wanted'}!`,
-      description: `Added to your ${type === 'own' ? 'collection' : 'wishlist'}.`,
-    });
-  };
-
-  const handleAuthClick = () => {
-    if (isAuthenticated) {
-      setIsAuthenticated(false);
+    try {
+      await toggleOwnership(badgeId, type);
+      const action = isOwned(badgeId) || isWanted(badgeId) ? 'removed from' : 'added to';
       toast({
-        title: "Signed Out",
-        description: "You have been signed out successfully.",
+        title: `Badge ${action} ${type === 'own' ? 'collection' : 'wishlist'}!`,
+        description: `Successfully updated your badge tracking.`,
       });
-    } else {
-      setIsAuthenticated(true);
+    } catch (error) {
       toast({
-        title: "Signed In!",
-        description: "Welcome to MyBadgeLife! You can now track badges.",
+        title: "Error",
+        description: "Failed to update badge ownership. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const filteredBadges = mockBadges.filter(badge =>
+  const handleAuthClick = () => {
+    setShowAuth(true);
+  };
+
+  // Filter badges based on search
+  const filteredBadges = badges.filter(badge =>
     badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    badge.maker?.toLowerCase().includes(searchQuery.toLowerCase())
+    badge.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    badge.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Get ownership stats
+  const stats = getOwnershipStats();
 
   if (showWelcome) {
     return <WelcomeScreen onGetStarted={handleGetStarted} />;
@@ -132,8 +143,13 @@ const Index = () => {
               <Filter className="h-4 w-4" />
               <span className="hidden sm:inline">FILTER</span>
             </Button>
-            {isAuthenticated && (
-              <Button variant="terminal" size="mobile">
+            {(isAuthenticated && (profile?.role === 'admin' || 
+              (profile?.role === 'maker' && profile?.maker_approved))) && (
+              <Button 
+                variant="terminal" 
+                size="mobile"
+                onClick={() => setShowAddBadge(true)}
+              >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">ADD</span>
               </Button>
@@ -142,44 +158,78 @@ const Index = () => {
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-card border border-border rounded p-3 text-center">
-            <div className="text-lg font-bold font-mono text-primary">
-              {mockBadges.filter(b => b.isOwned).length}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">OWNED</div>
+        {badgesLoading ? (
+          <div className="grid grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded p-3">
+                <div className="h-6 bg-muted animate-pulse rounded mb-2"></div>
+                <div className="h-4 bg-muted animate-pulse rounded"></div>
+              </div>
+            ))}
           </div>
-          <div className="bg-card border border-border rounded p-3 text-center">
-            <div className="text-lg font-bold font-mono text-accent">
-              {mockBadges.filter(b => b.isWanted).length}
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-card border border-border rounded p-3 text-center">
+              <div className="text-lg font-bold font-mono text-primary">
+                {stats.owned}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">OWNED</div>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">WANTED</div>
-          </div>
-          <div className="bg-card border border-border rounded p-3 text-center">
-            <div className="text-lg font-bold font-mono text-foreground">
-              {mockBadges.length}
+            <div className="bg-card border border-border rounded p-3 text-center">
+              <div className="text-lg font-bold font-mono text-accent">
+                {stats.wanted}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">WANTED</div>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">TOTAL</div>
+            <div className="bg-card border border-border rounded p-3 text-center">
+              <div className="text-lg font-bold font-mono text-foreground">
+                {stats.total}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">TOTAL</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Badge Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredBadges.map((badge) => (
-            <BadgeCard
-              key={badge.id}
-              badge={badge}
-              onOwnershipToggle={handleOwnershipToggle}
-              onBadgeClick={(badge) => {
-                toast({
-                  title: badge.name,
-                  description: `${badge.year} • Made by ${badge.maker}`,
-                });
-              }}
-              isAuthenticated={isAuthenticated}
-            />
-          ))}
-        </div>
+        {badgesLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-4">
+                <div className="h-4 bg-muted animate-pulse rounded mb-3"></div>
+                <div className="aspect-square bg-muted animate-pulse rounded mb-3"></div>
+                <div className="h-3 bg-muted animate-pulse rounded mb-2"></div>
+                <div className="h-3 bg-muted animate-pulse rounded w-2/3"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredBadges.map((badge) => (
+              <BadgeCard
+                key={badge.id}
+                badge={{
+                  id: badge.id,
+                  name: badge.name,
+                  year: badge.year || undefined,
+                  maker: badge.profiles?.display_name || undefined,
+                  description: badge.description || undefined,
+                  imageUrl: badge.image_url || undefined,
+                  externalLink: badge.external_link || undefined,
+                  isOwned: isOwned(badge.id),
+                  isWanted: isWanted(badge.id),
+                }}
+                onOwnershipToggle={handleOwnershipToggle}
+                onBadgeClick={(badge) => {
+                  toast({
+                    title: badge.name,
+                    description: `${badge.year ? badge.year + ' • ' : ''}Made by ${badge.maker || 'Unknown'}`,
+                  });
+                }}
+                isAuthenticated={isAuthenticated}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredBadges.length === 0 && searchQuery && (
@@ -197,6 +247,16 @@ const Index = () => {
         isOpen={showCamera}
         onClose={() => setShowCamera(false)}
         onImageCapture={handleImageCapture}
+      />
+
+      <AuthModal
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+      />
+
+      <AddBadgeModal
+        isOpen={showAddBadge}
+        onClose={() => setShowAddBadge(false)}
       />
     </div>
   );
