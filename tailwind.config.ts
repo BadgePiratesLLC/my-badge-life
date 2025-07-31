@@ -61,7 +61,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				matrix: {
+					green: 'hsl(var(--matrix-green))',
+					light: 'hsl(var(--matrix-light))',
+					dark: 'hsl(var(--matrix-dark))'
+				},
+				terminal: {
+					bg: 'hsl(var(--terminal-bg))',
+					border: 'hsl(var(--terminal-border))'
 				}
+			},
+			fontFamily: {
+				mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+			},
+			backgroundImage: {
+				'gradient-matrix': 'var(--gradient-matrix)',
+				'gradient-dark': 'var(--gradient-dark)',
+			},
+			boxShadow: {
+				'matrix-glow': 'var(--glow-matrix)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
