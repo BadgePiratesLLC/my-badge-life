@@ -1,10 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Debug: Check what environment variables are available
+console.log('Available env vars:', {
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  all_env: import.meta.env
+})
+
 // For Lovable projects with native Supabase integration
-// The URL and key will be automatically provided by Lovable
 export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+  import.meta.env.VITE_SUPABASE_URL || 'missing-url',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'missing-key'
 )
 
 // Database types
