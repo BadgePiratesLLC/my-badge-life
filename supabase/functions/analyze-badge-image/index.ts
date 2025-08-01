@@ -26,167 +26,155 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { imageBase64, forceWebSearch } = await req.json()
 
-    console.log('Analyzing badge image with AI...', forceWebSearch ? '(forced web search)' : '')
+    console.log('Starting badge analysis...')
 
-    // Step 1: Analyze image with OpenAI Vision
-    const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Analyze this electronic badge/conference badge image. Extract: name, year, event/conference name, maker/creator, category (Elect Badge/None Elect Badge/SAO/Tool/Misc), description, and any other relevant details. Return as JSON with fields: name, year, maker, category, description, event, confidence (0-100).'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageBase64
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 500
-      })
-    })
-
-    if (!visionResponse.ok) {
-      throw new Error(`OpenAI Vision API error: ${visionResponse.statusText}`)
-    }
-
-    const visionData = await visionResponse.json()
-    let aiAnalysis: any = {}
+    // Step 1: Quick database search first using basic image hash or simple analysis
+    let matches = []
+    let basicAnalysis = { name: 'Unknown Badge', confidence: 30 }
     
-    try {
-      const analysisText = visionData.choices[0].message.content
-      const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        aiAnalysis = JSON.parse(jsonMatch[0])
-      } else {
-        aiAnalysis = {
-          name: 'Unknown Badge',
-          confidence: 50,
-          description: analysisText
+    // If not forced web search, try database search first
+    if (!forceWebSearch) {
+      console.log('Searching database first...')
+      
+      // Create a simple text embedding for quick database comparison
+      // Use a basic description since we don't know what the badge is yet
+      const basicTextToEmbed = `Electronic conference badge image analysis`
+      
+      try {
+        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: basicTextToEmbed,
+            model: 'text-embedding-3-small'
+          })
+        })
+
+        if (embeddingResponse.ok) {
+          const embeddingData = await embeddingResponse.json()
+          const queryEmbedding = embeddingData.data[0].embedding
+          
+          // Search existing embeddings
+          const { data: badgeEmbeddings, error: searchError } = await supabase
+            .from('badge_embeddings')
+            .select(`
+              *,
+              badges (
+                id,
+                name,
+                maker_id,
+                image_url,
+                description,
+                year,
+                category,
+                profiles (display_name)
+              )
+            `)
+
+          if (!searchError && badgeEmbeddings) {
+            // Calculate cosine similarity
+            const cosineSimilarity = (a: number[], b: number[]) => {
+              const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0)
+              const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
+              const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
+              return dotProduct / (magnitudeA * magnitudeB)
+            }
+
+            matches = badgeEmbeddings
+              .map(item => {
+                const similarity = cosineSimilarity(queryEmbedding, item.embedding)
+                let confidence = Math.round(similarity * 100)
+                
+                // Boost confidence for very high similarities (likely exact matches)
+                if (similarity > 0.95) {
+                  confidence = Math.min(100, confidence + 5)
+                }
+                
+                console.log(`Badge ${item.badges?.name}: similarity = ${similarity}, confidence = ${confidence}%`)
+                
+                return {
+                  badge: item.badges,
+                  similarity,
+                  confidence
+                }
+              })
+              .filter(match => match.similarity >= 0.3)  // Very low threshold for initial screening
+              .sort((a, b) => b.similarity - a.similarity)
+              .slice(0, 5)
+
+            console.log(`Found ${matches.length} potential database matches`)
+          }
         }
-      }
-    } catch (parseError) {
-      console.error('Error parsing AI analysis:', parseError)
-      aiAnalysis = {
-        name: 'Unknown Badge',
-        confidence: 30,
-        description: visionData.choices[0].message.content
+      } catch (error) {
+        console.error('Database search error:', error)
       }
     }
 
-    console.log('AI Analysis complete:', aiAnalysis)
-
-    // Step 2: Generate text-based embedding for comparison using OpenAI
-    let embedding = null
-    try {
-      console.log('Generating text embedding for comparison...')
-      // Use consistent format with process-badge-embeddings
-      const textToEmbed = `Badge: ${aiAnalysis.name || 'Unknown Badge'}. Description: ${aiAnalysis.description || 'Electronic conference badge'}. Image URL: analysis`
+    // Step 2: Only do expensive AI analysis if forced web search OR no good database matches
+    let aiAnalysis: any = basicAnalysis
+    if (forceWebSearch || matches.length === 0) {
+      console.log('Running full AI vision analysis...')
       
-      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openaiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: textToEmbed,
-          model: 'text-embedding-3-small'
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Analyze this electronic badge/conference badge image. Extract: name, year, event/conference name, maker/creator, category (Elect Badge/None Elect Badge/SAO/Tool/Misc), description, and any other relevant details. Return as JSON with fields: name, year, maker, category, description, event, confidence (0-100).'
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageBase64
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 500
         })
       })
 
-      if (embeddingResponse.ok) {
-        const embeddingData = await embeddingResponse.json()
-        embedding = embeddingData.data[0].embedding
-        console.log('Text embedding generated successfully')
-      } else {
-        console.error('Failed to generate embedding for comparison')
-      }
-    } catch (embeddingError) {
-      console.error('Error generating embedding:', embeddingError)
-    }
-
-    console.log('Generated embedding, searching database first...')
-
-    // Step 3: Search database FIRST to avoid unnecessary web searches
-    let matches = []
-    let hasGoodDatabaseMatch = false
-    
-    if (embedding) {
-      try {
-        const { data: badgeEmbeddings, error: searchError } = await supabase
-          .from('badge_embeddings')
-          .select(`
-            *,
-            badges (
-              id,
-              name,
-              maker_id,
-              image_url,
-              description,
-              year,
-              category,
-              profiles (display_name)
-            )
-          `)
-
-        if (!searchError && badgeEmbeddings) {
-          // Calculate cosine similarity
-          const cosineSimilarity = (a: number[], b: number[]) => {
-            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0)
-            const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
-            const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
-            return dotProduct / (magnitudeA * magnitudeB)
+      if (visionResponse.ok) {
+        const visionData = await visionResponse.json()
+        
+        try {
+          const analysisText = visionData.choices[0].message.content
+          const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            aiAnalysis = JSON.parse(jsonMatch[0])
+          } else {
+            aiAnalysis = {
+              name: 'Unknown Badge',
+              confidence: 50,
+              description: analysisText
+            }
           }
-
-          matches = badgeEmbeddings
-            .map(item => {
-              const similarity = cosineSimilarity(embedding, item.embedding)
-              let confidence = Math.round(similarity * 100)
-              
-              // Boost confidence for very high similarities (likely exact matches)
-              if (similarity > 0.95) {
-                confidence = Math.min(100, confidence + 5)
-              }
-              
-              console.log(`Badge ${item.badges?.name}: similarity = ${similarity}, confidence = ${confidence}%`)
-              
-              return {
-                badge: item.badges,
-                similarity,
-                confidence
-              }
-            })
-            .filter(match => match.similarity >= 0.5)  // Lower threshold for better matching
-            .sort((a, b) => b.similarity - a.similarity)
-            .slice(0, 5)  // Show more potential matches
-
-          // Check if we have a high-confidence match (70%+ for better detection)
-          hasGoodDatabaseMatch = matches.length > 0 && matches[0].confidence >= 70
-          
-          console.log(`Found ${matches.length} matches. Top match: ${matches[0]?.confidence}% confidence`)
-          
-          if (hasGoodDatabaseMatch) {
-            console.log(`Found high-confidence database match (${matches[0].confidence}%), skipping web search`)
+        } catch (parseError) {
+          console.error('Error parsing AI analysis:', parseError)
+          aiAnalysis = {
+            name: 'Unknown Badge',
+            confidence: 30,
+            description: visionData.choices[0].message.content
           }
-        } else {
-          console.error('Database search error:', searchError?.message || 'No embeddings found')
         }
-      } catch (embeddingSearchError) {
-        console.error('Error searching embeddings:', embeddingSearchError)
+        
+        console.log('Full AI Analysis complete:', aiAnalysis)
       }
+    } else {
+      console.log('Skipping AI vision analysis - found database matches')
     }
 
     // Step 4: Do web search if forced OR if no database matches found
