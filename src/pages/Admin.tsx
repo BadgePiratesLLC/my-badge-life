@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
+import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -57,6 +58,7 @@ interface User {
 export default function Admin() {
   const { isAdmin, loading: rolesLoading } = useRoles()
   const { user, loading: authLoading } = useAuth()
+  const { teams, users: teamUsers, loading: teamsLoading, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
   const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -65,6 +67,9 @@ export default function Admin() {
   const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<string | null>(null)
+  const [teamForm, setTeamForm] = useState<{ name: string; description: string }>({ name: '', description: '' })
+  const [showCreateTeam, setShowCreateTeam] = useState(false)
 
   useEffect(() => {
     if (!rolesLoading && !authLoading) {
@@ -331,7 +336,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="uploads" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="uploads" className="flex items-center gap-2">
               <Image className="h-4 w-4" />
               Uploaded Images
@@ -340,8 +345,12 @@ export default function Admin() {
               <Settings className="h-4 w-4" />
               Badge Management
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
+            <TabsTrigger value="teams" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
+              Team Management
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
               User Management
             </TabsTrigger>
           </TabsList>
@@ -442,13 +451,23 @@ export default function Admin() {
                               </div>
 
                               <div>
-                                <Label htmlFor="team_name">Badge Maker Team Name (Admin Only)</Label>
-                                <Input
-                                  id="team_name"
-                                  value={editForm.team_name || ''}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, team_name: e.target.value }))}
-                                  placeholder="e.g., DEF CON Goons, AndnXor"
-                                />
+                                <Label htmlFor="team_name">Badge Maker Team</Label>
+                                <Select 
+                                  value={editForm.team_name || ''} 
+                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, team_name: value || null }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select team (or leave empty)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">No Team</SelectItem>
+                                    {teams.map((team) => (
+                                      <SelectItem key={team.id} value={team.name}>
+                                        {team.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
 
                               <div>
@@ -592,6 +611,224 @@ export default function Admin() {
                                   {badge.updated_at !== badge.created_at && (
                                     <span> • Updated: {new Date(badge.updated_at).toLocaleDateString()}</span>
                                   )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="teams" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-mono">
+                  <Users className="h-5 w-5" />
+                  TEAM MANAGEMENT ({teams.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Button 
+                    onClick={() => setShowCreateTeam(!showCreateTeam)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create New Team
+                  </Button>
+                </div>
+
+                {showCreateTeam && (
+                  <Card className="mb-4">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="teamName">Team Name</Label>
+                          <Input
+                            id="teamName"
+                            value={teamForm.name}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Team name (e.g., DEF CON Goons)"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="teamDescription">Description (optional)</Label>
+                          <Textarea
+                            id="teamDescription"
+                            value={teamForm.description}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Team description"
+                            rows={2}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={async () => {
+                              if (teamForm.name.trim()) {
+                                await createTeam(teamForm.name.trim(), teamForm.description.trim() || undefined)
+                                setTeamForm({ name: '', description: '' })
+                                setShowCreateTeam(false)
+                              }
+                            }}
+                            disabled={!teamForm.name.trim()}
+                          >
+                            Create Team
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowCreateTeam(false)
+                              setTeamForm({ name: '', description: '' })
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {teams.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No teams found</p>
+                ) : (
+                  <div className="space-y-4">
+                    {teams.map((team) => (
+                      <Card key={team.id}>
+                        <CardContent className="p-6">
+                          {editingTeam === team.id ? (
+                            // Edit mode for team
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="editTeamName">Team Name</Label>
+                                <Input
+                                  id="editTeamName"
+                                  value={teamForm.name}
+                                  onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
+                                  placeholder="Team name"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="editTeamDescription">Description</Label>
+                                <Textarea
+                                  id="editTeamDescription"
+                                  value={teamForm.description}
+                                  onChange={(e) => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
+                                  placeholder="Team description"
+                                  rows={2}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={async () => {
+                                    await updateTeam(team.id, {
+                                      name: teamForm.name.trim(),
+                                      description: teamForm.description.trim() || undefined
+                                    })
+                                    setEditingTeam(null)
+                                    setTeamForm({ name: '', description: '' })
+                                  }}
+                                  disabled={!teamForm.name.trim()}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Save className="h-4 w-4" />
+                                  Save Changes
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingTeam(null)
+                                    setTeamForm({ name: '', description: '' })
+                                  }}
+                                  className="flex items-center gap-2"
+                                >
+                                  <X className="h-4 w-4" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            // View mode for team
+                            <div>
+                              <div className="flex items-start justify-between mb-4">
+                                <div>
+                                  <h3 className="text-lg font-semibold">{team.name}</h3>
+                                  {team.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">{team.description}</p>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingTeam(team.id)
+                                      setTeamForm({
+                                        name: team.name,
+                                        description: team.description || ''
+                                      })
+                                    }}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete team "${team.name}"?`)) {
+                                        await deleteTeam(team.id)
+                                      }
+                                    }}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Team Members Section */}
+                              <div className="border-t pt-4">
+                                <h4 className="font-medium mb-3">Team Members ({teamUsers.filter(u => u.teams.includes(team.name)).length})</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                  {teamUsers.filter(u => u.teams.includes(team.name)).map((user) => (
+                                    <div key={user.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                                      <span className="text-sm">{user.display_name || user.email}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => removeUserFromTeam(user.id, team.id)}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <UserMinus className="h-3 w-3" />
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Add Members Dropdown */}
+                                <div className="flex gap-2">
+                                  <Select onValueChange={(userId) => addUserToTeam(userId, team.id)}>
+                                    <SelectTrigger className="w-64">
+                                      <SelectValue placeholder="Add user to team" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {teamUsers.filter(u => !u.teams.includes(team.name)).map((user) => (
+                                        <SelectItem key={user.id} value={user.id}>
+                                          {user.display_name || user.email}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               </div>
                             </div>
