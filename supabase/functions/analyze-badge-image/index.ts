@@ -9,7 +9,6 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const replicateToken = Deno.env.get('REPLICATE_API_TOKEN')
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!
 const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY')!
 
@@ -26,9 +25,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { imageBase64, forceWebSearch } = await req.json()
 
-    console.log('Starting badge analysis...')
+    console.log('Starting smart badge analysis...')
 
-    // Step 1: Quick AI analysis to get badge name/basic info for database search
+    // Step 1: Quick AI analysis to get badge name/basic info
     console.log('Running quick AI analysis for badge identification...')
     
     const quickAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -76,13 +75,12 @@ serve(async (req) => {
 
     console.log('Quick analysis result:', quickAnalysis)
 
-    // Step 2: Search database using simple text matching first (faster and more reliable)
-    console.log('Searching database with simple text matching...')
+    // Step 2: Search local database first
+    console.log('Searching local database...')
     let matches = []
     
     if (!forceWebSearch) {
       try {
-        // First try direct text search in badge names and descriptions
         const { data: badgeMatches, error: textSearchError } = await supabase
           .from('badges')
           .select(`
@@ -146,162 +144,175 @@ serve(async (req) => {
           .slice(0, 5)
           
           matches = scoredMatches
-          console.log(`Found ${matches.length} text matches. Best: ${matches[0]?.confidence}%`)
+          console.log(`Found ${matches.length} local matches. Best: ${matches[0]?.confidence}%`)
         }
       } catch (error) {
-        console.error('Text search error:', error)
+        console.error('Local database search error:', error)
       }
     }
 
-    // Step 3: Only do detailed AI analysis if forced OR no good text matches
-    let aiAnalysis: any = quickAnalysis
-    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 70)) {
-      console.log('Running detailed AI analysis...')
-      
-      const detailedResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Analyze this electronic badge/conference badge image in detail. Extract: name, year, event/conference name, maker/creator, category (Elect Badge/None Elect Badge/SAO/Tool/Misc), description, and any other relevant details. Return as JSON with fields: name, year, maker, category, description, event, confidence (0-100).'
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: imageBase64
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 500
-        })
-      })
-
-      if (detailedResponse.ok) {
-        const detailedData = await detailedResponse.json()
-        
-        try {
-          const analysisText = detailedData.choices[0].message.content
-          const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            aiAnalysis = JSON.parse(jsonMatch[0])
-          }
-        } catch (parseError) {
-          console.error('Error parsing detailed analysis:', parseError)
-        }
-        
-        console.log('Detailed AI Analysis complete:', aiAnalysis)
-      }
-    } else {
-      console.log('Skipping detailed AI analysis - found good text matches')
-    }
-
-    // Step 4: Do web search if forced OR if no database matches found
+    // Step 3: Search external sources if no good local matches
     let webResults: any = null
-    if ((forceWebSearch || matches.length === 0) && aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
-      console.log(forceWebSearch ? 'Forced web search requested' : 'No database matches found, searching web...')
-      try {
-        const searchQuery = `${aiAnalysis.name} ${aiAnalysis.event || ''} electronic badge conference`.trim()
-        
-        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${perplexityApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.1-sonar-small-128k-online',
-            messages: [
-              {
-                role: 'user',
-                content: `Find detailed information about: ${searchQuery}. Return JSON with: {name, maker, year, description, external_link, confidence}`
-              }
-            ],
-            temperature: 0.2,
-            max_tokens: 300
-          })
-        })
-
-        if (perplexityResponse.ok) {
-          const perplexityData = await perplexityResponse.json()
-          const webContent = perplexityData.choices[0].message.content
-          
-          try {
-            const webJsonMatch = webContent.match(/\{[\s\S]*\}/)
-            if (webJsonMatch) {
-              webResults = JSON.parse(webJsonMatch[0])
-              console.log('Web search completed successfully')
-            }
-          } catch (webParseError) {
-            console.log('Could not parse web results as JSON')
-          }
-        }
-      } catch (webError) {
-        console.error('Web search error:', webError)
-      }
-    } else if (matches.length > 0 && !forceWebSearch) {
-      console.log('Found database matches - skipping web search (user can request it)')
-    } else {
-      console.log('Skipped web search - AI could not identify badge clearly')
-    }
-
-    // Fallback to text-based search if no embedding matches
-    if (matches.length === 0) {
-      console.log('No embedding matches found, falling back to text search...')
+    let searchSource = 'none'
+    
+    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 70)) {
+      console.log('Searching external badge sources...')
       
-      const { data: existingBadges } = await supabase
-        .from('badges')
-        .select(`
-          *,
-          profiles (display_name)
-        `)
+      // Try Tindie first (badge marketplace)
+      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
+        console.log('Searching Tindie for badge...')
+        try {          
+          const tindieResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${perplexityApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'user',
+                  content: `Search Tindie.com for "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, description, price, url, found: true/false}`
+                }
+              ],
+              temperature: 0.2,
+              max_tokens: 200
+            })
+          })
 
-      if (existingBadges) {
-        const searchTerms = [
-          aiAnalysis.name,
-          aiAnalysis.event
-        ].filter(Boolean).map(term => term.toLowerCase())
-
-        const potentialMatches = existingBadges.filter(badge => {
-          const badgeText = `${badge.name} ${badge.description || ''} ${badge.team_name || ''}`.toLowerCase()
-          return searchTerms.some(term => badgeText.includes(term))
-        })
-
-        matches = potentialMatches.slice(0, 3).map(badge => ({
-          badge,
-          similarity: 0.5,
-          confidence: 50
-        }))
+          if (tindieResponse.ok) {
+            const tindieData = await tindieResponse.json()
+            const tindieContent = tindieData.choices[0].message.content
+            
+            try {
+              const tindieMatch = tindieContent.match(/\{[\s\S]*\}/)
+              if (tindieMatch) {
+                const tindieResult = JSON.parse(tindieMatch[0])
+                if (tindieResult.found) {
+                  webResults = { ...tindieResult, source: 'Tindie', confidence: 85 }
+                  searchSource = 'Tindie'
+                  console.log('Found on Tindie:', webResults)
+                }
+              }
+            } catch (e) {
+              console.log('Could not parse Tindie results')
+            }
+          }
+        } catch (error) {
+          console.error('Tindie search error:', error)
+        }
       }
+      
+      // Try Hackaday if not found on Tindie
+      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
+        console.log('Searching Hackaday badge list...')
+        try {          
+          const hackadayResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${perplexityApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'user',
+                  content: `Search hackaday.io conference badge list for "${quickAnalysis.name}". Return JSON: {name, maker, year, event, description, url, found: true/false}`
+                }
+              ],
+              temperature: 0.2,
+              max_tokens: 200
+            })
+          })
+
+          if (hackadayResponse.ok) {
+            const hackadayData = await hackadayResponse.json()
+            const hackadayContent = hackadayData.choices[0].message.content
+            
+            try {
+              const hackadayMatch = hackadayContent.match(/\{[\s\S]*\}/)
+              if (hackadayMatch) {
+                const hackadayResult = JSON.parse(hackadayMatch[0])
+                if (hackadayResult.found) {
+                  webResults = { ...hackadayResult, source: 'Hackaday', confidence: 80 }
+                  searchSource = 'Hackaday'
+                  console.log('Found on Hackaday:', webResults)
+                }
+              }
+            } catch (e) {
+              console.log('Could not parse Hackaday results')
+            }
+          }
+        } catch (error) {
+          console.error('Hackaday search error:', error)
+        }
+      }
+      
+      // Fallback to general web search if not found in specific sources
+      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
+        console.log('Doing general web search...')
+        try {          
+          const generalResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${perplexityApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-sonar-small-128k-online',
+              messages: [
+                {
+                  role: 'user',
+                  content: `Find information about "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, event, description, external_link, confidence}`
+                }
+              ],
+              temperature: 0.2,
+              max_tokens: 250
+            })
+          })
+
+          if (generalResponse.ok) {
+            const generalData = await generalResponse.json()
+            const generalContent = generalData.choices[0].message.content
+            
+            try {
+              const generalMatch = generalContent.match(/\{[\s\S]*\}/)
+              if (generalMatch) {
+                webResults = { ...JSON.parse(generalMatch[0]), source: 'Web Search' }
+                searchSource = 'Web Search'
+                console.log('Found via general search:', webResults)
+              }
+            } catch (e) {
+              console.log('Could not parse general search results')
+            }
+          }
+        } catch (error) {
+          console.error('General web search error:', error)
+        }
+      }
+    } else {
+      console.log('Skipping external search - found good local matches')
     }
 
-    console.log(`Found ${matches.length} matches`)
-
-    // Combine AI analysis with web results
+    console.log('Analysis complete, returning results')
+    
+    // Combine all analysis results
     const combinedAnalysis = {
-      ...aiAnalysis,
+      ...quickAnalysis,
       ...webResults,
-      confidence: aiAnalysis.confidence || 50,
+      confidence: webResults?.confidence || quickAnalysis.confidence || 50,
+      search_source: searchSource,
       web_info: webResults,
       database_matches: matches.map(m => m.badge)
     }
 
-    console.log('Analysis complete, returning results')
-
     return new Response(
       JSON.stringify({ 
         analysis: combinedAnalysis,
-        matches: matches
+        matches: matches,
+        canAddToDatabase: webResults && (webResults.confidence || 0) >= 80 // Allow admin to add high-confidence results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

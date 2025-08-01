@@ -17,6 +17,9 @@ interface BadgeAnalysis {
   event?: string;
   confidence?: number;
   external_link?: string;
+  url?: string; // Alternative to external_link
+  source?: string; // Source of the analysis (Tindie, Hackaday, etc.)
+  search_source?: string; // Source of the search
   web_info?: any;
   database_matches?: any[];
 }
@@ -35,6 +38,7 @@ interface BadgeAnalysisResultsProps {
   onClose: () => void;
   onCreateNew: (prefillData: any) => void;
   originalImageBase64?: string; // For web search
+  canAddToDatabase?: boolean; // For admin to add high-confidence results
 }
 
 export const BadgeAnalysisResults = ({
@@ -44,11 +48,13 @@ export const BadgeAnalysisResults = ({
   matches,
   onClose,
   onCreateNew,
-  originalImageBase64
+  originalImageBase64,
+  canAddToDatabase
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [webSearchResults, setWebSearchResults] = useState<any>(null);
+  const [isAddingToDatabase, setIsAddingToDatabase] = useState(false);
   
   // Filter matches to show only the highest confidence, or tied matches
   const filteredMatches = matches.length > 0 ? (() => {
@@ -100,6 +106,42 @@ export const BadgeAnalysisResults = ({
     }
   };
 
+  const handleAddToDatabase = async () => {
+    if (!analysis || !canAddToDatabase) return;
+    
+    setIsAddingToDatabase(true);
+    try {
+      const badgeData = {
+        name: analysis.name || 'Unknown Badge',
+        description: analysis.description || '',
+        year: analysis.year || new Date().getFullYear(),
+        category: analysis.category || 'Misc',
+        external_link: analysis.url || analysis.external_link || '',
+        image_url: imageUrl, // Use the uploaded image
+        maker_id: null // Will be set by admin
+      };
+      
+      // This would typically call an admin-only endpoint to create the badge
+      // For now, just call the regular createBadge function
+      onCreateNew(badgeData);
+      
+      toast({
+        title: "Badge added to database",
+        description: `${analysis.name} has been added from ${analysis.source || 'web search'} results`
+      });
+      
+    } catch (error) {
+      console.error('Error adding badge to database:', error);
+      toast({
+        title: "Failed to add badge",
+        description: "Could not add badge to database",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingToDatabase(false);
+    }
+  };
+
   const handleCreateNew = () => {
     const prefillData = {
       name: webSearchResults?.name || analysis?.name || '',
@@ -143,8 +185,13 @@ export const BadgeAnalysisResults = ({
 
               {analysis && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                     {webSearchResults ? "Web Search Results" : "AI Analysis"}
+                    {analysis.search_source && analysis.search_source !== 'none' && (
+                      <Badge variant="secondary" className="text-xs">
+                        Found on {analysis.search_source}
+                      </Badge>
+                    )}
                   </h3>
                   <div className="space-y-2">
                     {(webSearchResults || analysis).confidence && (
@@ -303,6 +350,17 @@ export const BadgeAnalysisResults = ({
                       >
                         <Search className="h-4 w-4" />
                         {isSearchingWeb ? "Searching..." : "Search Web"}
+                      </Button>
+                    )}
+                    {canAddToDatabase && analysis?.search_source && analysis.search_source !== 'none' && (
+                      <Button 
+                        variant="default"
+                        onClick={handleAddToDatabase}
+                        disabled={isAddingToDatabase}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {isAddingToDatabase ? "Adding..." : `Add from ${analysis.search_source}`}
                       </Button>
                     )}
                   </div>

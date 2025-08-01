@@ -248,6 +248,7 @@ export const CameraCapture = ({
           onClose={handleCloseAnalysis}
           onCreateNew={handleCreateNew}
           originalImageBase64={analysisResults?.originalImageBase64}
+          canAddToDatabase={analysisResults?.canAddToDatabase}
         />
     </div>
   );
