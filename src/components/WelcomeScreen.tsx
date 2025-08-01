@@ -1,13 +1,15 @@
-import { Camera, Search, Users, Shield, LogIn } from "lucide-react";
+import { Camera, Search, Users, Shield, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import mybadgelifeLogo from "@/assets/mybadgelife-logo.jpg";
 
 interface WelcomeScreenProps {
   onLogin: () => void;
+  onStartScan: () => void;
+  onExploreCollection: () => void;
 }
 
-export const WelcomeScreen = ({ onLogin }: WelcomeScreenProps) => {
+export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: WelcomeScreenProps) => {
   return (
     <div className="min-h-screen bg-gradient-dark flex flex-col">
       {/* Simple Header */}
@@ -23,7 +25,7 @@ export const WelcomeScreen = ({ onLogin }: WelcomeScreenProps) => {
           <span className="font-mono text-sm text-foreground">MyBadgeLife</span>
         </div>
         <Button variant="outline" onClick={onLogin}>
-          <LogIn className="h-4 w-4" />
+          <User className="h-4 w-4" />
           SIGN IN
         </Button>
       </header>
@@ -84,6 +86,29 @@ export const WelcomeScreen = ({ onLogin }: WelcomeScreenProps) => {
                 <p className="text-xs text-muted-foreground">Progress</p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Call to Action */}
+          <div className="space-y-3">
+            <Button
+              variant="matrix"
+              size="lg"
+              onClick={onStartScan}
+              className="w-full"
+            >
+              <Camera className="h-5 w-5" />
+              START SCANNING
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={onExploreCollection}
+              className="w-full"
+            >
+              <Search className="h-5 w-5" />
+              EXPLORE COLLECTION
+            </Button>
           </div>
 
           <p className="text-xs text-muted-foreground font-mono">

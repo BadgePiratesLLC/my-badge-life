@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { CameraCapture } from "@/components/CameraCapture";
 import { BadgeCard } from "@/components/BadgeCard";
+import { BadgeExplorer } from "@/components/BadgeExplorer";
 import { AuthModal } from "@/components/AuthModal";
 import { AddBadgeModal } from "@/components/AddBadgeModal";
 import { Search, Filter, Plus, Loader2 } from "lucide-react";
@@ -17,6 +18,7 @@ const Index = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showAddBadge, setShowAddBadge] = useState(false);
+  const [showAllBadges, setShowAllBadges] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   
@@ -100,6 +102,14 @@ const Index = () => {
     setShowAuth(true);
   };
 
+  const handleStartScan = () => {
+    setShowCamera(true);
+  };
+
+  const handleExploreCollection = () => {
+    setShowAllBadges(true);
+  };
+
   // Filter badges based on search
   const getFilteredBadges = (filterType?: 'owned' | 'wanted') => {
     return badges.filter(badge => {
@@ -142,7 +152,25 @@ const Index = () => {
 
   // Show welcome screen for non-authenticated users
   if (!isAuthenticated) {
-    return <WelcomeScreen onLogin={handleLogin} />;
+    return (
+      <>
+        <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} />
+        <BadgeExplorer 
+          isOpen={showAllBadges} 
+          onClose={() => setShowAllBadges(false)}
+          onSignIn={handleLogin}
+        />
+        <CameraCapture
+          isOpen={showCamera}
+          onClose={() => setShowCamera(false)}
+          onImageCapture={handleImageCapture}
+        />
+        <AuthModal
+          isOpen={showAuth}
+          onClose={() => setShowAuth(false)}
+        />
+      </>
+    );
   }
 
   // Get badge sections for authenticated users
