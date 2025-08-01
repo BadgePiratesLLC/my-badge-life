@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Upload, Users, Image, Shield, ArrowLeft } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -68,24 +68,28 @@ export default function Admin() {
 
   const fetchUsers = async () => {
     try {
+      // First get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          email,
-          display_name,
-          user_roles (
-            role
-          )
-        `)
+        .select('id, email, display_name')
 
       if (profilesError) throw profilesError
 
+      // Then get roles for each user
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+
+      if (rolesError) throw rolesError
+
+      // Combine the data
       const usersWithRoles = (profilesData || []).map(profile => ({
         id: profile.id,
         email: profile.email,
         display_name: profile.display_name,
-        roles: (profile as any).user_roles?.map((r: any) => r.role) || []
+        roles: (rolesData || [])
+          .filter(role => role.user_id === profile.id)
+          .map(role => role.role)
       }))
 
       setUsers(usersWithRoles)
@@ -120,6 +124,39 @@ export default function Admin() {
     } catch (error) {
       console.error('Error creating badge:', error)
       toast.error('Failed to create badge')
+    }
+  }
+
+  const deleteUpload = async (upload: Upload) => {
+    if (!confirm('Are you sure you want to delete this upload?')) return
+
+    try {
+      // Delete from storage
+      const fileName = upload.image_url.split('/').pop()
+      if (fileName) {
+        const { error: storageError } = await supabase.storage
+          .from('badge-images')
+          .remove([fileName.includes('/') ? fileName : `anonymous/${fileName}`])
+        
+        if (storageError) {
+          console.error('Storage delete error:', storageError)
+        }
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('uploads')
+        .delete()
+        .eq('id', upload.id)
+
+      if (error) throw error
+
+      // Update UI
+      setUploads(prev => prev.filter(u => u.id !== upload.id))
+      toast.success('Upload deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting upload:', error)
+      toast.error('Failed to delete upload')
     }
   }
 
@@ -235,13 +272,22 @@ export default function Admin() {
                             <p className="text-xs text-muted-foreground">
                               {new Date(upload.created_at).toLocaleDateString()}
                             </p>
-                            <Button
-                              onClick={() => createBadgeFromUpload(upload)}
-                              className="w-full"
-                              variant="matrix"
-                            >
-                              Create Badge
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => createBadgeFromUpload(upload)}
+                                className="flex-1"
+                                variant="matrix"
+                              >
+                                Create Badge
+                              </Button>
+                              <Button
+                                onClick={() => deleteUpload(upload)}
+                                size="icon"
+                                variant="destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
