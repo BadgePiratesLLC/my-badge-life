@@ -27,13 +27,37 @@ serve(async (req) => {
 
     console.log('Starting smart badge analysis...')
 
+    // Initialize analytics tracking
+    const searchStartTime = Date.now()
+    const analytics = {
+      search_type: 'image_analysis',
+      local_search_duration_ms: 0,
+      google_search_duration_ms: 0,
+      ai_analysis_duration_ms: 0,
+      found_in_database: false,
+      found_via_google: false,
+      found_via_ai: false,
+      local_confidence: 0,
+      google_confidence: 0,
+      ai_confidence: 0,
+      search_stages: [],
+      total_duration_ms: 0
+    }
+
+    const statusUpdates = []
+    
     // Step 1: Search local database first
+    statusUpdates.push({ stage: 'local_search', status: 'searching', message: 'Searching local database...' })
     console.log('🔍 STEP 1: Searching local database...')
+    
+    const localSearchStart = Date.now()
     let localMatches = []
     let bestLocalConfidence = 0
     
     try {
       // Try image-based matching first
+      statusUpdates.push({ stage: 'local_search', status: 'processing', message: 'Comparing with stored badge images...' })
+      
       const { data: matchResult, error: matchError } = await supabase.functions.invoke('match-badge-image', {
         body: { imageBase64 }
       })
@@ -51,6 +75,8 @@ serve(async (req) => {
       }
 
       // Also try text-based matching for better coverage
+      statusUpdates.push({ stage: 'local_search', status: 'processing', message: 'Analyzing badge features for text matching...' })
+      
       const { data: badgeMatches, error: textSearchError } = await supabase
         .from('badges')
         .select(`
@@ -170,16 +196,59 @@ serve(async (req) => {
       }
 
       bestLocalConfidence = localMatches.length > 0 ? localMatches[0].confidence : 0
+      analytics.local_search_duration_ms = Date.now() - localSearchStart
+      analytics.local_confidence = bestLocalConfidence
+      analytics.search_stages.push({
+        stage: 'local_search',
+        duration_ms: analytics.local_search_duration_ms,
+        success: bestLocalConfidence >= 60,
+        confidence: bestLocalConfidence,
+        results_count: localMatches.length
+      })
+      
       console.log(`Local search complete. Best confidence: ${bestLocalConfidence}%`)
       
     } catch (error) {
+      analytics.local_search_duration_ms = Date.now() - localSearchStart
+      analytics.search_stages.push({
+        stage: 'local_search',
+        duration_ms: analytics.local_search_duration_ms,
+        success: false,
+        error: error.message,
+        results_count: 0
+      })
       console.error('Local search error:', error)
     }
 
     // Check if local search found good matches (60% threshold)
     if (bestLocalConfidence >= 60) {
+      analytics.found_in_database = true
+      analytics.total_duration_ms = Date.now() - searchStartTime
+      
+      statusUpdates.push({ 
+        stage: 'local_search', 
+        status: 'success', 
+        message: `Found match: ${localMatches[0].badge.name} (${bestLocalConfidence}% confidence)` 
+      })
+      
       console.log(`✅ LOCAL MATCH FOUND: ${bestLocalConfidence}% confidence (≥60% threshold)`)
       console.log(`Best match: "${localMatches[0]?.badge.name}"`)
+      
+      // Save analytics
+      try {
+        await supabase.from('analytics_searches').insert({
+          search_type: analytics.search_type,
+          image_matching_duration_ms: analytics.local_search_duration_ms,
+          total_duration_ms: analytics.total_duration_ms,
+          results_found: localMatches.length,
+          best_confidence_score: bestLocalConfidence,
+          found_in_database: true,
+          found_via_web_search: false,
+          found_via_image_matching: true
+        })
+      } catch (error) {
+        console.error('Analytics tracking error:', error)
+      }
       
       return new Response(
         JSON.stringify({ 
@@ -191,16 +260,26 @@ serve(async (req) => {
             found_locally: true
           },
           matches: localMatches,
-          canAddToDatabase: false
+          canAddToDatabase: false,
+          statusUpdates,
+          analytics
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    statusUpdates.push({ 
+      stage: 'local_search', 
+      status: 'failed', 
+      message: `Local search insufficient (${bestLocalConfidence}% < 60%)` 
+    })
     console.log(`❌ Local search insufficient (${bestLocalConfidence}% < 60% threshold)`)
 
     // Step 2: Google Reverse Image Search
+    statusUpdates.push({ stage: 'google_search', status: 'searching', message: 'Trying Google reverse image search...' })
     console.log('🔍 STEP 2: Trying Google reverse image search...')
+    
+    const googleSearchStart = Date.now()
     let googleResult = null
     
     const serpApiKey = Deno.env.get('SERPAPI_KEY')
@@ -208,7 +287,9 @@ serve(async (req) => {
       try {
         const imageData = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '')
         
+        statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
         console.log('Performing Google reverse image search...')
+        
         const googleResponse = await fetch('https://serpapi.com/search', {
           method: 'POST',
           headers: {
@@ -221,6 +302,8 @@ serve(async (req) => {
             num: 3  // Get top 3 results
           })
         })
+
+        analytics.google_search_duration_ms = Date.now() - googleSearchStart
 
         if (googleResponse.ok) {
           const googleData = await googleResponse.json()
@@ -237,33 +320,130 @@ serve(async (req) => {
               thumbnail: topResult.thumbnail,
               found_via_google: true
             }
+            
+            analytics.found_via_google = true
+            analytics.google_confidence = 90
+            analytics.search_stages.push({
+              stage: 'google_search',
+              duration_ms: analytics.google_search_duration_ms,
+              success: true,
+              confidence: 90,
+              results_count: googleData.image_results.length
+            })
+            
+            statusUpdates.push({ 
+              stage: 'google_search', 
+              status: 'success', 
+              message: `Found: ${googleResult.name}` 
+            })
+            
             console.log(`✅ GOOGLE MATCH FOUND: "${googleResult.name}"`)
+            
+            analytics.total_duration_ms = Date.now() - searchStartTime
+            
+            // Save analytics
+            try {
+              await supabase.from('analytics_searches').insert({
+                search_type: analytics.search_type,
+                image_matching_duration_ms: analytics.local_search_duration_ms,
+                web_search_duration_ms: analytics.google_search_duration_ms,
+                total_duration_ms: analytics.total_duration_ms,
+                results_found: 1,
+                best_confidence_score: 90,
+                found_in_database: false,
+                found_via_web_search: true,
+                found_via_image_matching: false,
+                search_source_used: 'Google Image Search'
+              })
+            } catch (error) {
+              console.error('Analytics tracking error:', error)
+            }
             
             return new Response(
               JSON.stringify({ 
                 analysis: googleResult,
                 matches: localMatches,
-                canAddToDatabase: true
+                canAddToDatabase: true,
+                statusUpdates,
+                analytics
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
           } else {
+            analytics.search_stages.push({
+              stage: 'google_search',
+              duration_ms: analytics.google_search_duration_ms,
+              success: false,
+              error: 'No image results found',
+              results_count: 0
+            })
+            
+            statusUpdates.push({ 
+              stage: 'google_search', 
+              status: 'failed', 
+              message: 'No results found in Google search' 
+            })
             console.log('❌ Google search returned no image results')
           }
         } else {
+          analytics.search_stages.push({
+            stage: 'google_search',
+            duration_ms: analytics.google_search_duration_ms,
+            success: false,
+            error: `HTTP ${googleResponse.status}`,
+            results_count: 0
+          })
+          
+          statusUpdates.push({ 
+            stage: 'google_search', 
+            status: 'failed', 
+            message: `Google search failed (${googleResponse.status})` 
+          })
           console.log(`❌ Google search failed with status: ${googleResponse.status}`)
         }
       } catch (error) {
+        analytics.google_search_duration_ms = Date.now() - googleSearchStart
+        analytics.search_stages.push({
+          stage: 'google_search',
+          duration_ms: analytics.google_search_duration_ms,
+          success: false,
+          error: error.message,
+          results_count: 0
+        })
+        
+        statusUpdates.push({ 
+          stage: 'google_search', 
+          status: 'failed', 
+          message: `Google search error: ${error.message}` 
+        })
         console.error('❌ Google reverse image search error:', error)
       }
     } else {
+      analytics.search_stages.push({
+        stage: 'google_search',
+        duration_ms: 0,
+        success: false,
+        error: 'SERPAPI_KEY not configured',
+        results_count: 0
+      })
+      
+      statusUpdates.push({ 
+        stage: 'google_search', 
+        status: 'skipped', 
+        message: 'Google search unavailable (no API key)' 
+      })
       console.log('❌ SERPAPI_KEY not found, skipping Google search')
     }
 
     // Step 3: AI Analysis as last resort
+    statusUpdates.push({ stage: 'ai_analysis', status: 'searching', message: 'Running AI analysis as fallback...' })
     console.log('🔍 STEP 3: Running AI analysis as fallback...')
     
+    const aiAnalysisStart = Date.now()
+    
     try {
+      statusUpdates.push({ stage: 'ai_analysis', status: 'processing', message: 'Analyzing badge features with AI...' })
+      
       const aiAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -304,6 +484,8 @@ Return JSON: {
         })
       })
 
+      analytics.ai_analysis_duration_ms = Date.now() - aiAnalysisStart
+
       let aiResult = {
         name: 'Unknown Electronic Badge',
         description: 'Electronic conference or hacker badge',
@@ -326,19 +508,94 @@ Return JSON: {
         }
       }
 
+      analytics.found_via_ai = true
+      analytics.ai_confidence = aiResult.confidence
+      analytics.search_stages.push({
+        stage: 'ai_analysis',
+        duration_ms: analytics.ai_analysis_duration_ms,
+        success: true,
+        confidence: aiResult.confidence,
+        results_count: 1
+      })
+      
+      statusUpdates.push({ 
+        stage: 'ai_analysis', 
+        status: 'success', 
+        message: `AI identified: ${aiResult.name} (${aiResult.confidence}% confidence)` 
+      })
+
       console.log(`✅ AI ANALYSIS COMPLETE: "${aiResult.name}" (${aiResult.confidence}% confidence)`)
+
+      analytics.total_duration_ms = Date.now() - searchStartTime
+      
+      // Save analytics
+      try {
+        await supabase.from('analytics_searches').insert({
+          search_type: analytics.search_type,
+          image_matching_duration_ms: analytics.local_search_duration_ms,
+          web_search_duration_ms: analytics.google_search_duration_ms,
+          ai_analysis_duration_ms: analytics.ai_analysis_duration_ms,
+          total_duration_ms: analytics.total_duration_ms,
+          results_found: 1,
+          best_confidence_score: aiResult.confidence,
+          found_in_database: false,
+          found_via_web_search: false,
+          found_via_image_matching: false,
+          search_source_used: 'AI Analysis'
+        })
+      } catch (error) {
+        console.error('Analytics tracking error:', error)
+      }
 
       return new Response(
         JSON.stringify({ 
           analysis: aiResult,
           matches: localMatches,
-          canAddToDatabase: true
+          canAddToDatabase: true,
+          statusUpdates,
+          analytics
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
 
     } catch (error) {
+      analytics.ai_analysis_duration_ms = Date.now() - aiAnalysisStart
+      analytics.search_stages.push({
+        stage: 'ai_analysis',
+        duration_ms: analytics.ai_analysis_duration_ms,
+        success: false,
+        error: error.message,
+        results_count: 0
+      })
+      
+      statusUpdates.push({ 
+        stage: 'ai_analysis', 
+        status: 'failed', 
+        message: `AI analysis failed: ${error.message}` 
+      })
+      
       console.error('❌ AI analysis error:', error)
+      
+      analytics.total_duration_ms = Date.now() - searchStartTime
+      
+      // Save analytics even for failures
+      try {
+        await supabase.from('analytics_searches').insert({
+          search_type: analytics.search_type,
+          image_matching_duration_ms: analytics.local_search_duration_ms,
+          web_search_duration_ms: analytics.google_search_duration_ms,
+          ai_analysis_duration_ms: analytics.ai_analysis_duration_ms,
+          total_duration_ms: analytics.total_duration_ms,
+          results_found: 0,
+          best_confidence_score: 0,
+          found_in_database: false,
+          found_via_web_search: false,
+          found_via_image_matching: false,
+          search_source_used: 'None - All Failed'
+        })
+      } catch (error) {
+        console.error('Analytics tracking error:', error)
+      }
       
       return new Response(
         JSON.stringify({ 
@@ -350,7 +607,9 @@ Return JSON: {
             error: 'All search methods failed'
           },
           matches: localMatches,
-          canAddToDatabase: false
+          canAddToDatabase: false,
+          statusUpdates,
+          analytics
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
