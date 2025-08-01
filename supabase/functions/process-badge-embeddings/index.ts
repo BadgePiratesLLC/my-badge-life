@@ -17,42 +17,81 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting badge embeddings processing...')
+    
     if (!replicateToken) {
-      throw new Error('REPLICATE_API_TOKEN not configured')
+      console.error('REPLICATE_API_TOKEN not configured')
+      return new Response(
+        JSON.stringify({ 
+          error: 'REPLICATE_API_TOKEN not configured',
+          processed: 0,
+          total: 0,
+          results: []
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    console.log('Processing badge embeddings...')
+    console.log('Fetching badges with images...')
 
-    // Get all badges without embeddings
+    // Get all badges with images
     const { data: badges, error: badgesError } = await supabase
       .from('badges')
-      .select('id, image_url')
+      .select('id, name, image_url')
       .not('image_url', 'is', null)
 
     if (badgesError) {
+      console.error('Error fetching badges:', badgesError)
       throw new Error(`Error fetching badges: ${badgesError.message}`)
     }
+
+    console.log(`Found ${badges?.length || 0} badges with images`)
 
     // Check which badges already have embeddings
     const { data: existingEmbeddings } = await supabase
       .from('badge_embeddings')
       .select('badge_id')
 
+    console.log(`Found ${existingEmbeddings?.length || 0} existing embeddings`)
+
     const existingBadgeIds = new Set(existingEmbeddings?.map(e => e.badge_id) || [])
     const badgesToProcess = badges?.filter(badge => !existingBadgeIds.has(badge.id)) || []
 
-    console.log(`Processing ${badgesToProcess.length} badges without embeddings`)
+    console.log(`Need to process ${badgesToProcess.length} badges`)
+
+    if (badgesToProcess.length === 0) {
+      console.log('All badges already have embeddings')
+      return new Response(
+        JSON.stringify({ 
+          processed: 0,
+          total: badges?.length || 0,
+          results: [],
+          message: 'All badges already have embeddings'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     let processed = 0
     const results = []
 
-    for (const badge of badgesToProcess) {
+    // Process up to 3 badges at a time to avoid overwhelming the API
+    const batchSize = Math.min(3, badgesToProcess.length)
+    const badgesToProcessBatch = badgesToProcess.slice(0, batchSize)
+
+    console.log(`Processing batch of ${badgesToProcessBatch.length} badges`)
+
+    for (const badge of badgesToProcessBatch) {
       try {
-        console.log(`Processing badge ${badge.id} (${processed + 1}/${badgesToProcess.length})`)
+        console.log(`Processing badge ${badge.id}: ${badge.name}`)
 
         // Generate embedding using Replicate CLIP
+        console.log('Calling Replicate API...')
         const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
@@ -69,20 +108,25 @@ serve(async (req) => {
         })
 
         if (!clipResponse.ok) {
-          console.error(`Replicate API error for badge ${badge.id}: ${clipResponse.statusText}`)
+          const errorText = await clipResponse.text()
+          console.error(`Replicate API error for badge ${badge.id}: ${clipResponse.status} ${clipResponse.statusText} - ${errorText}`)
+          results.push({ badge_id: badge.id, success: false, error: `Replicate API error: ${clipResponse.statusText}` })
           continue
         }
 
         const clipPrediction = await clipResponse.json()
+        console.log(`Prediction started: ${clipPrediction.id}`)
         let predictionId = clipPrediction.id
 
-        // Poll for completion
+        // Poll for completion with shorter attempts for better responsiveness
         let embedding = null
         let attempts = 0
-        const maxAttempts = 30
+        const maxAttempts = 20 // Reduced but still reasonable
 
         while (!embedding && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds between checks
+          
+          console.log(`Checking prediction status (attempt ${attempts + 1}/${maxAttempts})...`)
           
           const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
             headers: {
@@ -90,13 +134,21 @@ serve(async (req) => {
             }
           })
           
+          if (!statusResponse.ok) {
+            console.error(`Status check failed: ${statusResponse.statusText}`)
+            break
+          }
+          
           const statusData = await statusResponse.json()
+          console.log(`Prediction status: ${statusData.status}`)
           
           if (statusData.status === 'succeeded') {
             embedding = statusData.output
+            console.log('Embedding generated successfully')
             break
           } else if (statusData.status === 'failed') {
-            console.error(`Embedding generation failed for badge ${badge.id}`)
+            console.error(`Embedding generation failed for badge ${badge.id}: ${statusData.error}`)
+            results.push({ badge_id: badge.id, success: false, error: 'Embedding generation failed' })
             break
           }
           
@@ -104,6 +156,7 @@ serve(async (req) => {
         }
 
         if (embedding) {
+          console.log('Storing embedding in database...')
           // Store embedding in database
           const { error: insertError } = await supabase
             .from('badge_embeddings')
@@ -114,33 +167,37 @@ serve(async (req) => {
 
           if (insertError) {
             console.error(`Error storing embedding for badge ${badge.id}:`, insertError)
+            results.push({ badge_id: badge.id, success: false, error: `Database error: ${insertError.message}` })
           } else {
             console.log(`Successfully processed badge ${badge.id}`)
             results.push({ badge_id: badge.id, success: true })
+            processed++
           }
         } else {
-          results.push({ badge_id: badge.id, success: false, error: 'Embedding generation failed' })
+          console.log(`Embedding generation timed out for badge ${badge.id}`)
+          results.push({ badge_id: badge.id, success: false, error: 'Embedding generation timed out' })
         }
 
-        processed++
-
-        // Rate limiting - wait 1 second between requests
-        if (processed < badgesToProcess.length) {
+        // Rate limiting - wait between requests
+        if (processed < badgesToProcessBatch.length) {
+          console.log('Waiting before next request...')
           await new Promise(resolve => setTimeout(resolve, 1000))
         }
 
       } catch (error) {
         console.error(`Error processing badge ${badge.id}:`, error)
         results.push({ badge_id: badge.id, success: false, error: error.message })
-        processed++
       }
     }
+
+    console.log(`Processing complete. Processed ${processed}/${badgesToProcessBatch.length} badges successfully`)
 
     return new Response(
       JSON.stringify({ 
         processed: processed,
         total: badgesToProcess.length,
-        results: results
+        results: results,
+        message: `Processed ${processed} badges successfully`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -148,7 +205,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in process-badge-embeddings function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        processed: 0,
+        total: 0,
+        results: []
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
