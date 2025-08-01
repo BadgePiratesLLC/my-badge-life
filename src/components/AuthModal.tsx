@@ -13,6 +13,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { user, profile, signInWithGoogle, signOut, requestMakerStatus } = useAuth();
   const { toast } = useToast();
 
+  console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
+
   if (!isOpen) return null;
 
   const handleGoogleSignIn = async () => {
