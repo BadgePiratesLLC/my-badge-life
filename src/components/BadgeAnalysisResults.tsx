@@ -42,8 +42,14 @@ export const BadgeAnalysisResults = ({
   onClose,
   onCreateNew
 }: BadgeAnalysisResultsProps) => {
+  // Filter matches to show only the highest confidence, or tied matches
+  const filteredMatches = matches.length > 0 ? (() => {
+    const topConfidence = matches[0].confidence;
+    return matches.filter(match => match.confidence === topConfidence);
+  })() : [];
+
   const [selectedMatch, setSelectedMatch] = useState<AnalysisMatch | null>(
-    matches.length > 0 ? matches[0] : null
+    filteredMatches.length > 0 ? filteredMatches[0] : null
   );
 
   if (!isOpen) return null;
@@ -168,7 +174,7 @@ export const BadgeAnalysisResults = ({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Database Matches</h3>
               
-              {matches.length === 0 ? (
+              {filteredMatches.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">
                     No matches found in our database.
@@ -181,10 +187,13 @@ export const BadgeAnalysisResults = ({
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Found {matches.length} potential match{matches.length !== 1 ? 'es' : ''}:
+                    {filteredMatches.length === 1 
+                      ? `Found best match:` 
+                      : `Found ${filteredMatches.length} matches with same confidence:`
+                    }
                   </p>
                   
-                  {matches.map((match, index) => (
+                  {filteredMatches.map((match, index) => (
                     <div
                       key={match.badge.id}
                       className={`cursor-pointer rounded-lg border-2 transition-colors ${
