@@ -40,7 +40,7 @@ export const RoleManagementModal = ({ user, onRoleChange }: RoleManagementModalP
 
   const availableRoles: { role: AppRole; label: string; description: string }[] = [
     { role: 'admin', label: 'Admin', description: 'Full access to admin features' },
-    { role: 'moderator', label: 'Moderator', description: 'Can moderate content and users' },
+    { role: 'moderator', label: 'Badge Maker', description: 'Can create and edit assigned team badges' },
     { role: 'user', label: 'User', description: 'Basic user access' },
   ]
 
