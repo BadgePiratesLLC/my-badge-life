@@ -87,6 +87,8 @@ serve(async (req) => {
     }
 
     console.log('Generated embedding, searching for matches...')
+    console.log('Embedding type:', typeof embedding, 'Length:', Array.isArray(embedding) ? embedding.length : 'not array')
+    console.log('First few embedding values:', Array.isArray(embedding) ? embedding.slice(0, 5) : embedding)
 
     // Search for similar embeddings in the database
     const { data: badgeEmbeddings, error: searchError } = await supabase
@@ -118,7 +120,20 @@ serve(async (req) => {
     }
 
     const allMatches = badgeEmbeddings.map(item => {
+      console.log(`Processing badge "${item.badges?.name}", embedding type:`, typeof item.embedding, 'Length:', Array.isArray(item.embedding) ? item.embedding.length : 'not array')
+      
+      if (!Array.isArray(embedding) || !Array.isArray(item.embedding)) {
+        console.log('ERROR: Invalid embedding format for', item.badges?.name)
+        return {
+          badge: item.badges,
+          similarity: 0,
+          confidence: 0
+        }
+      }
+      
       const similarity = cosineSimilarity(embedding, item.embedding)
+      console.log(`Similarity for "${item.badges?.name}":`, similarity)
+      
       return {
         badge: item.badges,
         similarity,
