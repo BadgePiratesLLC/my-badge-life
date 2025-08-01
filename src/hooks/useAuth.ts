@@ -32,6 +32,8 @@ export function useAuth() {
         if (!initialized || user?.id !== session.user.id) {
           await fetchProfile(session.user.id)
         }
+        setLoading(false)
+        clearTimeout(maxLoadTime)
       } else {
         setProfile(null)
         setLoading(false)

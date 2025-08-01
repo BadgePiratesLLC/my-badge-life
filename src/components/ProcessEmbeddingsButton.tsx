@@ -11,19 +11,30 @@ export const ProcessEmbeddingsButton = () => {
     setIsProcessing(true);
     
     try {
+      console.log('Starting badge embedding processing...');
+      
       toast("Starting badge embedding processing...", {
         description: "This may take a few minutes depending on the number of badges.",
       });
 
       const { data, error } = await supabase.functions.invoke('process-badge-embeddings');
 
+      console.log('Function response:', { data, error });
+
       if (error) {
+        console.error('Function error:', error);
         throw error;
       }
 
       const result = data;
+      console.log('Processing result:', result);
+      
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+      
       toast.success("Badge embeddings processed!", {
-        description: `Processed ${result.processed}/${result.total} badges. Image matching is now available.`,
+        description: `Processed ${result?.processed || 0}/${result?.total || 0} badges. ${result?.message || 'Image matching is now available.'}`,
       });
 
     } catch (error) {

@@ -76,18 +76,28 @@ export default function Admin() {
   const [allUsers, setAllUsers] = useState<{id: string, display_name: string | null, email: string | null}[]>([])
 
   useEffect(() => {
-    if (!rolesLoading && !authLoading) {
-      if (canAccessAdmin()) {
-        fetchUploads()
-        fetchAllUsers() // Fetch all users for the "Created By" dropdown
-        if (!usersFetched && canManageUsers()) {
-          fetchUsers()
+    const checkAuthAndLoad = async () => {
+      console.log('Admin page loading - checking auth state...')
+      console.log('Auth loading:', authLoading, 'Roles loading:', rolesLoading)
+      console.log('User:', user?.email, 'Profile role:', profile?.role)
+      
+      if (!rolesLoading && !authLoading) {
+        console.log('Auth checks complete, canAccessAdmin:', canAccessAdmin())
+        if (canAccessAdmin()) {
+          console.log('Loading admin data...')
+          fetchUploads()
+          fetchAllUsers()
+          if (!usersFetched && canManageUsers()) {
+            fetchUsers()
+          }
+          fetchBadges()
         }
-        fetchBadges()
+        setLoading(false)
       }
-      setLoading(false)
     }
-  }, [rolesLoading, authLoading, usersFetched]) // Removed function dependencies to prevent infinite loop
+    
+    checkAuthAndLoad()
+  }, [rolesLoading, authLoading, usersFetched, user, profile]) // Added user and profile dependencies
 
   const fetchAllUsers = async () => {
     try {
