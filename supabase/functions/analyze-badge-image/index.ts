@@ -88,58 +88,33 @@ serve(async (req) => {
 
     console.log('AI Analysis complete:', aiAnalysis)
 
-    // Step 2: Generate embedding using Replicate CLIP for similarity search
+    // Step 2: Generate text-based embedding for comparison using OpenAI
     let embedding = null
-    if (replicateToken) {
-      try {
-        const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${replicateToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            version: "b102e40c6bd7ad74ce68c84c17bc7c9f1a48df1b1afce0b1b8e24ca97c7a8c0f",
-            input: {
-              image: imageBase64,
-              mode: "image"
-            }
-          })
+    try {
+      console.log('Generating text embedding for comparison...')
+      const textToEmbed = `Badge: ${aiAnalysis.name}. Description: ${aiAnalysis.description || 'Electronic conference badge'}. Event: ${aiAnalysis.event || ''}. Year: ${aiAnalysis.year || ''}`
+      
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: textToEmbed,
+          model: 'text-embedding-3-small'
         })
+      })
 
-        if (clipResponse.ok) {
-          const clipPrediction = await clipResponse.json()
-          let predictionId = clipPrediction.id
-
-          // Poll for completion with shorter timeout for responsiveness
-          let attempts = 0
-          const maxAttempts = 15 // Reduced from 30 for faster response
-
-          while (!embedding && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-              headers: {
-                'Authorization': `Token ${replicateToken}`,
-              }
-            })
-            
-            const statusData = await statusResponse.json()
-            
-            if (statusData.status === 'succeeded') {
-              embedding = statusData.output
-              break
-            } else if (statusData.status === 'failed') {
-              console.error('Embedding generation failed')
-              break
-            }
-            
-            attempts++
-          }
-        }
-      } catch (embeddingError) {
-        console.error('Error generating embedding:', embeddingError)
+      if (embeddingResponse.ok) {
+        const embeddingData = await embeddingResponse.json()
+        embedding = embeddingData.data[0].embedding
+        console.log('Text embedding generated successfully')
+      } else {
+        console.error('Failed to generate embedding for comparison')
       }
+    } catch (embeddingError) {
+      console.error('Error generating embedding:', embeddingError)
     }
 
     console.log('Generated embedding, searching database first...')

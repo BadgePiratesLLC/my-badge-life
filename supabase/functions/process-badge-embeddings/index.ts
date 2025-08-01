@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const replicateToken = Deno.env.get('REPLICATE_API_TOKEN')
+const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,13 +17,13 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting badge embeddings processing...')
+    console.log('Starting badge embeddings processing using OpenAI...')
     
-    if (!replicateToken) {
-      console.error('REPLICATE_API_TOKEN not configured')
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY not configured')
       return new Response(
         JSON.stringify({ 
-          error: 'REPLICATE_API_TOKEN not configured',
+          error: 'OPENAI_API_KEY not configured',
           processed: 0,
           total: 0,
           results: []
@@ -42,7 +42,7 @@ serve(async (req) => {
     // Get all badges with images
     const { data: badges, error: badgesError } = await supabase
       .from('badges')
-      .select('id, name, image_url')
+      .select('id, name, image_url, description')
       .not('image_url', 'is', null)
 
     if (badgesError) {
@@ -80,12 +80,11 @@ serve(async (req) => {
     let processed = 0
     const results = []
 
-    // Process up to 3 badges at a time to avoid overwhelming the API
+    // Process up to 3 badges at a time
     const batchSize = Math.min(3, badgesToProcess.length)
     const badgesToProcessBatch = badgesToProcess.slice(0, batchSize)
 
-    console.log(`Processing batch of ${badgesToProcessBatch.length} badges`)
-    console.log('Badge URLs to process:', badgesToProcessBatch.map(b => ({ id: b.id, name: b.name, url: b.image_url })))
+    console.log(`Processing batch of ${badgesToProcessBatch.length} badges using OpenAI embeddings`)
 
     for (const badge of badgesToProcessBatch) {
       try {
@@ -104,90 +103,36 @@ serve(async (req) => {
           continue
         }
 
-        // Generate embedding using Replicate CLIP
-        console.log('Calling Replicate API for embedding generation...')
-        const startTime = Date.now()
-        const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
+        // Use OpenAI to create text embedding from badge info
+        console.log('Creating text-based embedding using OpenAI...')
+        const textToEmbed = `Badge: ${badge.name}. Description: ${badge.description || 'Electronic conference badge'}. Image URL: ${badge.image_url}`
+        
+        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateToken}`,
+            'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            version: "b102e40c6bd7ad74ce68c84c17bc7c9f1a48df1b1afce0b1b8e24ca97c7a8c0f",
-            input: {
-              image: badge.image_url,
-              mode: "image"
-            }
+            input: textToEmbed,
+            model: 'text-embedding-3-small'
           })
         })
 
-        console.log('Replicate API call took:', Date.now() - startTime, 'ms')
-        console.log('Replicate response status:', clipResponse.status)
+        console.log('OpenAI embedding response status:', embeddingResponse.status)
 
-        if (!clipResponse.ok) {
-          const errorText = await clipResponse.text()
-          const error = `Replicate API error: ${clipResponse.status} ${clipResponse.statusText} - ${errorText}`
+        if (!embeddingResponse.ok) {
+          const errorText = await embeddingResponse.text()
+          const error = `OpenAI API error: ${embeddingResponse.status} ${embeddingResponse.statusText} - ${errorText}`
           console.error(error)
           results.push({ badge_id: badge.id, success: false, error })
           continue
         }
 
-        const clipPrediction = await clipResponse.json()
-        console.log('Prediction created successfully:', clipPrediction.id)
-        console.log('Prediction status:', clipPrediction.status)
-        console.log('Prediction URLs:', clipPrediction.urls)
-        let predictionId = clipPrediction.id
-
-        // Poll for completion with shorter attempts for better responsiveness
-        let embedding = null
-        let attempts = 0
-        const maxAttempts = 15 // Reduced for faster response
-        const pollStartTime = Date.now()
-
-        console.log(`Starting to poll prediction ${predictionId} (max ${maxAttempts} attempts)`)
-
-        while (!embedding && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds between checks
-          
-          console.log(`Polling attempt ${attempts + 1}/${maxAttempts} for prediction ${predictionId}`)
-          
-          const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-            headers: {
-              'Authorization': `Token ${replicateToken}`,
-            }
-          })
-          
-          if (!statusResponse.ok) {
-            const error = `Status check failed: ${statusResponse.status} ${statusResponse.statusText}`
-            console.error(error)
-            results.push({ badge_id: badge.id, success: false, error })
-            break
-          }
-          
-          const statusData = await statusResponse.json()
-          console.log(`Prediction ${predictionId} status:`, statusData.status)
-          
-          if (statusData.status === 'succeeded') {
-            embedding = statusData.output
-            console.log('Embedding generated successfully! Length:', embedding?.length)
-            console.log('Polling took:', Date.now() - pollStartTime, 'ms')
-            break
-          } else if (statusData.status === 'failed') {
-            const error = `Embedding generation failed: ${statusData.error || 'Unknown error'}`
-            console.error(error)
-            console.log('Failed prediction details:', statusData)
-            results.push({ badge_id: badge.id, success: false, error })
-            break
-          } else if (statusData.status === 'canceled') {
-            const error = 'Embedding generation was canceled'
-            console.error(error)
-            results.push({ badge_id: badge.id, success: false, error })
-            break
-          }
-          
-          attempts++
-        }
+        const embeddingData = await embeddingResponse.json()
+        const embedding = embeddingData.data[0].embedding
+        
+        console.log('Embedding generated successfully! Length:', embedding?.length)
 
         if (embedding) {
           console.log('Storing embedding in database...')
@@ -208,8 +153,7 @@ serve(async (req) => {
             processed++
           }
         } else {
-          console.log(`Embedding generation timed out for badge ${badge.id}`)
-          results.push({ badge_id: badge.id, success: false, error: 'Embedding generation timed out' })
+          results.push({ badge_id: badge.id, success: false, error: 'No embedding generated' })
         }
 
         // Rate limiting - wait between requests
@@ -231,7 +175,7 @@ serve(async (req) => {
         processed: processed,
         total: badgesToProcess.length,
         results: results,
-        message: `Processed ${processed} badges successfully`
+        message: `Processed ${processed} badges successfully using OpenAI embeddings`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
