@@ -334,6 +334,7 @@ const Index = () => {
         isOpen={showCamera}
         onClose={() => setShowCamera(false)}
         onImageCapture={handleImageCapture}
+        enableMatching={true}
       />
 
       <AuthModal
