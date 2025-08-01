@@ -120,87 +120,80 @@ serve(async (req) => {
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
           console.log('Raw Google response:', JSON.stringify(googleData.image_results.slice(0, 3), null, 2))
-          console.log('Google returned results, filtering for badge content...')
+          console.log('Google returned results, applying STRICT badge filtering...')
           
-          // Very strict badge-related keywords
-          const strictBadgeKeywords = ['badge', 'pin', 'patch', 'emblem', 'defcon', 'bsides', 'con badge', 'conference badge', 'security badge', 'hacker badge', 'electronic badge', 'pcb badge', 'led badge']
-          const techEventKeywords = ['defcon', 'bsides', 'blackhat', 'derbycon', 'shmoocon', 'toorcon', 'summercon', 'hackaday', 'maker faire', 'security conference']
+          // EXTREMELY strict filtering - only these specific terms
+          const requiredBadgeTerms = [
+            'conference badge', 'con badge', 'electronic badge', 'pcb badge', 'led badge',
+            'defcon badge', 'bsides badge', 'hacker badge', 'security badge',
+            'badge design', 'badge pcb', 'badge circuit'
+          ]
           
+          const exactEventNames = ['defcon', 'bsides', 'blackhat', 'derbycon', 'shmoocon', 'toorcon', 'hackaday']
+          
+          let foundValidBadge = false
           let bestResult = null
-          let confidence = 0
           
           for (let i = 0; i < Math.min(googleData.image_results.length, 5); i++) {
             const result = googleData.image_results[i]
             const title = (result.title || '').toLowerCase()
             const snippet = (result.snippet || '').toLowerCase()
             const link = (result.link || '').toLowerCase()
+            const combined = `${title} ${snippet} ${link}`
             
-            console.log(`Checking result ${i + 1}: "${result.title}"`)
-            console.log(`  Snippet: "${result.snippet}"`)
-            console.log(`  Link: "${result.link}"`)
+            console.log(`\n--- Analyzing result ${i + 1} ---`)
+            console.log(`Title: "${result.title}"`)
+            console.log(`Snippet: "${result.snippet}"`)
+            console.log(`Link: "${result.link}"`)
             
-            const combinedText = `${title} ${snippet} ${link}`
+            // Check if it contains required badge terminology
+            const hasRequiredBadgeTerm = requiredBadgeTerms.some(term => combined.includes(term))
+            const hasEventName = exactEventNames.some(event => combined.includes(event))
             
-            // Check for strict badge keywords
-            const badgeMatches = strictBadgeKeywords.filter(keyword => combinedText.includes(keyword)).length
-            const techEventMatches = techEventKeywords.filter(keyword => combinedText.includes(keyword)).length
+            // Additional check: must not be from entertainment/wiki sites unless it's about actual badges
+            const isEntertainmentSite = combined.includes('fandom.com') || combined.includes('wikipedia.org') || 
+                                      combined.includes('wiki') || combined.includes('starwars') || 
+                                      combined.includes('movie') || combined.includes('character')
             
-            console.log(`  Badge matches: ${badgeMatches}, Tech event matches: ${techEventMatches}`)
+            console.log(`Has required badge term: ${hasRequiredBadgeTerm}`)
+            console.log(`Has event name: ${hasEventName}`)
+            console.log(`Is entertainment site: ${isEntertainmentSite}`)
             
-            // Only accept if it has explicit badge terminology OR is from a known tech event
-            if (badgeMatches > 0 || techEventMatches > 0) {
-              const resultConfidence = Math.min(40 + (badgeMatches * 20) + (techEventMatches * 15), 75)
-              console.log(`  Calculated confidence: ${resultConfidence}%`)
-              
-              if (resultConfidence > confidence) {
-                confidence = resultConfidence
-                bestResult = {
-                  name: result.title || 'Unknown Badge',
-                  description: result.snippet || 'Found via Google reverse image search',
-                  external_link: result.link,
-                  source: 'Google Image Search',
-                  confidence: resultConfidence,
-                  thumbnail: result.thumbnail,
-                  found_via_google: true,
-                  search_source: 'Google Image Search',
-                  badge_keywords: badgeMatches,
-                  tech_event_keywords: techEventMatches
-                }
+            // Only accept if it has specific badge terminology AND is not an entertainment site
+            // OR if it's from a known tech event (even if entertainment site, if it mentions the event + badge)
+            const isValid = (hasRequiredBadgeTerm && !isEntertainmentSite) || 
+                           (hasEventName && combined.includes('badge'))
+            
+            console.log(`Final result: ${isValid ? 'ACCEPTED' : 'REJECTED'}`)
+            
+            if (isValid && !foundValidBadge) {
+              foundValidBadge = true
+              bestResult = {
+                name: result.title || 'Unknown Badge',
+                description: result.snippet || 'Found via Google reverse image search',
+                external_link: result.link,
+                source: 'Google Image Search',
+                confidence: 65,
+                thumbnail: result.thumbnail,
+                found_via_google: true,
+                search_source: 'Google Image Search'
               }
-            } else {
-              console.log(`  Rejected: No badge or tech event keywords found`)
+              break // Take the first valid result
             }
           }
           
-          if (bestResult && confidence >= 40) {
+          if (foundValidBadge && bestResult) {
             analytics.found_via_google = true
-            analytics.google_confidence = confidence
+            analytics.google_confidence = 65
             analytics.total_duration_ms = Date.now() - searchStartTime
             
             statusUpdates.push({ 
               stage: 'google_search', 
               status: 'success', 
-              message: `Found badge-related result: ${bestResult.name} (${confidence}% confidence)` 
+              message: `Found verified badge: ${bestResult.name}` 
             })
             
-            console.log(`✅ GOOGLE BADGE MATCH FOUND: "${bestResult.name}" with ${confidence}% confidence`)
-            
-            // Save analytics
-            try {
-              await supabase.from('analytics_searches').insert({
-                search_type: analytics.search_type,
-                web_search_duration_ms: analytics.google_search_duration_ms,
-                total_duration_ms: analytics.total_duration_ms,
-                results_found: 1,
-                best_confidence_score: confidence,
-                found_in_database: false,
-                found_via_web_search: true,
-                found_via_image_matching: false,
-                search_source_used: 'Google Image Search'
-              })
-            } catch (error) {
-              console.error('Analytics tracking error:', error)
-            }
+            console.log(`✅ VERIFIED BADGE FOUND: "${bestResult.name}"`)
             
             return new Response(
               JSON.stringify({ 
@@ -214,9 +207,9 @@ serve(async (req) => {
             statusUpdates.push({ 
               stage: 'google_search', 
               status: 'failed', 
-              message: 'No badge-related results found in Google search (found general results but not badge-specific)' 
+              message: 'No verified badge results found (strict filtering applied)' 
             })
-            console.log('❌ Google search found results but none appear to be badge-related (strict filtering)')
+            console.log('❌ NO VERIFIED BADGE RESULTS - All results rejected by strict filtering')
           }
         } else {
           statusUpdates.push({ 
