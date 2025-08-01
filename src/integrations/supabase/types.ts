@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_search_feedback: {
+        Row: {
+          ai_result: Json
+          created_at: string
+          feedback_type: string
+          id: string
+          notes: string | null
+          search_query: string
+          source_url: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_result: Json
+          created_at?: string
+          feedback_type: string
+          id?: string
+          notes?: string | null
+          search_query: string
+          source_url?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_result?: Json
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          notes?: string | null
+          search_query?: string
+          source_url?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       badge_confirmations: {
         Row: {
           badge_id: string

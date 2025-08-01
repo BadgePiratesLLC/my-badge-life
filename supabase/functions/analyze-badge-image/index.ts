@@ -213,7 +213,7 @@ serve(async (req) => {
               messages: [
                 {
                   role: 'user',
-                  content: `Search Tindie.com for "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, description, price, url, found: true/false}`
+                  content: `Search Tindie.com for "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, description, price, url, found: true/false}. Include the full Tindie URL in the url field.`
                 }
               ],
               temperature: 0.2,
@@ -259,7 +259,7 @@ serve(async (req) => {
               messages: [
                 {
                   role: 'user',
-                  content: `Search hackaday.io conference badge list for "${quickAnalysis.name}". Return JSON: {name, maker, year, event, description, url, found: true/false}`
+                  content: `Search hackaday.io conference badge list for "${quickAnalysis.name}". Return JSON: {name, maker, year, event, description, url, found: true/false}. Include the full Hackaday URL in the url field.`
                 }
               ],
               temperature: 0.2,
@@ -305,7 +305,7 @@ serve(async (req) => {
               messages: [
                 {
                   role: 'user',
-                  content: `Find information about "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, event, description, external_link, confidence}`
+                  content: `Find information about "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, event, description, external_link, confidence}. Include source URLs in external_link field.`
                 }
               ],
               temperature: 0.2,

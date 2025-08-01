@@ -7,6 +7,7 @@ import { X, Plus, ExternalLink, Search } from "lucide-react";
 import { BadgeCard } from "./BadgeCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAIFeedback } from "@/hooks/useAIFeedback";
 
 interface BadgeAnalysis {
   name?: string;
@@ -54,6 +55,7 @@ export const BadgeAnalysisResults = ({
   onConfirmMatch
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
+  const { submitFeedback, isSubmitting: feedbackSubmitting } = useAIFeedback();
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [webSearchResults, setWebSearchResults] = useState<any>(null);
   const [isAddingToDatabase, setIsAddingToDatabase] = useState(false);
@@ -152,9 +154,17 @@ export const BadgeAnalysisResults = ({
       team_name: webSearchResults?.maker || analysis?.maker || '',
       category: webSearchResults?.category || analysis?.category || 'Misc',
       description: webSearchResults?.description || analysis?.description || '',
-      external_link: webSearchResults?.external_link || analysis?.external_link || ''
+      external_link: webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link || ''
     };
     onCreateNew(prefillData);
+  };
+
+  const handleAIFeedback = async (feedbackType: 'helpful' | 'not_helpful' | 'incorrect' | 'spam') => {
+    const searchQuery = analysis?.name || 'Unknown Badge';
+    const sourceUrl = webSearchResults?.url || webSearchResults?.external_link || analysis?.external_link;
+    const aiResult = webSearchResults || analysis;
+    
+    await submitFeedback(searchQuery, aiResult, feedbackType, sourceUrl);
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -239,6 +249,19 @@ export const BadgeAnalysisResults = ({
                         <span className="ml-2">{webSearchResults?.event || analysis.event}</span>
                       </div>
                     )}
+                    {(webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link) && (
+                      <div>
+                        <span className="text-sm font-medium">Source:</span>
+                        <a 
+                          href={webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-blue-500 hover:text-blue-700 underline text-sm"
+                        >
+                          {webSearchResults?.source || analysis?.search_source || 'View Source'}
+                        </a>
+                      </div>
+                    )}
                     
                     {(webSearchResults?.description || analysis?.description) && (
                       <div>
@@ -247,19 +270,41 @@ export const BadgeAnalysisResults = ({
                           {webSearchResults?.description || analysis.description}
                         </p>
                       </div>
-                    )}
+                     )}
                     
-                    {(webSearchResults?.external_link || analysis?.external_link) && (
-                      <div>
-                        <a
-                          href={webSearchResults?.external_link || analysis.external_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          More Info
-                        </a>
+                    {/* AI Feedback Section */}
+                    {(webSearchResults || analysis?.search_source !== 'none') && (
+                      <div className="mt-4 p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-2">Rate this AI search result:</p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleAIFeedback('helpful')}
+                            disabled={feedbackSubmitting}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            👍 Helpful
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleAIFeedback('not_helpful')}
+                            disabled={feedbackSubmitting}
+                            className="text-orange-600 hover:text-orange-700"
+                          >
+                            👎 Not Helpful
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleAIFeedback('incorrect')}
+                            disabled={feedbackSubmitting}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            ❌ Incorrect
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
