@@ -118,7 +118,7 @@ export const CameraCapture = ({
                 // Merge Google results with local results
                 data.analysis = googleData.analysis;
                 data.statusUpdates = [...(data.statusUpdates || []), ...(googleData.statusUpdates || [])];
-              } else if (!googleError && googleData.shouldContinueToAI) {
+              } else {
                 console.log('🔍 Google search insufficient, continuing to AI analysis...');
                 
                 // Step 3: AI analysis as final fallback
