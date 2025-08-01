@@ -64,20 +64,21 @@ serve(async (req) => {
       statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
       console.log('Performing Google reverse image search...')
       
-      // For reverse image search, use URL parameters instead of FormData
-      const searchParams = new URLSearchParams({
+      // For SerpAPI reverse image search, we need to use POST with JSON body
+      const requestBody = {
         engine: 'google_reverse_image',
         api_key: serpApiKey,
-        num: '3',
+        num: 3,
         image_base64: imageData
-      })
+      }
       
-      console.log('Making reverse image search request...')
-      const googleResponse = await fetch(`https://serpapi.com/search?${searchParams.toString()}`, {
-        method: 'GET',
+      console.log('Making reverse image search request with POST...')
+      const googleResponse = await fetch('https://serpapi.com/search', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify(requestBody)
       })
 
       analytics.google_search_duration_ms = Date.now() - searchStartTime
