@@ -113,72 +113,83 @@ Return JSON: {"name": "specific character/badge name", "description": "detailed 
           `${m.badge?.name || 'Unknown'}: ${Math.round(m.similarity * 100)}%`
         ))
       } else {
-        console.log('No significant local image matches found, trying Google image search...')
+        console.log('No significant local image matches found, performing enhanced visual analysis...')
         
-        // Step 2.5: Google reverse image search if no local matches
+        // Step 2.5: Enhanced visual analysis like Google's reverse image search
         try {
-          console.log('Performing Google reverse image search...')
-          const googleSearchResponse = await fetch('https://serpapi.com/search', {
+          console.log('Performing detailed visual analysis for precise identification...')
+          const detailedAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
+              'Authorization': `Bearer ${openaiApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              engine: 'google_reverse_image',
-              image_url: imageBase64,
-              api_key: Deno.env.get('SERPAPI_KEY') || 'demo' // Use demo for now
+              model: 'gpt-4o',
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are a reverse image search expert specializing in electronic badges. Look at this image like Google's visual search would - identify the EXACT product, character, or design.
+
+CRITICAL INSTRUCTIONS:
+1. If this is a BABY YODA/GROGU/THE CHILD character badge, identify it specifically
+2. Look for any visible text, brand marks, or identifying features
+3. Consider the PCB color, character pose, and design elements
+4. Think about how this would be listed on Tindie marketplace
+
+Generate highly specific search terms that would find THIS EXACT badge on Tindie, not similar items.
+
+Return JSON with:
+- name: Most specific name possible (include character if visible)
+- description: Detailed visual description
+- search_terms: 8-10 VERY specific terms that would find this exact item
+- marketplace_category: Best category (SAO, character badge, etc.)
+- primary_identifier: The most important identifying feature`
+                },
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: `Analyze this badge image like a reverse image search. What is the EXACT product? If this is a character (like Baby Yoda), identify it specifically. Generate search terms that would find this precise item on Tindie marketplace.`
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: {
+                        url: imageBase64
+                      }
+                    }
+                  ]
+                }
+              ],
+              max_tokens: 500,
+              temperature: 0.2  // Lower temperature for more precise identification
             })
           })
 
-          if (googleSearchResponse.ok) {
-            const googleData = await googleSearchResponse.json()
-            console.log('Google image search response:', googleData)
-            
-            // Look for Tindie results in Google's findings
-            const googleResults = googleData.image_results || []
-            const tindieResults = googleResults.filter(result => 
-              result.link?.includes('tindie.com') || 
-              result.source?.toLowerCase().includes('tindie')
-            )
-            
-            if (tindieResults.length > 0) {
-              console.log(`Found ${tindieResults.length} Tindie results via Google image search`)
-              // Convert Google results to our format for web search results
-              const googleWebResult = {
-                name: tindieResults[0].title || quickAnalysis.name,
-                maker: 'Found via Google Image Search',
-                description: `Badge found on Tindie via Google reverse image search: ${tindieResults[0].title || 'Electronic badge'}`,
-                url: tindieResults[0].link,
-                external_link: tindieResults[0].link,
-                source: 'Google Image Search',
-                confidence: 90,
-                found: true
+          if (detailedAnalysisResponse.ok) {
+            const detailedData = await detailedAnalysisResponse.json()
+            try {
+              const detailedContent = detailedData.choices[0].message.content
+              const detailedMatch = detailedContent.match(/\{[\s\S]*\}/)
+              if (detailedMatch) {
+                const detailedAnalysis = JSON.parse(detailedMatch[0])
+                console.log('Enhanced visual analysis result:', detailedAnalysis)
+                
+                // Override the quick analysis with more precise results
+                quickAnalysis = {
+                  ...quickAnalysis,
+                  ...detailedAnalysis,
+                  search_terms: detailedAnalysis.search_terms || quickAnalysis.search_terms
+                }
+                console.log('Updated analysis with enhanced visual identification')
               }
-              
-              // Set this as our web result and skip other searches
-              console.log('Google found Tindie result:', googleWebResult)
-              return new Response(
-                JSON.stringify({ 
-                  analysis: {
-                    ...quickAnalysis,
-                    ...googleWebResult,
-                    search_source: 'Google Image Search',
-                    web_info: googleWebResult
-                  },
-                  matches: [],
-                  canAddToDatabase: true
-                }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            } else {
-              console.log('No Tindie results found in Google image search, continuing with other methods...')
+            } catch (e) {
+              console.log('Could not parse enhanced analysis, using original')
             }
-          } else {
-            console.log('Google image search failed, continuing with other methods...')
           }
-        } catch (googleError) {
-          console.error('Google image search error:', googleError)
-          console.log('Continuing with other search methods...')
+        } catch (error) {
+          console.error('Enhanced visual analysis error:', error)
         }
       }
     } catch (error) {
