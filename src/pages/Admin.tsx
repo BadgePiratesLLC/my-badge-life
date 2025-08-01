@@ -24,19 +24,36 @@ interface BadgeData {
   id: string
   name: string
   description: string | null
-  year: number | null
   image_url: string | null
-  external_link: string | null
-  maker_id: string | null
+  year: number | null
+  category: string | null
   team_name: string | null
-  category: 'Elect Badge' | 'None Elect Badge' | 'SAO' | 'Tool' | 'Misc' | null
+  external_link: string | null
   retired: boolean
   created_at: string
   updated_at: string
   profiles?: {
     display_name: string | null
-    email: string | null
   } | null
+}
+
+interface SearchSource {
+  id: string
+  name: string
+  url: string
+  prompt_template: string
+  priority: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface UserData {
+  id: string
+  email: string | null
+  display_name: string | null
+  roles: string[]
+  assigned_team?: string | null
 }
 
 interface Upload {
@@ -68,8 +85,11 @@ export default function Admin() {
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [badges, setBadges] = useState<BadgeData[]>([])
+  const [searchSources, setSearchSources] = useState<SearchSource[]>([])
   const [editingBadge, setEditingBadge] = useState<string | null>(null)
+  const [editingSearchSourceId, setEditingSearchSourceId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
+  const [editingSearchSourceData, setEditingSearchSourceData] = useState<Partial<SearchSource>>({})
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
   const [editingTeam, setEditingTeam] = useState<string | null>(null)
@@ -89,6 +109,7 @@ export default function Admin() {
           console.log('Loading admin data...')
           fetchUploads()
           fetchAllUsers()
+          loadSearchSources()
           if (!usersFetched && canManageUsers()) {
             fetchUsers()
           }
@@ -181,6 +202,22 @@ export default function Admin() {
     }
   }
 
+  const loadSearchSources = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('web_search_sources')
+        .select('*')
+        .order('priority', { ascending: true })
+
+      if (error) throw error
+
+      setSearchSources(data || [])
+    } catch (error) {
+      console.error('Error loading search sources:', error)
+      toast.error('Failed to load search sources')
+    }
+  }
+
   const fetchBadges = async () => {
     try {
       const { data, error } = await supabase
@@ -212,8 +249,7 @@ export default function Admin() {
       external_link: badge.external_link || '',
       team_name: badge.team_name || '',
       category: badge.category || null,
-      retired: badge.retired,
-      maker_id: badge.maker_id || ''
+      retired: badge.retired
     })
   }
 
@@ -233,9 +269,8 @@ export default function Admin() {
           image_url: editForm.image_url || null,
           external_link: editForm.external_link || null,
           team_name: editForm.team_name || null,
-          category: editForm.category || null,
-          retired: editForm.retired,
-          maker_id: editForm.maker_id || null
+          category: editForm.category as any,
+          retired: editForm.retired
         })
         .eq('id', badgeId)
 
@@ -354,6 +389,97 @@ export default function Admin() {
     )
   }
 
+  // Search Source Management Functions
+  const startEditSearchSource = (source: SearchSource) => {
+    setEditingSearchSourceId(source.id)
+    setEditingSearchSourceData({ ...source })
+  }
+
+  const cancelEditSearchSource = () => {
+    setEditingSearchSourceId(null)
+    setEditingSearchSourceData({})
+  }
+
+  const saveSearchSource = async () => {
+    if (!editingSearchSourceId || !editingSearchSourceData.name || !editingSearchSourceData.url) return
+
+    try {
+      const { error } = await supabase
+        .from('web_search_sources')
+        .update({
+          name: editingSearchSourceData.name,
+          url: editingSearchSourceData.url,
+          prompt_template: editingSearchSourceData.prompt_template,
+          priority: editingSearchSourceData.priority,
+          enabled: editingSearchSourceData.enabled
+        })
+        .eq('id', editingSearchSourceId)
+
+      if (error) throw error
+
+      // Update local state
+      setSearchSources(prev => prev.map(source => 
+        source.id === editingSearchSourceId 
+          ? { ...source, ...editingSearchSourceData as SearchSource }
+          : source
+      ))
+      
+      setEditingSearchSourceId(null)
+      setEditingSearchSourceData({})
+      toast.success('Search source updated successfully!')
+    } catch (error) {
+      console.error('Error updating search source:', error)
+      toast.error('Failed to update search source')
+    }
+  }
+
+  const createSearchSource = async () => {
+    try {
+      const maxPriority = Math.max(...searchSources.map(s => s.priority), 0)
+      
+      const { data, error } = await supabase
+        .from('web_search_sources')
+        .insert([{
+          name: 'New Search Source',
+          url: 'https://api.perplexity.ai/chat/completions',
+          prompt_template: 'Search for "{query}" badge. Return JSON: {name, maker, year, description, url, found: true/false}.',
+          priority: maxPriority + 1,
+          enabled: false
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Add to local state
+      setSearchSources(prev => [...prev, data])
+      toast.success('Search source created successfully!')
+    } catch (error) {
+      console.error('Error creating search source:', error)
+      toast.error('Failed to create search source')
+    }
+  }
+
+  const deleteSearchSource = async (source: SearchSource) => {
+    if (!confirm(`Are you sure you want to delete "${source.name}"? This action cannot be undone.`)) return
+
+    try {
+      const { error } = await supabase
+        .from('web_search_sources')
+        .delete()
+        .eq('id', source.id)
+
+      if (error) throw error
+
+      // Update local state
+      setSearchSources(prev => prev.filter(s => s.id !== source.id))
+      toast.success('Search source deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting search source:', error)
+      toast.error('Failed to delete search source')
+    }
+  }
+
   if (!canAccessAdmin()) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -402,7 +528,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="badges" className="w-full">
-          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-4' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-5' : 'grid-cols-3'}`}>
             {canAccessAdmin() && (
               <TabsTrigger value="uploads" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
@@ -425,6 +551,12 @@ export default function Admin() {
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 User Management
+              </TabsTrigger>
+            )}
+            {isAdmin() && (
+              <TabsTrigger value="search" className="flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                Web Search
               </TabsTrigger>
             )}
           </TabsList>
@@ -597,26 +729,6 @@ export default function Admin() {
                                 />
                               </div>
 
-                              <div>
-                                <Label htmlFor="created_by">Created By</Label>
-                                <Select 
-                                  value={editForm.maker_id || 'none'} 
-                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, maker_id: value === 'none' ? null : value }))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select creator" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">No Creator</SelectItem>
-                                    {allUsers.map((user) => (
-                                      <SelectItem key={user.id} value={user.id}>
-                                        {user.display_name || user.email}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
                               <div className="flex items-center space-x-2">
                                 <Checkbox
                                   id="retired"
@@ -695,9 +807,9 @@ export default function Admin() {
                                   {badge.year && <span>Year: {badge.year}</span>}
                                   {badge.team_name && <span>Team: {badge.team_name}</span>}
                                   {badge.category && <span>Category: {badge.category}</span>}
-                                   {badge.profiles?.display_name && (
-                                     <span>Created By: {badge.profiles.display_name}</span>
-                                   )}
+                                  {badge.profiles?.display_name && (
+                                    <span>Created By: {badge.profiles.display_name}</span>
+                                  )}
                                   {badge.retired && (
                                     <Badge variant="destructive" className="text-xs">RETIRED</Badge>
                                   )}
@@ -1010,6 +1122,141 @@ export default function Admin() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
+
+          {/* Web Search Settings Tab */}
+          {isAdmin() && (
+            <TabsContent value="search" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-5 w-5" />
+                      WEB SEARCH SETTINGS
+                    </div>
+                    <Button onClick={createSearchSource} className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Search Source
+                    </Button>
+                  </CardTitle>
+                  <p className="text-muted-foreground">Configure external search sources for badge identification. Sources are tried in priority order until first success.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {searchSources.map((source) => (
+                      <Card key={source.id}>
+                        <CardContent className="p-6">
+                          {editingSearchSourceId === source.id ? (
+                            // Edit mode
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor={`name-${source.id}`}>Name</Label>
+                                  <Input
+                                    id={`name-${source.id}`}
+                                    value={editingSearchSourceData.name || ''}
+                                    onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Search source name"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`priority-${source.id}`}>Priority</Label>
+                                  <Input
+                                    id={`priority-${source.id}`}
+                                    type="number"
+                                    value={editingSearchSourceData.priority || 1}
+                                    onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, priority: parseInt(e.target.value) }))}
+                                    placeholder="Priority (lower = higher priority)"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label htmlFor={`url-${source.id}`}>URL Endpoint</Label>
+                                <Input
+                                  id={`url-${source.id}`}
+                                  value={editingSearchSourceData.url || ''}
+                                  onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, url: e.target.value }))}
+                                  placeholder="https://api.example.com/search"
+                                />
+                              </div>
+                              
+                              <div>
+                                <Label htmlFor={`template-${source.id}`}>Prompt Template</Label>
+                                <Textarea
+                                  id={`template-${source.id}`}
+                                  value={editingSearchSourceData.prompt_template || ''}
+                                  onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, prompt_template: e.target.value }))}
+                                  placeholder="Search prompt template (use {query} for badge name placeholder)"
+                                  rows={3}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`enabled-${source.id}`}
+                                  checked={editingSearchSourceData.enabled || false}
+                                  onCheckedChange={(checked) => setEditingSearchSourceData(prev => ({ ...prev, enabled: checked as boolean }))}
+                                />
+                                <Label htmlFor={`enabled-${source.id}`}>Enabled</Label>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <Button onClick={saveSearchSource} className="flex items-center gap-2">
+                                  <Save className="h-4 w-4" />
+                                  Save
+                                </Button>
+                                <Button variant="outline" onClick={cancelEditSearchSource} className="flex items-center gap-2">
+                                  <X className="h-4 w-4" />
+                                  Cancel
+                                </Button>
+                                <Button variant="destructive" onClick={() => deleteSearchSource(source)} className="flex items-center gap-2">
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            // View mode
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-start">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-lg font-semibold">{source.name}</h3>
+                                    <Badge variant={source.enabled ? "default" : "secondary"}>
+                                      {source.enabled ? "Enabled" : "Disabled"}
+                                    </Badge>
+                                    <Badge variant="outline">Priority {source.priority}</Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    <strong>URL:</strong> {source.url}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    <strong>Template:</strong> {source.prompt_template}
+                                  </p>
+                                </div>
+                                <Button variant="outline" onClick={() => startEditSearchSource(source)} className="flex items-center gap-2">
+                                  <Edit className="h-4 w-4" />
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {searchSources.length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-muted-foreground">
+                        No search sources configured. Add your first search source to get started.
+                      </CardContent>
+                    </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           )}
         </Tabs>
       </div>

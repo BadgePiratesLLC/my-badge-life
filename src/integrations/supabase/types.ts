@@ -350,6 +350,39 @@ export type Database = {
         }
         Relationships: []
       }
+      web_search_sources: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          name: string
+          priority: number
+          prompt_template: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name: string
+          priority?: number
+          prompt_template: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          priority?: number
+          prompt_template?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

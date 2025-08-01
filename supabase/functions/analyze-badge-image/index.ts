@@ -198,101 +198,17 @@ serve(async (req) => {
       console.log('🔍 STARTING EXTERNAL SEARCH...')
       console.log(`Reason: forceWebSearch=${forceWebSearch}, matches=${matches.length}, bestConfidence=${matches[0]?.confidence || 0}%`)
       
-      // Try Tindie first (badge marketplace)
-      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
-        console.log('Searching Tindie for badge...')
-        try {          
-          const tindieResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${perplexityApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama-3.1-sonar-small-128k-online',
-              messages: [
-                {
-                  role: 'user',
-                  content: `Search Tindie.com for "${quickAnalysis.name}" badge. Return JSON: {name, maker, year, description, price, url, found: true/false}. Include the full Tindie URL in the url field.`
-                }
-              ],
-              temperature: 0.2,
-              max_tokens: 200
-            })
-          })
-
-          if (tindieResponse.ok) {
-            const tindieData = await tindieResponse.json()
-            const tindieContent = tindieData.choices[0].message.content
-            
-            try {
-              const tindieMatch = tindieContent.match(/\{[\s\S]*\}/)
-              if (tindieMatch) {
-                const tindieResult = JSON.parse(tindieMatch[0])
-                if (tindieResult.found) {
-                  webResults = { ...tindieResult, source: 'Tindie', confidence: 85 }
-                  searchSource = 'Tindie'
-                  console.log('Found on Tindie:', webResults)
-                }
-              }
-            } catch (e) {
-              console.log('Could not parse Tindie results')
-            }
-          }
-        } catch (error) {
-          console.error('Tindie search error:', error)
-        }
-      }
+      // Fetch enabled web search sources ordered by priority
+      const { data: searchSources, error: sourcesError } = await supabase
+        .from('web_search_sources')
+        .select('*')
+        .eq('enabled', true)
+        .order('priority', { ascending: true })
       
-      // Try Hackaday if not found on Tindie
-      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
-        console.log('Searching Hackaday badge list...')
-        try {          
-          const hackadayResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${perplexityApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama-3.1-sonar-small-128k-online',
-              messages: [
-                {
-                  role: 'user',
-                  content: `Search hackaday.io conference badge list for "${quickAnalysis.name}". Return JSON: {name, maker, year, event, description, url, found: true/false}. Include the full Hackaday URL in the url field.`
-                }
-              ],
-              temperature: 0.2,
-              max_tokens: 200
-            })
-          })
-
-          if (hackadayResponse.ok) {
-            const hackadayData = await hackadayResponse.json()
-            const hackadayContent = hackadayData.choices[0].message.content
-            
-            try {
-              const hackadayMatch = hackadayContent.match(/\{[\s\S]*\}/)
-              if (hackadayMatch) {
-                const hackadayResult = JSON.parse(hackadayMatch[0])
-                if (hackadayResult.found) {
-                  webResults = { ...hackadayResult, source: 'Hackaday', confidence: 80 }
-                  searchSource = 'Hackaday'
-                  console.log('Found on Hackaday:', webResults)
-                }
-              }
-            } catch (e) {
-              console.log('Could not parse Hackaday results')
-            }
-          }
-        } catch (error) {
-          console.error('Hackaday search error:', error)
-        }
-      }
-      
-      // Fallback to general web search if not found in specific sources
-      if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
-        console.log('Doing general web search...')
+      if (sourcesError) {
+        console.error('Error fetching search sources:', sourcesError)
+        // Fallback to default behavior if database query fails
+        console.log('Falling back to default general web search...')
         try {          
           const generalResponse = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
@@ -320,17 +236,88 @@ serve(async (req) => {
             try {
               const generalMatch = generalContent.match(/\{[\s\S]*\}/)
               if (generalMatch) {
-                webResults = { ...JSON.parse(generalMatch[0]), source: 'Web Search' }
-                searchSource = 'Web Search'
-                console.log('Found via general search:', webResults)
+                webResults = { ...JSON.parse(generalMatch[0]), source: 'Web Search (Fallback)' }
+                searchSource = 'Web Search (Fallback)'
+                console.log('Found via fallback search:', webResults)
               }
             } catch (e) {
-              console.log('Could not parse general search results')
+              console.log('Could not parse fallback search results')
             }
           }
         } catch (error) {
-          console.error('General web search error:', error)
+          console.error('Fallback web search error:', error)
         }
+      } else if (searchSources && searchSources.length > 0) {
+        // Try each enabled source in priority order until we find a result
+        for (const source of searchSources) {
+          if (webResults) break; // Stop on first success
+          
+          console.log(`Trying search source: ${source.name} (priority ${source.priority})`)
+          
+          try {
+            // Replace {query} placeholder in prompt template
+            const searchQuery = source.prompt_template.replace('{query}', quickAnalysis.name)
+            
+            const response = await fetch(source.url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${perplexityApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'llama-3.1-sonar-small-128k-online',
+                messages: [
+                  {
+                    role: 'user',
+                    content: searchQuery
+                  }
+                ],
+                temperature: 0.2,
+                max_tokens: source.name === 'General Web Search' ? 250 : 200
+              })
+            })
+
+            if (response.ok) {
+              const responseData = await response.json()
+              const content = responseData.choices[0].message.content
+              
+              try {
+                const match = content.match(/\{[\s\S]*\}/)
+                if (match) {
+                  const result = JSON.parse(match[0])
+                  
+                  // For specific sources, check if they found something
+                  if (source.name !== 'General Web Search' && result.found === false) {
+                    console.log(`${source.name} search found no results, trying next source...`)
+                    continue
+                  }
+                  
+                  // Set confidence based on source type
+                  const confidence = source.name === 'Tindie' ? 85 : 
+                                   source.name === 'Hackaday' ? 80 : 
+                                   result.confidence || 70
+                  
+                  webResults = { ...result, source: source.name, confidence }
+                  searchSource = source.name
+                  console.log(`Found via ${source.name}:`, webResults)
+                  break; // Stop on first success
+                }
+              } catch (e) {
+                console.log(`Could not parse ${source.name} results, trying next source...`)
+              }
+            } else {
+              console.log(`${source.name} search failed with status ${response.status}, trying next source...`)
+            }
+          } catch (error) {
+            console.error(`${source.name} search error:`, error, 'trying next source...')
+          }
+        }
+        
+        if (!webResults) {
+          console.log('All search sources exhausted without finding results')
+        }
+      } else {
+        console.log('No enabled search sources configured')
       }
     } else {
       console.log('⏭️ SKIPPING EXTERNAL SEARCH - Good local matches found!')
