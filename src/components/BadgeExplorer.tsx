@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BadgeCard } from "@/components/BadgeCard";
+import { BadgeDetailModal } from "@/components/BadgeDetailModal";
 import { Search, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,8 @@ interface BadgeExplorerProps {
 
 export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBadge, setSelectedBadge] = useState<any>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { badges, loading: badgesLoading } = useBadges();
   const { toast } = useToast();
 
@@ -116,11 +119,17 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
                   retired: badge.retired,
                 }}
                 onOwnershipToggle={handleOwnershipToggle}
-                onBadgeClick={(badge) => {
-                  toast({
-                    title: badge.name,
-                    description: `${badge.year ? badge.year + ' • ' : ''}Made by ${badge.maker || 'Unknown'}`,
-                  });
+                onBadgeClick={(badgeData) => {
+                  const fullBadge = badges.find(b => b.id === badgeData.id);
+                  if (fullBadge) {
+                    setSelectedBadge({
+                      ...badgeData,
+                      category: fullBadge.category,
+                      teamName: fullBadge.team_name,
+                      profiles: fullBadge.profiles ? [fullBadge.profiles] : undefined,
+                    });
+                    setIsDetailModalOpen(true);
+                  }
                 }}
                 isAuthenticated={false}
               />
@@ -128,6 +137,18 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
           </div>
         )}
       </main>
+
+      {/* Badge Detail Modal */}
+      <BadgeDetailModal
+        badge={selectedBadge}
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedBadge(null);
+        }}
+        onOwnershipToggle={handleOwnershipToggle}
+        isAuthenticated={false}
+      />
     </div>
   );
 };
