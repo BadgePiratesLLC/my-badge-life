@@ -553,7 +553,7 @@ export default function Admin() {
                 User Management
               </TabsTrigger>
             )}
-            {isAdmin() && (
+            {canAccessAdmin() && (
               <TabsTrigger value="search" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 Web Search
