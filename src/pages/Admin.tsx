@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRoles } from '@/hooks/useRoles'
 import { useAuth } from '@/hooks/useAuth'
+import { useAdminAccess } from '@/hooks/useAdminAccess'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -57,7 +58,8 @@ interface User {
 
 export default function Admin() {
   const { isAdmin, loading: rolesLoading } = useRoles()
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
+  const { canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAdminAccess()
   const { teams, users: teamUsers, loading: teamsLoading, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
   const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
@@ -73,16 +75,16 @@ export default function Admin() {
 
   useEffect(() => {
     if (!rolesLoading && !authLoading) {
-      if (isAdmin()) {
+      if (canAccessAdmin()) {
         fetchUploads()
-        if (!usersFetched) {
+        if (!usersFetched && canManageUsers()) {
           fetchUsers()
         }
         fetchBadges()
       }
       setLoading(false)
     }
-  }, [isAdmin, rolesLoading, authLoading, usersFetched])
+  }, [canAccessAdmin, rolesLoading, authLoading, usersFetched, canManageUsers])
 
   const fetchUploads = async () => {
     try {
@@ -297,7 +299,7 @@ export default function Admin() {
     )
   }
 
-  if (!isAdmin()) {
+  if (!canAccessAdmin()) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -306,7 +308,12 @@ export default function Admin() {
           </CardHeader>
           <CardContent className="text-center">
             <Shield className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground mb-4">Admin access required.</p>
+            <p className="text-muted-foreground mb-4">
+              {profile?.role === 'maker' && !profile?.maker_approved 
+                ? 'Your badge maker request is pending approval.' 
+                : 'Admin or Badge Maker access required.'
+              }
+            </p>
             <Link to="/">
               <Button variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -324,8 +331,12 @@ export default function Admin() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold font-mono">ADMIN PANEL</h1>
-            <p className="text-muted-foreground">Manage badges and users</p>
+            <h1 className="text-3xl font-bold font-mono">
+              {isAdmin() ? 'ADMIN PANEL' : 'BADGE MAKER PANEL'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isAdmin() ? 'Manage badges and users' : 'Manage badges for your team'}
+            </p>
           </div>
           <Link to="/">
             <Button variant="outline">
@@ -335,24 +346,32 @@ export default function Admin() {
           </Link>
         </div>
 
-        <Tabs defaultValue="uploads" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="uploads" className="flex items-center gap-2">
-              <Image className="h-4 w-4" />
-              Uploaded Images
-            </TabsTrigger>
-            <TabsTrigger value="badges" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Badge Management
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Team Management
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              User Management
-            </TabsTrigger>
+        <Tabs defaultValue="badges" className="w-full">
+          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            {canAccessAdmin() && (
+              <TabsTrigger value="uploads" className="flex items-center gap-2">
+                <Image className="h-4 w-4" />
+                Uploaded Images
+              </TabsTrigger>
+            )}
+            {canManageBadges() && (
+              <TabsTrigger value="badges" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Badge Management
+              </TabsTrigger>
+            )}
+            {canManageTeams() && (
+              <TabsTrigger value="teams" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Team Management
+              </TabsTrigger>
+            )}
+            {canManageUsers() && (
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                User Management
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="uploads" className="space-y-4">
@@ -570,15 +589,17 @@ export default function Admin() {
                                     )}
                                   </div>
                                   
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => startEditBadge(badge)}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    Edit
-                                  </Button>
+                                   {canEditBadge(badge.team_name) && (
+                                     <Button
+                                       size="sm"
+                                       variant="outline"
+                                       onClick={() => startEditBadge(badge)}
+                                       className="flex items-center gap-2"
+                                     >
+                                       <Edit className="h-4 w-4" />
+                                       Edit
+                                     </Button>
+                                   )}
                                 </div>
                                 
                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -624,7 +645,8 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="teams" className="space-y-4">
+          {canManageTeams() && (
+            <TabsContent value="teams" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-mono">
@@ -841,8 +863,10 @@ export default function Admin() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
 
-          <TabsContent value="users" className="space-y-4">
+          {canManageUsers() && (
+            <TabsContent value="users" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-mono">
@@ -897,6 +921,7 @@ export default function Admin() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

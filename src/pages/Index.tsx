@@ -244,7 +244,6 @@ const Index = () => {
         onMenuClick={() => {}}
         isAuthenticated={isAuthenticated}
         onAuthClick={handleAuthClick}
-        isAdmin={isAdmin()}
       />
 
       <main className="container mx-auto px-4 py-6 space-y-8">

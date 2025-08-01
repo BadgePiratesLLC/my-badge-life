@@ -169,5 +169,6 @@ export function useAuth() {
     isAuthenticated: !!user,
     isMaker: profile?.role === 'maker' && profile?.maker_approved,
     isAdmin: profile?.role === 'admin',
+    isBadgeMaker: profile?.role === 'maker' && profile?.maker_approved, // alias for consistency
   }
 }
