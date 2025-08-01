@@ -99,7 +99,7 @@ export const CameraCapture = ({
             throw error;
           }
 
-          setAnalysisResults({...data, originalImageBase64: base64});
+          setAnalysisResults({...data, originalImageBase64: base64, originalFile: file});
           setShowAnalysis(true);
           setIsAnalyzing(false);
         } catch (analysisError) {
@@ -129,7 +129,12 @@ export const CameraCapture = ({
 
   const handleCreateNew = (prefillData: any) => {
     setShowAnalysis(false);
-    onCreateBadge?.(prefillData);
+    // Include the original file for proper upload
+    const enhancedPrefillData = {
+      ...prefillData,
+      imageFile: analysisResults?.originalFile // Pass the original file
+    };
+    onCreateBadge?.(enhancedPrefillData);
     onClose();
   };
 

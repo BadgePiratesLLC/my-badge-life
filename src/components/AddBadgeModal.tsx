@@ -67,10 +67,20 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     setUploading(true);
     
     try {
-      let imageUrl = prefillData?.image_url || "";
+      let imageUrl = "";
       
-      // Only upload new image if one was selected and no prefilled URL exists
-      if (imageFile && !prefillData?.image_url) {
+      // Check if prefillData has a blob URL that needs to be uploaded
+      if (prefillData?.image_url && prefillData.image_url.startsWith('blob:')) {
+        // Convert blob URL to file and upload
+        if (prefillData.imageFile) {
+          const { url } = await uploadBadgeImage(prefillData.imageFile);
+          imageUrl = url;
+        }
+      } else if (prefillData?.image_url && !prefillData.image_url.startsWith('blob:')) {
+        // Use the existing valid URL
+        imageUrl = prefillData.image_url;
+      } else if (imageFile) {
+        // Upload new image file
         const { url } = await uploadBadgeImage(imageFile);
         imageUrl = url;
       }
