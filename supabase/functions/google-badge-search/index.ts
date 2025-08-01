@@ -122,6 +122,42 @@ serve(async (req) => {
           console.log('Raw Google response:', JSON.stringify(googleData.image_results.slice(0, 3), null, 2))
           console.log('Google returned results, applying STRICT badge filtering...')
           
+          // TEMPORARY: Return first result for debugging
+          const firstResult = googleData.image_results[0]
+          console.log('🔍 DEBUGGING: Returning first Google result regardless of filtering')
+          
+          const debugResult = {
+            name: firstResult.title || 'Debug Result',
+            description: `DEBUG: ${firstResult.snippet || 'Found via Google reverse image search'}`,
+            external_link: firstResult.link,
+            source: 'Google Image Search (DEBUG)',
+            confidence: 50,
+            thumbnail: firstResult.thumbnail,
+            found_via_google: true,
+            search_source: 'Google Image Search'
+          }
+          
+          analytics.found_via_google = true
+          analytics.google_confidence = 50
+          analytics.total_duration_ms = Date.now() - searchStartTime
+          
+          statusUpdates.push({ 
+            stage: 'google_search', 
+            status: 'success', 
+            message: `DEBUG: Found result: ${debugResult.name}` 
+          })
+          
+          console.log(`🔍 DEBUG RESULT: "${debugResult.name}"`)
+          
+          return new Response(
+            JSON.stringify({ 
+              analysis: debugResult,
+              statusUpdates,
+              analytics
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+          
           // EXTREMELY strict filtering - only these specific terms
           const requiredBadgeTerms = [
             'conference badge', 'con badge', 'electronic badge', 'pcb badge', 'led badge',
