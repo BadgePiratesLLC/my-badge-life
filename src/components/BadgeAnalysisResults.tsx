@@ -293,37 +293,59 @@ export const BadgeAnalysisResults = ({
                   {filteredMatches.map((match, index) => (
                     <div
                       key={match.badge.id}
-                      className={`cursor-pointer rounded-lg border-2 transition-colors ${
+                      className={`rounded-lg border-2 transition-colors ${
                         selectedMatch?.badge.id === match.badge.id
                           ? 'border-primary'
                           : 'border-border hover:border-muted-foreground'
                       }`}
-                      onClick={() => setSelectedMatch(match)}
                     >
-                      <BadgeCard
-                        badge={{
-                          id: match.badge.id,
-                          name: match.badge.name,
-                          year: match.badge.year || undefined,
-                          maker: match.badge.profiles?.display_name || undefined,
-                          description: match.badge.description || undefined,
-                          imageUrl: match.badge.image_url || undefined,
-                          externalLink: match.badge.external_link || undefined,
-                          isOwned: false,
-                          isWanted: false,
-                          retired: match.badge.retired,
-                        }}
-                        onOwnershipToggle={() => {}}
-                        onBadgeClick={() => {}}
-                        isAuthenticated={false}
-                      />
-                      {match.confidence && (
-                        <div className="px-4 pb-2">
-                          <Badge className={`${getConfidenceColor(match.confidence)} text-white text-xs`}>
-                            {match.confidence}% match
-                          </Badge>
-                        </div>
-                      )}
+                      <div onClick={() => setSelectedMatch(match)} className="cursor-pointer">
+                        <BadgeCard
+                          badge={{
+                            id: match.badge.id,
+                            name: match.badge.name,
+                            year: match.badge.year || undefined,
+                            maker: match.badge.profiles?.display_name || undefined,
+                            description: match.badge.description || undefined,
+                            imageUrl: match.badge.image_url || undefined,
+                            externalLink: match.badge.external_link || undefined,
+                            isOwned: false,
+                            isWanted: false,
+                            retired: match.badge.retired,
+                          }}
+                          onOwnershipToggle={() => {}}
+                          onBadgeClick={() => {}}
+                          isAuthenticated={false}
+                        />
+                      </div>
+                      
+                      <div className="px-4 pb-4 space-y-2">
+                        {match.confidence && (
+                          <div className="flex items-center justify-between">
+                            <Badge className={`${getConfidenceColor(match.confidence)} text-white text-xs`}>
+                              {match.confidence}% match
+                            </Badge>
+                          </div>
+                        )}
+                        
+                        {/* Show confirmation button for each match */}
+                        {onConfirmMatch && (
+                          <Button 
+                            onClick={() => {
+                              onConfirmMatch(
+                                match.badge.id, 
+                                match.similarity || 0,
+                                match.confidence || 0
+                              );
+                              onClose();
+                            }} 
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            size="sm"
+                          >
+                            ✓ YES, THIS IS IT
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                   
@@ -338,26 +360,7 @@ export const BadgeAnalysisResults = ({
                       <Plus className="h-4 w-4" />
                       Add as New Badge
                     </Button>
-                    {selectedMatch && onConfirmMatch && (
-                      <Button 
-                        onClick={() => {
-                          onConfirmMatch(
-                            selectedMatch.badge.id, 
-                            selectedMatch.similarity || 0,
-                            selectedMatch.confidence || 0
-                          );
-                          onClose();
-                        }} 
-                        className="flex-1"
-                      >
-                        ✓ YES, THIS IS IT
-                      </Button>
-                    )}
-                    {selectedMatch && !onConfirmMatch && (
-                      <Button onClick={onClose} className="flex-1">
-                        This is the Badge
-                      </Button>
-                    )}
+                    {/* Remove the selected match confirmation button since it's now on each card */}
                     {originalImageBase64 && (
                       <Button 
                         variant="secondary"

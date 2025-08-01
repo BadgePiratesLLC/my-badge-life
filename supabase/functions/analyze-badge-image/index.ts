@@ -182,8 +182,9 @@ serve(async (req) => {
     let webResults: any = null
     let searchSource = 'none'
     
-    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 70)) {
+    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)) {
       console.log('Searching external badge sources...')
+      console.log(`Reason: forceWebSearch=${forceWebSearch}, matches=${matches.length}, bestConfidence=${matches[0]?.confidence || 0}%`)
       
       // Try Tindie first (badge marketplace)
       if (!webResults && quickAnalysis.name !== 'Unknown Badge') {
@@ -321,6 +322,7 @@ serve(async (req) => {
       }
     } else {
       console.log('Skipping external search - found good local matches')
+      console.log(`Best local match: "${matches[0]?.badge.name}" with ${matches[0]?.confidence}% confidence`)
     }
 
     console.log('Analysis complete, returning results')
