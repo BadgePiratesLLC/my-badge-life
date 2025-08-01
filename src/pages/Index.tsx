@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { CameraCapture } from "@/components/CameraCapture";
 import { BadgeCard } from "@/components/BadgeCard";
+import { BadgeDetailModal } from "@/components/BadgeDetailModal";
 import { BadgeExplorer } from "@/components/BadgeExplorer";
 import { AuthModal } from "@/components/AuthModal";
 import { AddBadgeModal } from "@/components/AddBadgeModal";
@@ -21,6 +22,8 @@ const Index = () => {
   const [showAllBadges, setShowAllBadges] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [badgePrefillData, setBadgePrefillData] = useState<any>(null);
+  const [selectedBadge, setSelectedBadge] = useState<any>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
@@ -232,11 +235,17 @@ const Index = () => {
                   retired: badge.retired,
                 }}
                 onOwnershipToggle={handleOwnershipToggle}
-                onBadgeClick={(badge) => {
-                  toast({
-                    title: badge.name,
-                    description: `${badge.year ? badge.year + ' • ' : ''}Made by ${badge.maker || 'Unknown'}`,
-                  });
+                onBadgeClick={(badgeData) => {
+                  const fullBadge = badges.find(b => b.id === badgeData.id);
+                  if (fullBadge) {
+                    setSelectedBadge({
+                      ...badgeData,
+                      category: fullBadge.category,
+                      teamName: fullBadge.team_name,
+                      profiles: fullBadge.profiles ? [fullBadge.profiles] : undefined,
+                    });
+                    setIsDetailModalOpen(true);
+                  }
                 }}
                 isAuthenticated={isAuthenticated}
               />
@@ -354,14 +363,26 @@ const Index = () => {
         onClose={() => setShowAuth(false)}
       />
 
-          <AddBadgeModal
-            isOpen={showAddBadge}
-            onClose={() => {
-              setShowAddBadge(false);
-              setBadgePrefillData(null);
-            }}
-            prefillData={badgePrefillData}
-          />
+      <AddBadgeModal
+        isOpen={showAddBadge}
+        onClose={() => {
+          setShowAddBadge(false);
+          setBadgePrefillData(null);
+        }}
+        prefillData={badgePrefillData}
+      />
+
+      {/* Badge Detail Modal */}
+      <BadgeDetailModal
+        badge={selectedBadge}
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedBadge(null);
+        }}
+        onOwnershipToggle={handleOwnershipToggle}
+        isAuthenticated={isAuthenticated}
+      />
     </div>
   );
 };
