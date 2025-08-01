@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, LogIn, UserCheck, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useRoleDisplay } from "@/hooks/useRoleDisplay";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface AuthModalProps {
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { user, profile, signInWithGoogle, signOut, requestMakerStatus } = useAuth();
+  const { getDisplayRole } = useRoleDisplay();
   const { toast } = useToast();
 
   console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
@@ -114,9 +116,9 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             <>
               <div className="text-center space-y-3">
                 <div className="p-3 rounded-full bg-primary/10 w-fit mx-auto">
-                  {profile?.role === 'admin' ? (
+                  {getDisplayRole() === 'Admin' ? (
                     <Crown className="h-8 w-8 text-primary" />
-                  ) : profile?.role === 'maker' ? (
+                  ) : getDisplayRole().includes('Badge Maker') ? (
                     <UserCheck className="h-8 w-8 text-primary" />
                   ) : (
                     <LogIn className="h-8 w-8 text-primary" />
@@ -128,7 +130,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   </p>
                   <div className="flex items-center justify-center space-x-2 mt-1">
                     <span className="text-xs text-muted-foreground">
-                      {profile?.role?.toUpperCase()}
+                      {getDisplayRole().toUpperCase()}
                     </span>
                     {profile?.role === 'maker' && (
                       <span className={`text-xs px-2 py-1 rounded ${
