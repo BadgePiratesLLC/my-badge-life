@@ -101,7 +101,9 @@ serve(async (req) => {
           const searchName = quickAnalysis.name.toLowerCase()
           const searchWords = searchName.split(' ').filter(word => word.length > 2)
           
+          console.log('Search input:', quickAnalysis.name)
           console.log('Searching for:', searchName, 'Words:', searchWords)
+          console.log('Available badges:', badgeMatches.map(b => b.name))
           
             // Get user confirmations for badges to boost confidence
             const { data: confirmations } = await supabase
@@ -161,12 +163,14 @@ serve(async (req) => {
                 confidence
               }
             })
-          .filter(match => match.confidence >= 30)  // Minimum 30% confidence
-          .sort((a, b) => b.confidence - a.confidence)
-          .slice(0, 5)
-          
+            .filter(match => match.confidence >= 20)  // Lower threshold for testing
+            .sort((a, b) => b.confidence - a.confidence)
+            .slice(0, 5)
+            
           matches = scoredMatches
-          console.log(`Found ${matches.length} local matches. Best: ${matches[0]?.confidence}%`)
+          console.log(`Found ${matches.length} local matches with confidence >= 20%`)
+          if (matches.length > 0) {
+            console.log('Best matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
         }
       } catch (error) {
         console.error('Local database search error:', error)
