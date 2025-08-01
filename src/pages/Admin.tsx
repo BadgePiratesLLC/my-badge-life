@@ -131,15 +131,25 @@ export default function Admin() {
     if (!confirm('Are you sure you want to delete this upload?')) return
 
     try {
-      // Delete from storage
-      const fileName = upload.image_url.split('/').pop()
-      if (fileName) {
+      // Extract the full path from the URL for storage deletion
+      const url = new URL(upload.image_url)
+      const pathParts = url.pathname.split('/')
+      const bucketIndex = pathParts.findIndex(part => part === 'badge-images')
+      
+      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        // Get the file path after 'badge-images'
+        const filePath = pathParts.slice(bucketIndex + 1).join('/')
+        
+        console.log('Deleting file path:', filePath)
+        
+        // Delete from storage
         const { error: storageError } = await supabase.storage
           .from('badge-images')
-          .remove([fileName.includes('/') ? fileName : `anonymous/${fileName}`])
+          .remove([filePath])
         
         if (storageError) {
           console.error('Storage delete error:', storageError)
+          // Continue anyway to remove from database
         }
       }
 
@@ -154,6 +164,9 @@ export default function Admin() {
       // Update UI
       setUploads(prev => prev.filter(u => u.id !== upload.id))
       toast.success('Upload deleted successfully!')
+      
+      // Refresh the uploads list to ensure consistency
+      await fetchUploads()
     } catch (error) {
       console.error('Error deleting upload:', error)
       toast.error('Failed to delete upload')

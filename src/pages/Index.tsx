@@ -21,7 +21,7 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   
-  // Real authentication and data
+  // Real authentication and data - MUST call all hooks unconditionally
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth();
   const { isAdmin } = useRoles();
   const { 
@@ -55,20 +55,8 @@ const Index = () => {
     return () => clearTimeout(timeout);
   }, [authLoading]);
 
-  // Show minimal loading only briefly
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
-          <p className="text-xs text-muted-foreground">
-            If this takes too long, try refreshing the page
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Show minimal loading only briefly - but don't return early to avoid hooks issues
+  const showLoading = authLoading;
 
   const handleGetStarted = () => {
     setShowWelcome(false);
@@ -133,6 +121,21 @@ const Index = () => {
 
   if (showWelcome) {
     return <WelcomeScreen onGetStarted={handleGetStarted} />;
+  }
+
+  // Show loading screen if needed
+  if (showLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
+          <p className="text-xs text-muted-foreground">
+            If this takes too long, try refreshing the page
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
