@@ -12,9 +12,10 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
+import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { toast } from 'sonner'
 
@@ -477,6 +478,9 @@ export default function Admin() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <ProcessEmbeddingsButton />
+                </div>
                 {badges.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No badges found</p>
                 ) : (
