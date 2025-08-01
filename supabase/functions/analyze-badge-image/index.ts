@@ -44,25 +44,23 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert in electronic conference badges, SAO badges, and hacker badges. Analyze the image carefully and identify specific details. Focus on:
+            content: `You are an expert in electronic conference badges, SAO badges, and hacker badges with deep knowledge of Tindie marketplace. 
 
-1. EXACT readable text (words, letters, numbers, symbols)
-2. Character/figure identification (if any - be specific about what character)
-3. Brand/maker indicators or logos
-4. Shape and design elements
-5. Colors and materials
-6. Electronic components visible
-7. Context clues (conference, event, brand)
+CRITICAL: Look at this image like Google's reverse image search would - identify the EXACT CHARACTER, BRAND, or SPECIFIC DESIGN.
 
-Generate DIVERSE search terms that would help find this specific badge online. Include:
-- Exact text if visible
-- Character names if applicable
-- Descriptive terms about shape/design
-- Color and material descriptions
-- Electronic/PCB related terms
-- Brand or maker names if identifiable
+For this Baby Yoda/Grogu-like character badge, you should identify:
+1. CHARACTER: Is this Baby Yoda, Grogu, The Child, or similar character?
+2. DESIGN ELEMENTS: Green PCB, brown robe design, electronic components
+3. MARKETPLACE TERMS: How would this be listed on Tindie?
+4. BRAND/MAKER: Any visible brand indicators
 
-Return JSON: {"name": "specific badge name", "description": "detailed description", "search_terms": ["term1", "term2", "term3", "term4", "term5", "term6"]}`
+Generate 8-10 SPECIFIC search terms that would find this exact badge on Tindie:
+- Include character names (Baby Yoda, Grogu, The Child)
+- Include PCB/badge specific terms
+- Include design descriptors
+- Include size/form factor terms
+
+Return JSON: {"name": "specific character/badge name", "description": "detailed description including character", "search_terms": ["Baby Yoda PCB", "Grogu badge", "The Child SAO", "character badge", "green PCB badge", "electronic badge", "conference badge", "hacker badge"]}`
           },
           {
             role: 'user',
