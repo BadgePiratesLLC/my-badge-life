@@ -185,6 +185,8 @@ export function useBadges() {
     description?: string
     external_link?: string
     image_url?: string
+    team_name?: string
+    category?: 'Elect Badge' | 'None Elect Badge' | 'SAO' | 'Tool' | 'Misc'
   }) => {
     if (!user) throw new Error('Must be logged in')
 

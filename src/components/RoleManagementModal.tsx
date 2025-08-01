@@ -10,15 +10,18 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { useRoles, AppRole } from '@/hooks/useRoles'
 import { Settings, Save, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase } from '@/integrations/supabase/client'
 
 interface User {
   id: string
   email: string | null
   display_name: string | null
   roles: string[]
+  assigned_team?: string | null
 }
 
 interface RoleManagementModalProps {
@@ -32,6 +35,7 @@ export const RoleManagementModal = ({ user, onRoleChange }: RoleManagementModalP
   const [selectedRoles, setSelectedRoles] = useState<Set<AppRole>>(
     new Set(user.roles as AppRole[])
   )
+  const [assignedTeam, setAssignedTeam] = useState(user.assigned_team || '')
   const [loading, setLoading] = useState(false)
 
   const availableRoles: { role: AppRole; label: string; description: string }[] = [
@@ -69,6 +73,18 @@ export const RoleManagementModal = ({ user, onRoleChange }: RoleManagementModalP
       // Remove old roles
       for (const role of rolesToRemove) {
         await removeRole(user.id, role)
+      }
+
+      // Update team assignment if changed
+      if (assignedTeam !== (user.assigned_team || '')) {
+        const { error: teamError } = await supabase
+          .from('profiles')
+          .update({ assigned_team: assignedTeam || null })
+          .eq('id', user.id)
+
+        if (teamError) {
+          throw teamError
+        }
       }
 
       toast.success(`Roles updated for ${user.display_name || user.email}`)
@@ -113,6 +129,19 @@ export const RoleManagementModal = ({ user, onRoleChange }: RoleManagementModalP
                 <Badge variant="outline">No roles</Badge>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assigned_team" className="text-sm font-medium">Assigned Team:</Label>
+            <Input
+              id="assigned_team"
+              value={assignedTeam}
+              onChange={(e) => setAssignedTeam(e.target.value)}
+              placeholder="e.g., DEF CON Goons, AndnXor"
+            />
+            <p className="text-xs text-muted-foreground">
+              Team members can only edit badges assigned to their team
+            </p>
           </div>
 
           <div className="space-y-3">

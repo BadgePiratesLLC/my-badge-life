@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
@@ -21,6 +23,8 @@ interface BadgeData {
   image_url: string | null
   external_link: string | null
   maker_id: string | null
+  team_name: string | null
+  category: 'Elect Badge' | 'None Elect Badge' | 'SAO' | 'Tool' | 'Misc' | null
   created_at: string
   updated_at: string
   profiles?: {
@@ -45,6 +49,7 @@ interface User {
   email: string | null
   display_name: string | null
   roles: string[]
+  assigned_team?: string | null
 }
 
 export default function Admin() {
@@ -98,7 +103,7 @@ export default function Admin() {
       // Get profiles first
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, display_name')
+        .select('id, email, display_name, assigned_team')
 
       if (profilesError) {
         console.error('Profiles error:', profilesError)
@@ -122,6 +127,7 @@ export default function Admin() {
         id: profile.id,
         email: profile.email,
         display_name: profile.display_name,
+        assigned_team: profile.assigned_team,
         roles: (rolesData || [])
           .filter(role => role.user_id === profile.id)
           .map(role => role.role)
@@ -165,7 +171,9 @@ export default function Admin() {
       description: badge.description || '',
       year: badge.year,
       image_url: badge.image_url || '',
-      external_link: badge.external_link || ''
+      external_link: badge.external_link || '',
+      team_name: badge.team_name || '',
+      category: badge.category || null
     })
   }
 
@@ -183,7 +191,9 @@ export default function Admin() {
           description: editForm.description || null,
           year: editForm.year || null,
           image_url: editForm.image_url || null,
-          external_link: editForm.external_link || null
+          external_link: editForm.external_link || null,
+          team_name: editForm.team_name || null,
+          category: editForm.category || null
         })
         .eq('id', badgeId)
 
@@ -417,13 +427,43 @@ export default function Admin() {
                               </div>
                               
                               <div>
-                                <label className="text-sm font-medium mb-2 block">Description</label>
+                                <Label htmlFor="description">Description</Label>
                                 <Textarea
+                                  id="description"
                                   value={editForm.description || ''}
                                   onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                                   placeholder="Badge description"
                                   rows={3}
                                 />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="team_name">Badge Maker Team Name (Admin Only)</Label>
+                                <Input
+                                  id="team_name"
+                                  value={editForm.team_name || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, team_name: e.target.value }))}
+                                  placeholder="e.g., DEF CON Goons, AndnXor"
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="category">Category</Label>
+                                <Select 
+                                  value={editForm.category || ''} 
+                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value as BadgeData['category'] }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select badge category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Elect Badge">Elect Badge</SelectItem>
+                                    <SelectItem value="None Elect Badge">None Elect Badge</SelectItem>
+                                    <SelectItem value="SAO">SAO</SelectItem>
+                                    <SelectItem value="Tool">Tool</SelectItem>
+                                    <SelectItem value="Misc">Misc</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                               
                               <div className="grid grid-cols-2 gap-4">
@@ -507,8 +547,10 @@ export default function Admin() {
                                   </Button>
                                 </div>
                                 
-                                <div className="flex gap-4 text-sm text-muted-foreground">
+                                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                                   {badge.year && <span>Year: {badge.year}</span>}
+                                  {badge.team_name && <span>Team: {badge.team_name}</span>}
+                                  {badge.category && <span>Category: {badge.category}</span>}
                                   {badge.profiles?.display_name && (
                                     <span>Creator: {badge.profiles.display_name}</span>
                                   )}
@@ -566,7 +608,10 @@ export default function Admin() {
                               <h3 className="font-medium">
                                 {userData.display_name || userData.email || 'Unknown User'}
                               </h3>
-                              <p className="text-sm text-muted-foreground">{userData.email}</p>
+                               <p className="text-sm text-muted-foreground">{userData.email}</p>
+                               {userData.assigned_team && (
+                                 <p className="text-sm text-muted-foreground">Team: {userData.assigned_team}</p>
+                               )}
                               <div className="flex gap-1 mt-2">
                                 {userData.roles.length > 0 ? (
                                   userData.roles.map((role) => (

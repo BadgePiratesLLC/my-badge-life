@@ -32,14 +32,19 @@ export interface Profile {
   role: 'user' | 'maker' | 'admin'
   wants_to_be_maker: boolean
   maker_approved: boolean
+  assigned_team: string | null
   created_at: string
   updated_at: string
 }
+
+export type BadgeCategory = 'Elect Badge' | 'None Elect Badge' | 'SAO' | 'Tool' | 'Misc'
 
 export interface Badge {
   id: string
   name: string
   maker_id: string | null
+  team_name: string | null
+  category: BadgeCategory | null
   year: number | null
   image_url: string | null
   description: string | null

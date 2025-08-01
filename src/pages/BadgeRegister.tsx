@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BadgeCategory } from '@/lib/supabase'
 import { ArrowLeft, Save, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -26,7 +28,9 @@ export default function BadgeRegister() {
     description: '',
     year: '',
     external_link: '',
-    image_url: prefilledImageUrl
+    image_url: prefilledImageUrl,
+    team_name: '',
+    category: '' as BadgeCategory | ''
   })
   
   const [loading, setLoading] = useState(false)
@@ -52,7 +56,9 @@ export default function BadgeRegister() {
         description: formData.description.trim() || undefined,
         year: formData.year ? parseInt(formData.year) : undefined,
         external_link: formData.external_link.trim() || undefined,
-        image_url: formData.image_url.trim() || undefined
+        image_url: formData.image_url.trim() || undefined,
+        team_name: formData.team_name.trim() || undefined,
+        category: formData.category || undefined
       })
 
       // If this badge was created from an upload, delete the upload record
@@ -141,6 +147,32 @@ export default function BadgeRegister() {
                     placeholder="Describe the badge, event, or significance..."
                     rows={4}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="team_name">Badge Maker Team Name</Label>
+                  <Input
+                    id="team_name"
+                    value={formData.team_name}
+                    onChange={(e) => handleInputChange('team_name', e.target.value)}
+                    placeholder="e.g., DEF CON Goons, AndnXor, etc."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select badge category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Elect Badge">Elect Badge</SelectItem>
+                      <SelectItem value="None Elect Badge">None Elect Badge</SelectItem>
+                      <SelectItem value="SAO">SAO</SelectItem>
+                      <SelectItem value="Tool">Tool</SelectItem>
+                      <SelectItem value="Misc">Misc</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

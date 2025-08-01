@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       badges: {
         Row: {
+          category: Database["public"]["Enums"]["badge_category"] | null
           created_at: string
           description: string | null
           external_link: string | null
@@ -23,10 +24,12 @@ export type Database = {
           image_url: string | null
           maker_id: string | null
           name: string
+          team_name: string | null
           updated_at: string
           year: number | null
         }
         Insert: {
+          category?: Database["public"]["Enums"]["badge_category"] | null
           created_at?: string
           description?: string | null
           external_link?: string | null
@@ -34,10 +37,12 @@ export type Database = {
           image_url?: string | null
           maker_id?: string | null
           name: string
+          team_name?: string | null
           updated_at?: string
           year?: number | null
         }
         Update: {
+          category?: Database["public"]["Enums"]["badge_category"] | null
           created_at?: string
           description?: string | null
           external_link?: string | null
@@ -45,6 +50,7 @@ export type Database = {
           image_url?: string | null
           maker_id?: string | null
           name?: string
+          team_name?: string | null
           updated_at?: string
           year?: number | null
         }
@@ -99,6 +105,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assigned_team: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -109,6 +116,7 @@ export type Database = {
           wants_to_be_maker: boolean
         }
         Insert: {
+          assigned_team?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -119,6 +127,7 @@ export type Database = {
           wants_to_be_maker?: boolean
         }
         Update: {
+          assigned_team?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -209,6 +218,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      badge_category:
+        | "Elect Badge"
+        | "None Elect Badge"
+        | "SAO"
+        | "Tool"
+        | "Misc"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -337,6 +352,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      badge_category: [
+        "Elect Badge",
+        "None Elect Badge",
+        "SAO",
+        "Tool",
+        "Misc",
+      ],
     },
   },
 } as const
