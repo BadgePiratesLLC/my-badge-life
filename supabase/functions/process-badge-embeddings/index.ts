@@ -52,10 +52,38 @@ serve(async (req) => {
 
     console.log(`Found ${badges?.length || 0} badges with images`)
 
-    // Check which badges already have embeddings
+    // First, clean up any orphaned embeddings (embeddings for badges that no longer exist)
+    console.log('Checking for orphaned embeddings...')
+    const { data: allEmbeddings, error: embeddingsError } = await supabase
+      .from('badge_embeddings')
+      .select('badge_id')
+    
+    if (embeddingsError) {
+      console.error('Error fetching embeddings:', embeddingsError)
+    } else {
+      const badgeIds = new Set(badges?.map(b => b.id) || [])
+      const orphanedEmbeddings = allEmbeddings?.filter(e => !badgeIds.has(e.badge_id)) || []
+      
+      if (orphanedEmbeddings.length > 0) {
+        console.log(`Found ${orphanedEmbeddings.length} orphaned embeddings, cleaning up...`)
+        const { error: deleteError } = await supabase
+          .from('badge_embeddings')
+          .delete()
+          .in('badge_id', orphanedEmbeddings.map(e => e.badge_id))
+        
+        if (deleteError) {
+          console.error('Error cleaning up orphaned embeddings:', deleteError)
+        } else {
+          console.log('Successfully cleaned up orphaned embeddings')
+        }
+      }
+    }
+
+    // Check which badges already have embeddings (only from remaining badges)
     const { data: existingEmbeddings } = await supabase
       .from('badge_embeddings')
       .select('badge_id')
+      .in('badge_id', badges?.map(b => b.id) || [])
 
     console.log(`Found ${existingEmbeddings?.length || 0} existing embeddings`)
 
@@ -91,16 +119,33 @@ serve(async (req) => {
         console.log(`\n=== Processing badge ${badge.id}: "${badge.name}" ===`)
         console.log('Image URL:', badge.image_url)
 
-        // First, test if the image URL is accessible
-        console.log('Testing image URL accessibility...')
-        const imageTestResponse = await fetch(badge.image_url, { method: 'HEAD' })
-        console.log('Image URL test status:', imageTestResponse.status)
-        
-        if (!imageTestResponse.ok) {
-          const error = `Image URL not accessible: ${imageTestResponse.status} ${imageTestResponse.statusText}`
-          console.error(error)
+        // Skip blob URLs as they cannot be accessed from server context
+        if (badge.image_url && badge.image_url.startsWith('blob:')) {
+          const error = `Skipping blob URL (not accessible from server): ${badge.image_url}`
+          console.log(error)
           results.push({ badge_id: badge.id, success: false, error })
           continue
+        }
+
+        // For HTTP/HTTPS URLs, test accessibility
+        if (badge.image_url && (badge.image_url.startsWith('http://') || badge.image_url.startsWith('https://'))) {
+          console.log('Testing image URL accessibility...')
+          try {
+            const imageTestResponse = await fetch(badge.image_url, { method: 'HEAD' })
+            console.log('Image URL test status:', imageTestResponse.status)
+            
+            if (!imageTestResponse.ok) {
+              const error = `Image URL not accessible: ${imageTestResponse.status} ${imageTestResponse.statusText}`
+              console.error(error)
+              results.push({ badge_id: badge.id, success: false, error })
+              continue
+            }
+          } catch (fetchError) {
+            const error = `Failed to test image URL: ${fetchError.message}`
+            console.error(error)
+            results.push({ badge_id: badge.id, success: false, error })
+            continue
+          }
         }
 
         // Use OpenAI to create text embedding from badge info

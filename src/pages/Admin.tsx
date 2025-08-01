@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRoles } from '@/hooks/useRoles'
 import { useAuth } from '@/hooks/useAuth'
 import { useAdminAccess } from '@/hooks/useAdminAccess'
+import { useBadges } from '@/hooks/useBadges'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -61,6 +62,7 @@ export default function Admin() {
   const { isAdmin, loading: rolesLoading } = useRoles()
   const { user, profile, loading: authLoading } = useAuth()
   const { canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAdminAccess()
+  const { refreshBadges } = useBadges()
   const { teams, users: teamUsers, loading: teamsLoading, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
   const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
@@ -273,6 +275,10 @@ export default function Admin() {
 
       // Update local state
       setBadges(prev => prev.filter(b => b.id !== badge.id))
+      
+      // Refresh the badges cache to ensure consistency
+      refreshBadges()
+      
       toast.success('Badge deleted successfully!')
     } catch (error) {
       console.error('Error deleting badge:', error)
