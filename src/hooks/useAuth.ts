@@ -8,6 +8,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const { notifyMakerRequest } = useDiscordNotifications()
 
   useEffect(() => {
@@ -15,56 +16,42 @@ export function useAuth() {
     const maxLoadTime = setTimeout(() => {
       console.log('Auth initialization timeout - setting loading to false')
       setLoading(false)
-    }, 3000) // 3 seconds max
+    }, 5000) // 5 seconds max
 
-    // Get initial session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Error getting session:', error)
-          setLoading(false)
-          clearTimeout(maxLoadTime)
-          return
-        }
-
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
-          setLoading(false)
-          clearTimeout(maxLoadTime)
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error)
-        setLoading(false)
-        clearTimeout(maxLoadTime)
-      }
-    }
-
-    initializeAuth()
-
-    // Listen for auth changes
+    // Listen for auth changes FIRST to catch all events
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, session?.user?.id)
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id || 'no user')
       
-      // Only synchronous state updates here
+      // Update user state immediately
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        // Defer async operations with setTimeout to prevent deadlocks
-        setTimeout(() => {
-          fetchProfile(session.user!.id)
-        }, 0)
+        // Only fetch profile if we haven't initialized or user changed
+        if (!initialized || user?.id !== session.user.id) {
+          await fetchProfile(session.user.id)
+        }
       } else {
         setProfile(null)
         setLoading(false)
         clearTimeout(maxLoadTime)
       }
+      
+      if (!initialized) {
+        setInitialized(true)
+      }
+    })
+
+    // THEN get initial session (this may trigger the listener above)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting initial session:', error)
+        setLoading(false)
+        clearTimeout(maxLoadTime)
+        setInitialized(true)
+      }
+      // Session will be handled by the listener above
     })
 
     return () => {
