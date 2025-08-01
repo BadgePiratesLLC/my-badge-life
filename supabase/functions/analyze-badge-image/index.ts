@@ -172,6 +172,7 @@ serve(async (req) => {
           if (matches.length > 0) {
             console.log('Best matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
           }
+        }
       } catch (error) {
         console.error('Local database search error:', error)
       }
