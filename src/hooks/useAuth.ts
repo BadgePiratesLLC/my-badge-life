@@ -55,7 +55,7 @@ export function useAuth() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        await fetchProfile(session.user.id, event === 'SIGNED_IN')
+        await fetchProfile(session.user.id)
       } else {
         setProfile(null)
         setLoading(false)
@@ -69,7 +69,7 @@ export function useAuth() {
     }
   }, [])
 
-  const fetchProfile = async (userId: string, isNewUser = false) => {
+  const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -81,18 +81,6 @@ export function useAuth() {
         console.error('Error fetching profile:', error)
       } else {
         setProfile(data as unknown as Profile)
-        
-        // Send notification for new user registration
-        if (isNewUser) {
-          try {
-            await notifyUserRegistered({
-              display_name: data.display_name,
-              email: data.email,
-            });
-          } catch (error) {
-            console.error('Failed to send user registration notification:', error);
-          }
-        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
