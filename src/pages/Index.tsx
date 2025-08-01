@@ -19,6 +19,7 @@ const Index = () => {
   const [showAuth, setShowAuth] = useState(false);
   const [showAddBadge, setShowAddBadge] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [badgeFilter, setBadgeFilter] = useState<'all' | 'owned' | 'wanted'>('all');
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
@@ -110,12 +111,25 @@ const Index = () => {
     setShowAuth(true);
   };
 
-  // Filter badges based on search
-  const filteredBadges = badges.filter(badge =>
-    badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    badge.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    badge.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter badges based on search and filter type
+  const filteredBadges = badges.filter(badge => {
+    // First apply search filter
+    const matchesSearch = badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      badge.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      badge.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Then apply ownership filter
+    if (badgeFilter === 'owned') {
+      return isOwned(badge.id);
+    } else if (badgeFilter === 'wanted') {
+      return isWanted(badge.id);
+    }
+    
+    // 'all' shows all badges
+    return true;
+  });
 
   // Get ownership stats
   const stats = getOwnershipStats();
@@ -179,6 +193,36 @@ const Index = () => {
             )}
           </div>
         </div>
+
+        {/* Badge Filter Tabs (for authenticated users) */}
+        {isAuthenticated && (
+          <div className="flex gap-2 justify-center">
+            <Button
+              variant={badgeFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setBadgeFilter('all')}
+              className="font-mono"
+            >
+              ALL ({badges.length})
+            </Button>
+            <Button
+              variant={badgeFilter === 'owned' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setBadgeFilter('owned')}
+              className="font-mono"
+            >
+              OWNED ({stats.owned})
+            </Button>
+            <Button
+              variant={badgeFilter === 'wanted' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setBadgeFilter('wanted')}
+              className="font-mono"
+            >
+              WANTED ({stats.wanted})
+            </Button>
+          </div>
+        )}
 
         {/* Stats Bar */}
         {badgesLoading ? (

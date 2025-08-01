@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -579,16 +580,13 @@ export default function Admin() {
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  // TODO: Implement role assignment modal
-                                  toast.info('Role management coming soon!')
+                              <RoleManagementModal 
+                                user={userData} 
+                                onRoleChange={() => {
+                                  setUsersFetched(false)
+                                  fetchUsers()
                                 }}
-                              >
-                                Manage Roles
-                              </Button>
+                              />
                             </div>
                           </div>
                         </CardContent>
