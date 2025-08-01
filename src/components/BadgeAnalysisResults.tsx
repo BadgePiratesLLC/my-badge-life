@@ -39,6 +39,7 @@ interface BadgeAnalysisResultsProps {
   onCreateNew: (prefillData: any) => void;
   originalImageBase64?: string; // For web search
   canAddToDatabase?: boolean; // For admin to add high-confidence results
+  onConfirmMatch?: (badgeId: string, similarity: number, confidence: number) => void;
 }
 
 export const BadgeAnalysisResults = ({
@@ -49,7 +50,8 @@ export const BadgeAnalysisResults = ({
   onClose,
   onCreateNew,
   originalImageBase64,
-  canAddToDatabase
+  canAddToDatabase,
+  onConfirmMatch
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
@@ -336,7 +338,22 @@ export const BadgeAnalysisResults = ({
                       <Plus className="h-4 w-4" />
                       Add as New Badge
                     </Button>
-                    {selectedMatch && (
+                    {selectedMatch && onConfirmMatch && (
+                      <Button 
+                        onClick={() => {
+                          onConfirmMatch(
+                            selectedMatch.badge.id, 
+                            selectedMatch.similarity || 0,
+                            selectedMatch.confidence || 0
+                          );
+                          onClose();
+                        }} 
+                        className="flex-1"
+                      >
+                        ✓ YES, THIS IS IT
+                      </Button>
+                    )}
+                    {selectedMatch && !onConfirmMatch && (
                       <Button onClick={onClose} className="flex-1">
                         This is the Badge
                       </Button>

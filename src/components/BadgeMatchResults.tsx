@@ -25,13 +25,15 @@ interface BadgeMatchResultsProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateNew: () => void;
+  onConfirmMatch?: (badgeId: string, similarity: number, confidence: number) => void;
 }
 
 export const BadgeMatchResults = ({ 
   matches, 
   isOpen, 
   onClose, 
-  onCreateNew 
+  onCreateNew,
+  onConfirmMatch 
 }: BadgeMatchResultsProps) => {
   if (!isOpen) return null;
 
@@ -128,6 +130,30 @@ export const BadgeMatchResults = ({
                             <p className="text-sm text-muted-foreground line-clamp-2">
                               {match.badge.description}
                             </p>
+                          )}
+                          
+                          {onConfirmMatch && (
+                            <div className="flex space-x-2 mt-3">
+                              <Button 
+                                size="sm" 
+                                variant="matrix"
+                                onClick={() => {
+                                  onConfirmMatch(match.badge.id, match.similarity, match.confidence);
+                                  onClose();
+                                }}
+                                className="text-xs"
+                              >
+                                ✓ YES, THIS IS IT
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={onClose}
+                                className="text-xs"
+                              >
+                                Not quite
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>

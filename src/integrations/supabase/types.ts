@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      badge_confirmations: {
+        Row: {
+          badge_id: string
+          confidence_at_time: number
+          confirmation_type: string
+          created_at: string
+          id: string
+          similarity_score: number
+          user_id: string | null
+        }
+        Insert: {
+          badge_id: string
+          confidence_at_time: number
+          confirmation_type: string
+          created_at?: string
+          id?: string
+          similarity_score: number
+          user_id?: string | null
+        }
+        Update: {
+          badge_id?: string
+          confidence_at_time?: number
+          confirmation_type?: string
+          created_at?: string
+          id?: string
+          similarity_score?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       badge_embeddings: {
         Row: {
           badge_id: string

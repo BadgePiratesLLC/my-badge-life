@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BadgeAnalysisResults } from "./BadgeAnalysisResults";
+import { useBadgeConfirmations } from "@/hooks/useBadgeConfirmations";
 
 interface CameraCaptureProps {
   onImageCapture: (file: File) => void;
@@ -28,6 +29,7 @@ export const CameraCapture = ({
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { confirmMatch } = useBadgeConfirmations();
 
   if (!isOpen) return null;
 
@@ -249,6 +251,7 @@ export const CameraCapture = ({
           onCreateNew={handleCreateNew}
           originalImageBase64={analysisResults?.originalImageBase64}
           canAddToDatabase={analysisResults?.canAddToDatabase}
+          onConfirmMatch={confirmMatch}
         />
     </div>
   );
