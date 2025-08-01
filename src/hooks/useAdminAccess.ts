@@ -9,16 +9,6 @@ export const useAdminAccess = () => {
   const canAccessAdmin = () => {
     const adminCheck = isAdmin();
     const makerCheck = profile?.role === 'maker' && profile?.maker_approved;
-    
-    console.log('Admin access check:', {
-      profileRole: profile?.role,
-      makerApproved: profile?.maker_approved,
-      isAdmin: adminCheck,
-      canAccess: adminCheck || makerCheck,
-      authLoading,
-      rolesLoading
-    });
-    
     return adminCheck || makerCheck;
   };
 

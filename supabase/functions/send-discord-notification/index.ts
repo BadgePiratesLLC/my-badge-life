@@ -51,11 +51,15 @@ const handler = async (req: Request): Promise<Response> => {
       color: data.color || typeColors[type] || 0x7289da,
       timestamp: new Date().toISOString(),
       fields: data.fields || [],
-      thumbnail: data.thumbnail,
       footer: {
         text: 'MyBadgeLife Notifications',
       },
     };
+
+    // Only add thumbnail if it's a valid HTTP/HTTPS URL (not blob URLs)
+    if (data.thumbnail?.url && (data.thumbnail.url.startsWith('http://') || data.thumbnail.url.startsWith('https://'))) {
+      embed.thumbnail = data.thumbnail;
+    }
 
     const discordPayload = {
       embeds: [embed],

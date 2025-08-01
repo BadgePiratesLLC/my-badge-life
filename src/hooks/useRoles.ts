@@ -46,11 +46,7 @@ export function useRoles() {
     return roles.includes(role)
   }
 
-  const isAdmin = (): boolean => {
-    const result = hasRole('admin')
-    console.log('isAdmin() called:', { roles, result })
-    return result
-  }
+  const isAdmin = (): boolean => hasRole('admin')
   const isModerator = (): boolean => hasRole('moderator')
   const isUser = (): boolean => hasRole('user')
 
