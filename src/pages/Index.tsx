@@ -34,13 +34,14 @@ const Index = () => {
     uploadBadgeImage 
   } = useBadges();
 
-  // Show welcome screen for new users
-  useEffect(() => {
-    const hasVisited = localStorage.getItem('mybadgelife-visited');
-    if (hasVisited) {
-      setShowWelcome(false);
-    }
-  }, []);
+  // Always show welcome screen first
+  // Remove the localStorage check to always show welcome
+  // useEffect(() => {
+  //   const hasVisited = localStorage.getItem('mybadgelife-visited');
+  //   if (hasVisited) {
+  //     setShowWelcome(false);
+  //   }
+  // }, []);
 
   // Loading state with timeout fallback
   useEffect(() => {
