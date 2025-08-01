@@ -1,10 +1,10 @@
 import { useState, useRef } from "react";
 import { Camera, Upload, X, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BadgeAnalysisResults } from "./BadgeAnalysisResults";
-import { useToast } from "@/hooks/use-toast";
 
 interface CameraCaptureProps {
   onImageCapture: (file: File) => void;

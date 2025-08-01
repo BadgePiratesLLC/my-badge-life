@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const replicateToken = Deno.env.get('REPLICATE_API_TOKEN')
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!
 const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY')!
 
@@ -19,7 +20,7 @@ serve(async (req) => {
 
   try {
     if (!openaiApiKey || !perplexityApiKey) {
-      throw new Error('Missing required API keys')
+      throw new Error('Missing required API keys (OpenAI and Perplexity required)')
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
@@ -66,12 +67,10 @@ serve(async (req) => {
     
     try {
       const analysisText = visionData.choices[0].message.content
-      // Try to extract JSON from the response
       const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         aiAnalysis = JSON.parse(jsonMatch[0])
       } else {
-        // Fallback: create structured data from text
         aiAnalysis = {
           name: 'Unknown Badge',
           confidence: 50,
@@ -89,11 +88,147 @@ serve(async (req) => {
 
     console.log('AI Analysis complete:', aiAnalysis)
 
-    // Step 2: Search web for additional information
+    // Step 2: Generate embedding using Replicate CLIP for similarity search
+    let embedding = null
+    if (replicateToken) {
+      try {
+        const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${replicateToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            version: "b102e40c6bd7ad74ce68c84c17bc7c9f1a48df1b1afce0b1b8e24ca97c7a8c0f",
+            input: {
+              image: imageBase64,
+              mode: "image"
+            }
+          })
+        })
+
+        if (clipResponse.ok) {
+          const clipPrediction = await clipResponse.json()
+          let predictionId = clipPrediction.id
+
+          // Poll for completion with shorter timeout for responsiveness
+          let attempts = 0
+          const maxAttempts = 15 // Reduced from 30 for faster response
+
+          while (!embedding && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+              headers: {
+                'Authorization': `Token ${replicateToken}`,
+              }
+            })
+            
+            const statusData = await statusResponse.json()
+            
+            if (statusData.status === 'succeeded') {
+              embedding = statusData.output
+              break
+            } else if (statusData.status === 'failed') {
+              console.error('Embedding generation failed')
+              break
+            }
+            
+            attempts++
+          }
+        }
+      } catch (embeddingError) {
+        console.error('Error generating embedding:', embeddingError)
+      }
+    }
+
+    console.log('Generated embedding, searching for matches...')
+
+    // Step 3: Search for similar embeddings in the database
+    let matches = []
+    
+    if (embedding) {
+      try {
+        const { data: badgeEmbeddings, error: searchError } = await supabase
+          .from('badge_embeddings')
+          .select(`
+            *,
+            badges (
+              id,
+              name,
+              maker_id,
+              image_url,
+              description,
+              year,
+              category,
+              profiles (display_name)
+            )
+          `)
+
+        if (!searchError && badgeEmbeddings) {
+          // Calculate cosine similarity
+          const cosineSimilarity = (a: number[], b: number[]) => {
+            const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0)
+            const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
+            const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
+            return dotProduct / (magnitudeA * magnitudeB)
+          }
+
+          matches = badgeEmbeddings
+            .map(item => {
+              const similarity = cosineSimilarity(embedding, item.embedding)
+              return {
+                badge: item.badges,
+                similarity,
+                confidence: Math.round(similarity * 100)
+              }
+            })
+            .filter(match => match.similarity >= 0.7) // Lower threshold
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, 3)
+        } else {
+          console.error('Database search error:', searchError?.message || 'No embeddings found')
+        }
+      } catch (embeddingSearchError) {
+        console.error('Error searching embeddings:', embeddingSearchError)
+      }
+    }
+
+    // Step 4: Fallback to text-based search if no embedding matches
+    if (matches.length === 0) {
+      console.log('No embedding matches found, falling back to text search...')
+      
+      const { data: existingBadges } = await supabase
+        .from('badges')
+        .select(`
+          *,
+          profiles (display_name)
+        `)
+
+      if (existingBadges) {
+        const searchTerms = [
+          aiAnalysis.name,
+          aiAnalysis.event
+        ].filter(Boolean).map(term => term.toLowerCase())
+
+        const potentialMatches = existingBadges.filter(badge => {
+          const badgeText = `${badge.name} ${badge.description || ''} ${badge.team_name || ''}`.toLowerCase()
+          return searchTerms.some(term => badgeText.includes(term))
+        })
+
+        matches = potentialMatches.slice(0, 3).map(badge => ({
+          badge,
+          similarity: 0.5,
+          confidence: 50
+        }))
+      }
+    }
+
+    // Step 5: Search web for additional information (simplified for speed)
     let webResults: any = null
     if (aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
       try {
-        const searchQuery = `${aiAnalysis.name} ${aiAnalysis.event || ''} ${aiAnalysis.year || ''} electronic badge conference`.trim()
+        const searchQuery = `${aiAnalysis.name} ${aiAnalysis.event || ''} electronic badge conference`.trim()
         
         const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
           method: 'POST',
@@ -105,17 +240,12 @@ serve(async (req) => {
             model: 'llama-3.1-sonar-small-128k-online',
             messages: [
               {
-                role: 'system',
-                content: 'Find information about electronic badges/conference badges. Return structured data as JSON with fields: name, maker, year, event, category, description, external_link.'
-              },
-              {
                 role: 'user',
-                content: `Find information about: ${searchQuery}`
+                content: `Find basic info about: ${searchQuery}. Return brief JSON: {name, maker, year, description}`
               }
             ],
             temperature: 0.2,
-            max_tokens: 300,
-            return_related_questions: false
+            max_tokens: 200
           })
         })
 
@@ -127,11 +257,9 @@ serve(async (req) => {
             const webJsonMatch = webContent.match(/\{[\s\S]*\}/)
             if (webJsonMatch) {
               webResults = JSON.parse(webJsonMatch[0])
-              console.log('Web search results:', webResults)
             }
           } catch (webParseError) {
-            console.log('Could not parse web results as JSON, using as description')
-            webResults = { description: webContent }
+            console.log('Could not parse web results as JSON')
           }
         }
       } catch (webError) {
@@ -139,39 +267,15 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Search existing database
-    const { data: existingBadges, error: dbError } = await supabase
-      .from('badges')
-      .select(`
-        *,
-        profiles (display_name)
-      `)
-
-    if (dbError) {
-      console.error('Database search error:', dbError)
-    }
-
-    // Step 4: Find potential matches
-    const searchTerms = [
-      aiAnalysis.name,
-      aiAnalysis.event,
-      webResults?.name,
-      webResults?.event
-    ].filter(Boolean).map(term => term.toLowerCase())
-
-    const potentialMatches = existingBadges?.filter(badge => {
-      const badgeText = `${badge.name} ${badge.description || ''} ${badge.team_name || ''}`.toLowerCase()
-      return searchTerms.some(term => badgeText.includes(term))
-    }) || []
+    console.log(`Found ${matches.length} matches`)
 
     // Combine AI analysis with web results
     const combinedAnalysis = {
       ...aiAnalysis,
       ...webResults,
-      // AI analysis takes precedence for confidence
       confidence: aiAnalysis.confidence || 50,
       web_info: webResults,
-      database_matches: potentialMatches.slice(0, 3) // Top 3 matches
+      database_matches: matches.map(m => m.badge)
     }
 
     console.log('Analysis complete, returning results')
@@ -179,7 +283,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         analysis: combinedAnalysis,
-        matches: potentialMatches.slice(0, 3)
+        matches: matches
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      badge_embeddings: {
+        Row: {
+          badge_id: string
+          created_at: string
+          embedding: number[]
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          badge_id: string
+          created_at?: string
+          embedding: number[]
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          badge_id?: string
+          created_at?: string
+          embedding?: number[]
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badge_embeddings_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: Database["public"]["Enums"]["badge_category"] | null
