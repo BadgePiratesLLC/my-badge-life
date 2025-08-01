@@ -27,6 +27,14 @@ serve(async (req) => {
     console.log('Processing image for badge matching...')
 
     // Generate embedding for uploaded image using Replicate CLIP
+    console.log('Generating image embedding with CLIP...')
+    
+    // Ensure proper image format
+    let imageData = imageBase64;
+    if (!imageData.startsWith('data:')) {
+      imageData = `data:image/jpeg;base64,${imageBase64}`;
+    }
+    
     const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -34,10 +42,9 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "b102e40c6bd7ad74ce68c84c17bc7c9f1a48df1b1afce0b1b8e24ca97c7a8c0f",
+        version: "75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a",
         input: {
-          image: imageBase64,
-          mode: "image"
+          image: imageData
         }
       })
     })
