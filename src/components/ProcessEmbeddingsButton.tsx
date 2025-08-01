@@ -33,6 +33,18 @@ export const ProcessEmbeddingsButton = () => {
         throw new Error(result.error);
       }
       
+      // Show detailed results
+      if (result?.results && result.results.length > 0) {
+        const failures = result.results.filter(r => !r.success);
+        if (failures.length > 0) {
+          console.error('Failed badges:', failures);
+          toast.error("Some badges failed to process", {
+            description: `${failures.length} badges failed. Check console for details. Error: ${failures[0]?.error}`,
+          });
+          return;
+        }
+      }
+      
       toast.success("Badge embeddings processed!", {
         description: `Processed ${result?.processed || 0}/${result?.total || 0} badges. ${result?.message || 'Image matching is now available.'}`,
       });
