@@ -85,13 +85,28 @@ serve(async (req) => {
     const badgesToProcessBatch = badgesToProcess.slice(0, batchSize)
 
     console.log(`Processing batch of ${badgesToProcessBatch.length} badges`)
+    console.log('Badge URLs to process:', badgesToProcessBatch.map(b => ({ id: b.id, name: b.name, url: b.image_url })))
 
     for (const badge of badgesToProcessBatch) {
       try {
-        console.log(`Processing badge ${badge.id}: ${badge.name}`)
+        console.log(`\n=== Processing badge ${badge.id}: "${badge.name}" ===`)
+        console.log('Image URL:', badge.image_url)
+
+        // First, test if the image URL is accessible
+        console.log('Testing image URL accessibility...')
+        const imageTestResponse = await fetch(badge.image_url, { method: 'HEAD' })
+        console.log('Image URL test status:', imageTestResponse.status)
+        
+        if (!imageTestResponse.ok) {
+          const error = `Image URL not accessible: ${imageTestResponse.status} ${imageTestResponse.statusText}`
+          console.error(error)
+          results.push({ badge_id: badge.id, success: false, error })
+          continue
+        }
 
         // Generate embedding using Replicate CLIP
-        console.log('Calling Replicate API...')
+        console.log('Calling Replicate API for embedding generation...')
+        const startTime = Date.now()
         const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
@@ -107,26 +122,35 @@ serve(async (req) => {
           })
         })
 
+        console.log('Replicate API call took:', Date.now() - startTime, 'ms')
+        console.log('Replicate response status:', clipResponse.status)
+
         if (!clipResponse.ok) {
           const errorText = await clipResponse.text()
-          console.error(`Replicate API error for badge ${badge.id}: ${clipResponse.status} ${clipResponse.statusText} - ${errorText}`)
-          results.push({ badge_id: badge.id, success: false, error: `Replicate API error: ${clipResponse.statusText}` })
+          const error = `Replicate API error: ${clipResponse.status} ${clipResponse.statusText} - ${errorText}`
+          console.error(error)
+          results.push({ badge_id: badge.id, success: false, error })
           continue
         }
 
         const clipPrediction = await clipResponse.json()
-        console.log(`Prediction started: ${clipPrediction.id}`)
+        console.log('Prediction created successfully:', clipPrediction.id)
+        console.log('Prediction status:', clipPrediction.status)
+        console.log('Prediction URLs:', clipPrediction.urls)
         let predictionId = clipPrediction.id
 
         // Poll for completion with shorter attempts for better responsiveness
         let embedding = null
         let attempts = 0
-        const maxAttempts = 20 // Reduced but still reasonable
+        const maxAttempts = 15 // Reduced for faster response
+        const pollStartTime = Date.now()
+
+        console.log(`Starting to poll prediction ${predictionId} (max ${maxAttempts} attempts)`)
 
         while (!embedding && attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds between checks
           
-          console.log(`Checking prediction status (attempt ${attempts + 1}/${maxAttempts})...`)
+          console.log(`Polling attempt ${attempts + 1}/${maxAttempts} for prediction ${predictionId}`)
           
           const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
             headers: {
@@ -135,20 +159,30 @@ serve(async (req) => {
           })
           
           if (!statusResponse.ok) {
-            console.error(`Status check failed: ${statusResponse.statusText}`)
+            const error = `Status check failed: ${statusResponse.status} ${statusResponse.statusText}`
+            console.error(error)
+            results.push({ badge_id: badge.id, success: false, error })
             break
           }
           
           const statusData = await statusResponse.json()
-          console.log(`Prediction status: ${statusData.status}`)
+          console.log(`Prediction ${predictionId} status:`, statusData.status)
           
           if (statusData.status === 'succeeded') {
             embedding = statusData.output
-            console.log('Embedding generated successfully')
+            console.log('Embedding generated successfully! Length:', embedding?.length)
+            console.log('Polling took:', Date.now() - pollStartTime, 'ms')
             break
           } else if (statusData.status === 'failed') {
-            console.error(`Embedding generation failed for badge ${badge.id}: ${statusData.error}`)
-            results.push({ badge_id: badge.id, success: false, error: 'Embedding generation failed' })
+            const error = `Embedding generation failed: ${statusData.error || 'Unknown error'}`
+            console.error(error)
+            console.log('Failed prediction details:', statusData)
+            results.push({ badge_id: badge.id, success: false, error })
+            break
+          } else if (statusData.status === 'canceled') {
+            const error = 'Embedding generation was canceled'
+            console.error(error)
+            results.push({ badge_id: badge.id, success: false, error })
             break
           }
           
