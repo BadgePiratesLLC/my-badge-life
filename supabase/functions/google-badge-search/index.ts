@@ -34,6 +34,8 @@ serve(async (req) => {
     statusUpdates.push({ stage: 'google_search', status: 'searching', message: 'Trying Google reverse image search...' })
     
     const serpApiKey = Deno.env.get('SERPAPI_KEY')
+    console.log('SERPAPI_KEY check:', serpApiKey ? 'Found' : 'Not found')
+    
     if (!serpApiKey) {
       statusUpdates.push({ 
         stage: 'google_search', 
