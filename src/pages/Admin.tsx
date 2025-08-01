@@ -675,9 +675,9 @@ export default function Admin() {
                                   {badge.year && <span>Year: {badge.year}</span>}
                                   {badge.team_name && <span>Team: {badge.team_name}</span>}
                                   {badge.category && <span>Category: {badge.category}</span>}
-                                  {badge.profiles?.display_name && (
-                                    <span>Creator: {badge.profiles.display_name}</span>
-                                  )}
+                                   {badge.profiles?.display_name && (
+                                     <span>Created By: {badge.profiles.display_name}</span>
+                                   )}
                                   {badge.retired && (
                                     <Badge variant="destructive" className="text-xs">RETIRED</Badge>
                                   )}
