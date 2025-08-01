@@ -22,6 +22,7 @@ export function useRoles() {
     if (!user) return
 
     try {
+      console.log('Fetching roles for user:', user.id)
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -30,7 +31,9 @@ export function useRoles() {
       if (error) {
         console.error('Error fetching roles:', error)
       } else {
-        setRoles((data || []).map(r => r.role as AppRole))
+        const fetchedRoles = (data || []).map(r => r.role as AppRole)
+        console.log('Roles fetched from database:', fetchedRoles)
+        setRoles(fetchedRoles)
       }
     } catch (error) {
       console.error('Error fetching roles:', error)
@@ -43,7 +46,11 @@ export function useRoles() {
     return roles.includes(role)
   }
 
-  const isAdmin = (): boolean => hasRole('admin')
+  const isAdmin = (): boolean => {
+    const result = hasRole('admin')
+    console.log('isAdmin() called:', { roles, result })
+    return result
+  }
   const isModerator = (): boolean => hasRole('moderator')
   const isUser = (): boolean => hasRole('user')
 

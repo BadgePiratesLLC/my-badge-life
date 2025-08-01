@@ -76,90 +76,86 @@ serve(async (req) => {
 
     console.log('Quick analysis result:', quickAnalysis)
 
-    // Step 2: Search database using the identified badge info
-    console.log('Searching database with identified badge info...')
+    // Step 2: Search database using simple text matching first (faster and more reliable)
+    console.log('Searching database with simple text matching...')
     let matches = []
     
     if (!forceWebSearch) {
       try {
-        // Create embedding using identified badge info (consistent with stored embeddings format)
-        const textToEmbed = `Badge: ${quickAnalysis.name || 'Unknown Badge'}. Description: ${quickAnalysis.description || 'Electronic conference badge'}. Image URL: analysis`
-        
-        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            input: textToEmbed,
-            model: 'text-embedding-3-small'
-          })
-        })
+        // First try direct text search in badge names and descriptions
+        const { data: badgeMatches, error: textSearchError } = await supabase
+          .from('badges')
+          .select(`
+            id,
+            name,
+            maker_id,
+            image_url,
+            description,
+            year,
+            category,
+            profiles (display_name)
+          `)
+          .not('image_url', 'is', null)
 
-        if (embeddingResponse.ok) {
-          const embeddingData = await embeddingResponse.json()
-          const queryEmbedding = embeddingData.data[0].embedding
+        if (!textSearchError && badgeMatches) {
+          console.log(`Searching ${badgeMatches.length} badges for text matches...`)
           
-          // Search existing embeddings
-          const { data: badgeEmbeddings, error: searchError } = await supabase
-            .from('badge_embeddings')
-            .select(`
-              *,
-              badges (
-                id,
-                name,
-                maker_id,
-                image_url,
-                description,
-                year,
-                category,
-                profiles (display_name)
-              )
-            `)
-
-          if (!searchError && badgeEmbeddings) {
-            // Calculate cosine similarity
-            const cosineSimilarity = (a: number[], b: number[]) => {
-              const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0)
-              const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
-              const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
-              return dotProduct / (magnitudeA * magnitudeB)
+          const searchName = quickAnalysis.name.toLowerCase()
+          const searchWords = searchName.split(' ').filter(word => word.length > 2)
+          
+          console.log('Searching for:', searchName, 'Words:', searchWords)
+          
+          // Score badges based on text similarity
+          const scoredMatches = badgeMatches.map(badge => {
+            const badgeName = badge.name.toLowerCase()
+            const badgeDesc = badge.description?.toLowerCase() || ''
+            const badgeText = `${badgeName} ${badgeDesc}`
+            
+            let score = 0
+            let confidence = 0
+            
+            // Exact name match = 100%
+            if (badgeName === searchName) {
+              score = 100
+              confidence = 100
             }
-
-            matches = badgeEmbeddings
-              .map(item => {
-                const similarity = cosineSimilarity(queryEmbedding, item.embedding)
-                let confidence = Math.round(similarity * 100)
-                
-                // Boost confidence for very high similarities (likely exact matches)
-                if (similarity > 0.95) {
-                  confidence = Math.min(100, confidence + 5)
-                }
-                
-                console.log(`Badge ${item.badges?.name}: similarity = ${similarity}, confidence = ${confidence}%`)
-                
-                return {
-                  badge: item.badges,
-                  similarity,
-                  confidence
-                }
-              })
-              .filter(match => match.similarity >= 0.4)  // Lower threshold for testing
-              .sort((a, b) => b.similarity - a.similarity)
-              .slice(0, 5)
-
-            console.log(`Found ${matches.length} database matches with identified badge info`)
-          }
+            // Name contains search = 80%
+            else if (badgeName.includes(searchName) || searchName.includes(badgeName)) {
+              score = 80
+              confidence = 80
+            }
+            // Word matches
+            else {
+              const matchedWords = searchWords.filter(word => badgeText.includes(word))
+              if (matchedWords.length > 0) {
+                score = (matchedWords.length / searchWords.length) * 70
+                confidence = Math.round(score)
+              }
+            }
+            
+            console.log(`Badge "${badge.name}": score=${score}, confidence=${confidence}`)
+            
+            return {
+              badge,
+              similarity: score / 100,
+              confidence
+            }
+          })
+          .filter(match => match.confidence >= 30)  // Minimum 30% confidence
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 5)
+          
+          matches = scoredMatches
+          console.log(`Found ${matches.length} text matches. Best: ${matches[0]?.confidence}%`)
         }
       } catch (error) {
-        console.error('Database search error:', error)
+        console.error('Text search error:', error)
       }
     }
 
-    // Step 3: Only do full detailed AI analysis if forced OR no good database matches
+    // Step 3: Only do detailed AI analysis if forced OR no good text matches
     let aiAnalysis: any = quickAnalysis
-    if (forceWebSearch || matches.length === 0) {
+    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 70)) {
       console.log('Running detailed AI analysis...')
       
       const detailedResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -207,7 +203,7 @@ serve(async (req) => {
         console.log('Detailed AI Analysis complete:', aiAnalysis)
       }
     } else {
-      console.log('Skipping detailed AI analysis - found good database matches')
+      console.log('Skipping detailed AI analysis - found good text matches')
     }
 
     // Step 4: Do web search if forced OR if no database matches found
