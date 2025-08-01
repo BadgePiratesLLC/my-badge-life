@@ -130,46 +130,65 @@ export default function Admin() {
   const deleteUpload = async (upload: Upload) => {
     if (!confirm('Are you sure you want to delete this upload?')) return
 
-    try {
-      // Extract the full path from the URL for storage deletion
-      const url = new URL(upload.image_url)
-      const pathParts = url.pathname.split('/')
-      const bucketIndex = pathParts.findIndex(part => part === 'badge-images')
-      
-      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-        // Get the file path after 'badge-images'
-        const filePath = pathParts.slice(bucketIndex + 1).join('/')
-        
-        console.log('Deleting file path:', filePath)
-        
-        // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from('badge-images')
-          .remove([filePath])
-        
-        if (storageError) {
-          console.error('Storage delete error:', storageError)
-          // Continue anyway to remove from database
-        }
-      }
+    console.log('Starting delete process for upload:', upload.id, upload.image_url)
 
-      // Delete from database
-      const { error } = await supabase
+    try {
+      // First delete from database - this is what matters most for the UI
+      console.log('Deleting from database...')
+      const { error: dbError } = await supabase
         .from('uploads')
         .delete()
         .eq('id', upload.id)
 
-      if (error) throw error
+      if (dbError) {
+        console.error('Database delete error:', dbError)
+        throw dbError
+      }
+      
+      console.log('Database deletion successful')
 
-      // Update UI
-      setUploads(prev => prev.filter(u => u.id !== upload.id))
+      // Then try to delete from storage (optional - don't fail if this doesn't work)
+      try {
+        const url = new URL(upload.image_url)
+        const pathParts = url.pathname.split('/')
+        const bucketIndex = pathParts.findIndex(part => part === 'badge-images')
+        
+        if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+          const filePath = pathParts.slice(bucketIndex + 1).join('/')
+          
+          console.log('Attempting to delete from storage, file path:', filePath)
+          
+          const { error: storageError } = await supabase.storage
+            .from('badge-images')
+            .remove([filePath])
+          
+          if (storageError) {
+            console.error('Storage delete error (non-critical):', storageError)
+          } else {
+            console.log('Storage deletion successful')
+          }
+        }
+      } catch (storageErr) {
+        console.error('Storage deletion failed (non-critical):', storageErr)
+      }
+
+      // Update UI immediately
+      console.log('Updating UI...')
+      setUploads(prev => {
+        const newUploads = prev.filter(u => u.id !== upload.id)
+        console.log('Upload count before:', prev.length, 'after:', newUploads.length)
+        return newUploads
+      })
+      
       toast.success('Upload deleted successfully!')
       
       // Refresh the uploads list to ensure consistency
-      await fetchUploads()
+      console.log('Refreshing uploads list...')
+      setTimeout(() => fetchUploads(), 500) // Small delay to let UI update first
+      
     } catch (error) {
       console.error('Error deleting upload:', error)
-      toast.error('Failed to delete upload')
+      toast.error('Failed to delete upload: ' + (error as Error).message)
     }
   }
 
