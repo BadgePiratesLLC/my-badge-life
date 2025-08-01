@@ -113,87 +113,64 @@ Return JSON: {"name": "specific character/badge name", "description": "detailed 
           `${m.badge?.name || 'Unknown'}: ${Math.round(m.similarity * 100)}%`
         ))
       } else {
-        console.log('No significant local image matches found, performing enhanced visual analysis...')
-        
-        // Step 2.5: Enhanced visual analysis like Google's reverse image search
+        console.log('No significant local image matches found, trying Google reverse image search...')
+      }
+    } catch (error) {
+      console.error('Image matching error (continuing with Google search):', error)
+    }
+
+    // Step 2.5: Google Reverse Image Search (if no local matches)
+    let googleResult = null
+    if (imageMatches.length === 0) {
+      console.log('🔍 STARTING GOOGLE REVERSE IMAGE SEARCH...')
+      
+      const serpApiKey = Deno.env.get('SERPAPI_KEY')
+      if (serpApiKey) {
         try {
-          console.log('Performing detailed visual analysis for precise identification...')
-          const detailedAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          // Convert base64 image to a format SerpAPI can use
+          const imageData = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '')
+          
+          console.log('Performing Google reverse image search...')
+          const googleResponse = await fetch('https://serpapi.com/search', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiApiKey}`,
-              'Content-Type': 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify({
-              model: 'gpt-4o',
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are a reverse image search expert specializing in electronic badges. Look at this image like Google's visual search would - identify the EXACT product, character, or design.
-
-CRITICAL INSTRUCTIONS:
-1. If this is a BABY YODA/GROGU/THE CHILD character badge, identify it specifically
-2. Look for any visible text, brand marks, or identifying features
-3. Consider the PCB color, character pose, and design elements
-4. Think about how this would be listed on Tindie marketplace
-
-Generate highly specific search terms that would find THIS EXACT badge on Tindie, not similar items.
-
-Return JSON with:
-- name: Most specific name possible (include character if visible)
-- description: Detailed visual description
-- search_terms: 8-10 VERY specific terms that would find this exact item
-- marketplace_category: Best category (SAO, character badge, etc.)
-- primary_identifier: The most important identifying feature`
-                },
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: `Analyze this badge image like a reverse image search. What is the EXACT product? If this is a character (like Baby Yoda), identify it specifically. Generate search terms that would find this precise item on Tindie marketplace.`
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: {
-                        url: imageBase64
-                      }
-                    }
-                  ]
-                }
-              ],
-              max_tokens: 500,
-              temperature: 0.2  // Lower temperature for more precise identification
+            body: new URLSearchParams({
+              engine: 'google_reverse_image',
+              image_base64: imageData,
+              api_key: serpApiKey,
+              num: 1  // Just get the top result
             })
           })
 
-          if (detailedAnalysisResponse.ok) {
-            const detailedData = await detailedAnalysisResponse.json()
-            try {
-              const detailedContent = detailedData.choices[0].message.content
-              const detailedMatch = detailedContent.match(/\{[\s\S]*\}/)
-              if (detailedMatch) {
-                const detailedAnalysis = JSON.parse(detailedMatch[0])
-                console.log('Enhanced visual analysis result:', detailedAnalysis)
-                
-                // Override the quick analysis with more precise results
-                quickAnalysis = {
-                  ...quickAnalysis,
-                  ...detailedAnalysis,
-                  search_terms: detailedAnalysis.search_terms || quickAnalysis.search_terms
-                }
-                console.log('Updated analysis with enhanced visual identification')
+          if (googleResponse.ok) {
+            const googleData = await googleResponse.json()
+            console.log('Google search response:', googleData)
+            
+            if (googleData.image_results && googleData.image_results.length > 0) {
+              const topResult = googleData.image_results[0]
+              googleResult = {
+                name: topResult.title || 'Unknown Badge',
+                description: topResult.snippet || 'Found via Google reverse image search',
+                external_link: topResult.link,
+                source: 'Google Image Search',
+                confidence: 90, // High confidence for Google's top result
+                thumbnail: topResult.thumbnail
               }
-            } catch (e) {
-              console.log('Could not parse enhanced analysis, using original')
+              console.log('Google found top result:', googleResult)
+            } else {
+              console.log('Google search returned no image results')
             }
+          } else {
+            console.log('Google search failed with status:', googleResponse.status)
           }
         } catch (error) {
-          console.error('Enhanced visual analysis error:', error)
+          console.error('Google reverse image search error:', error)
         }
+      } else {
+        console.log('SERPAPI_KEY not found, skipping Google search')
       }
-    } catch (error) {
-      console.error('Image matching error (continuing with text search):', error)
     }
 
     // Step 3: Search local database for text matches
@@ -498,8 +475,15 @@ Return JSON with:
 
     console.log('Analysis complete, returning results')
     
-    // Combine all analysis results - but ONLY include web results if we actually searched
-    const combinedAnalysis = shouldSearchWeb ? {
+    // Combine all analysis results - prioritize Google result if found
+    const combinedAnalysis = googleResult ? {
+      ...quickAnalysis,
+      ...googleResult,
+      confidence: googleResult.confidence,
+      search_source: 'Google Image Search',
+      web_info: googleResult,
+      database_matches: matches.map(m => m.badge)
+    } : shouldSearchWeb ? {
       ...quickAnalysis,
       ...webResults,
       confidence: webResults?.confidence || quickAnalysis.confidence || 50,
