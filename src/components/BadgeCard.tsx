@@ -59,7 +59,7 @@ export const BadgeCard = ({
 
       <CardContent className="p-3 pt-0">
         {badge.imageUrl ? (
-          <div className="aspect-square rounded border border-border overflow-hidden bg-muted">
+          <div className="aspect-video w-full h-16 rounded border border-border overflow-hidden bg-muted">
             <img 
               src={badge.imageUrl} 
               alt={badge.name}
@@ -67,8 +67,8 @@ export const BadgeCard = ({
             />
           </div>
         ) : (
-          <div className="aspect-square rounded border border-border bg-muted flex items-center justify-center">
-            <Badge className="h-8 w-8 text-muted-foreground" />
+          <div className="aspect-video w-full h-16 rounded border border-border bg-muted flex items-center justify-center">
+            <Badge className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
         
