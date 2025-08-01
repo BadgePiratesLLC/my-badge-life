@@ -119,92 +119,40 @@ serve(async (req) => {
             message: `Google API error: ${googleData.error}` 
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
-          console.log('Raw Google response:', JSON.stringify(googleData.image_results.slice(0, 3), null, 2))
-          console.log('🔍 APPLYING AGGRESSIVE FILTERING - SHOULD REJECT FANDOM/WIKI RESULTS')
+          console.log('Google returned results - TEMPORARILY ACCEPTING FIRST RESULT FOR TESTING')
           
-          // FIRST: Check if this is a Fandom/Wiki result and IMMEDIATELY reject it
           const firstResult = googleData.image_results[0]
-          const testTitle = (firstResult.title || '').toLowerCase()
-          const testSnippet = (firstResult.snippet || '').toLowerCase()
-          const testLink = (firstResult.link || '').toLowerCase()
-          const testCombined = `${testTitle} ${testSnippet} ${testLink}`
-          
-          console.log('🔍 TESTING FIRST RESULT:')
-          console.log(`Title: "${firstResult.title}"`)
-          console.log(`Link: "${firstResult.link}"`)
-          console.log(`Combined text: "${testCombined}"`)
-          
-          const isFandom = testCombined.includes('fandom.com') || testCombined.includes('wookieepedia')
-          const isWiki = testCombined.includes('wikipedia.org') || testCombined.includes('wiki')
-          const isEntertainment = testCombined.includes('starwars') || testCombined.includes('movie') || testCombined.includes('character')
-          
-          console.log(`Contains fandom/wookieepedia: ${isFandom}`)
-          console.log(`Contains wiki: ${isWiki}`)
-          console.log(`Contains entertainment terms: ${isEntertainment}`)
-          
-          if (isFandom || isWiki || isEntertainment) {
-            console.log('❌ FIRST RESULT IS ENTERTAINMENT - REJECTING ALL GOOGLE RESULTS')
-            statusUpdates.push({ 
-              stage: 'google_search', 
-              status: 'failed', 
-              message: 'Google found entertainment content (Fandom/Wiki), not badge-related' 
-            })
-            console.log('❌ ALL GOOGLE RESULTS REJECTED - Entertainment content detected')
-          } else {
-            // Only proceed with normal filtering if it's not entertainment content
-            console.log('✅ First result is not entertainment, proceeding with badge filtering...')
-            
-            const requiredBadgeTerms = [
-              'conference badge', 'con badge', 'electronic badge', 'pcb badge', 'led badge',
-              'defcon badge', 'bsides badge', 'hacker badge', 'security badge',
-              'badge design', 'badge pcb', 'badge circuit'
-            ]
-            
-            const hasBadgeTerms = requiredBadgeTerms.some(term => testCombined.includes(term))
-            
-            console.log(`Has required badge terms: ${hasBadgeTerms}`)
-            
-            if (hasBadgeTerms) {
-              const validResult = {
-                name: firstResult.title || 'Unknown Badge',
-                description: firstResult.snippet || 'Found via Google reverse image search',
-                external_link: firstResult.link,
-                source: 'Google Image Search',
-                confidence: 65,
-                thumbnail: firstResult.thumbnail,
-                found_via_google: true,
-                search_source: 'Google Image Search'
-              }
-              
-              analytics.found_via_google = true
-              analytics.google_confidence = 65
-              analytics.total_duration_ms = Date.now() - searchStartTime
-              
-              statusUpdates.push({ 
-                stage: 'google_search', 
-                status: 'success', 
-                message: `Found verified badge: ${validResult.name}` 
-              })
-              
-              console.log(`✅ VERIFIED BADGE FOUND: "${validResult.name}"`)
-              
-              return new Response(
-                JSON.stringify({ 
-                  analysis: validResult,
-                  statusUpdates,
-                  analytics
-                }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              )
-            } else {
-              console.log('❌ No badge terminology found in non-entertainment result')
-              statusUpdates.push({ 
-                stage: 'google_search', 
-                status: 'failed', 
-                message: 'Google found results but no badge terminology detected' 
-              })
-            }
+          const googleResult = {
+            name: `${firstResult.title || 'Unknown Badge'} (GOOGLE TEST)`,
+            description: `TEST: ${firstResult.snippet || 'Found via Google reverse image search'}`,
+            external_link: firstResult.link,
+            source: 'Google Image Search (TEST MODE)',
+            confidence: 75,
+            thumbnail: firstResult.thumbnail,
+            found_via_google: true,
+            search_source: 'Google Image Search'
           }
+          
+          analytics.found_via_google = true
+          analytics.google_confidence = 75
+          analytics.total_duration_ms = Date.now() - searchStartTime
+          
+          statusUpdates.push({ 
+            stage: 'google_search', 
+            status: 'success', 
+            message: `TEST: Found Google result: ${googleResult.name}` 
+          })
+          
+          console.log(`✅ GOOGLE TEST RESULT: "${googleResult.name}"`)
+          
+          return new Response(
+            JSON.stringify({ 
+              analysis: googleResult,
+              statusUpdates,
+              analytics
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
         } else {
           statusUpdates.push({ 
             stage: 'google_search', 
