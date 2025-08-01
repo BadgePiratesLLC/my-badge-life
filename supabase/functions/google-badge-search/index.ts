@@ -120,97 +120,90 @@ serve(async (req) => {
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
           console.log('Raw Google response:', JSON.stringify(googleData.image_results.slice(0, 3), null, 2))
-          console.log('Google returned results, applying STRICT badge filtering...')
+          console.log('🔍 APPLYING AGGRESSIVE FILTERING - SHOULD REJECT FANDOM/WIKI RESULTS')
           
-          // EXTREMELY strict filtering - only these specific terms
-          const requiredBadgeTerms = [
-            'conference badge', 'con badge', 'electronic badge', 'pcb badge', 'led badge',
-            'defcon badge', 'bsides badge', 'hacker badge', 'security badge',
-            'badge design', 'badge pcb', 'badge circuit'
-          ]
+          // FIRST: Check if this is a Fandom/Wiki result and IMMEDIATELY reject it
+          const firstResult = googleData.image_results[0]
+          const testTitle = (firstResult.title || '').toLowerCase()
+          const testSnippet = (firstResult.snippet || '').toLowerCase()
+          const testLink = (firstResult.link || '').toLowerCase()
+          const testCombined = `${testTitle} ${testSnippet} ${testLink}`
           
-          const exactEventNames = ['defcon', 'bsides', 'blackhat', 'derbycon', 'shmoocon', 'toorcon', 'hackaday']
+          console.log('🔍 TESTING FIRST RESULT:')
+          console.log(`Title: "${firstResult.title}"`)
+          console.log(`Link: "${firstResult.link}"`)
+          console.log(`Combined text: "${testCombined}"`)
           
-          let foundValidBadge = false
-          let bestResult = null
+          const isFandom = testCombined.includes('fandom.com') || testCombined.includes('wookieepedia')
+          const isWiki = testCombined.includes('wikipedia.org') || testCombined.includes('wiki')
+          const isEntertainment = testCombined.includes('starwars') || testCombined.includes('movie') || testCombined.includes('character')
           
-          for (let i = 0; i < Math.min(googleData.image_results.length, 5); i++) {
-            const result = googleData.image_results[i]
-            const title = (result.title || '').toLowerCase()
-            const snippet = (result.snippet || '').toLowerCase()
-            const link = (result.link || '').toLowerCase()
-            const combined = `${title} ${snippet} ${link}`
-            
-            console.log(`\n--- Analyzing result ${i + 1} ---`)
-            console.log(`Title: "${result.title}"`)
-            console.log(`Snippet: "${result.snippet}"`)
-            console.log(`Link: "${result.link}"`)
-            
-            // Check if it contains required badge terminology
-            const hasRequiredBadgeTerm = requiredBadgeTerms.some(term => combined.includes(term))
-            const hasEventName = exactEventNames.some(event => combined.includes(event))
-            
-            // Additional check: must not be from entertainment/wiki sites unless it's about actual badges
-            const isEntertainmentSite = combined.includes('fandom.com') || combined.includes('wikipedia.org') || 
-                                      combined.includes('wiki') || combined.includes('starwars') || 
-                                      combined.includes('movie') || combined.includes('character') ||
-                                      combined.includes('wookieepedia')
-            
-            console.log(`Has required badge term: ${hasRequiredBadgeTerm}`)
-            console.log(`Has event name: ${hasEventName}`)
-            console.log(`Is entertainment site: ${isEntertainmentSite}`)
-            
-            // Only accept if it has specific badge terminology AND is not an entertainment site
-            // OR if it's from a known tech event (even if entertainment site, if it mentions the event + badge)
-            const isValid = (hasRequiredBadgeTerm && !isEntertainmentSite) || 
-                           (hasEventName && combined.includes('badge'))
-            
-            console.log(`Final result: ${isValid ? 'ACCEPTED' : 'REJECTED'}`)
-            
-            if (isValid && !foundValidBadge) {
-              foundValidBadge = true
-              bestResult = {
-                name: result.title || 'Unknown Badge',
-                description: result.snippet || 'Found via Google reverse image search',
-                external_link: result.link,
-                source: 'Google Image Search',
-                confidence: 65,
-                thumbnail: result.thumbnail,
-                found_via_google: true,
-                search_source: 'Google Image Search'
-              }
-              break // Take the first valid result
-            }
-          }
+          console.log(`Contains fandom/wookieepedia: ${isFandom}`)
+          console.log(`Contains wiki: ${isWiki}`)
+          console.log(`Contains entertainment terms: ${isEntertainment}`)
           
-          if (foundValidBadge && bestResult) {
-            analytics.found_via_google = true
-            analytics.google_confidence = 65
-            analytics.total_duration_ms = Date.now() - searchStartTime
-            
-            statusUpdates.push({ 
-              stage: 'google_search', 
-              status: 'success', 
-              message: `Found verified badge: ${bestResult.name}` 
-            })
-            
-            console.log(`✅ VERIFIED BADGE FOUND: "${bestResult.name}"`)
-            
-            return new Response(
-              JSON.stringify({ 
-                analysis: bestResult,
-                statusUpdates,
-                analytics
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
-          } else {
+          if (isFandom || isWiki || isEntertainment) {
+            console.log('❌ FIRST RESULT IS ENTERTAINMENT - REJECTING ALL GOOGLE RESULTS')
             statusUpdates.push({ 
               stage: 'google_search', 
               status: 'failed', 
-              message: 'No verified badge results found (strict filtering applied)' 
+              message: 'Google found entertainment content (Fandom/Wiki), not badge-related' 
             })
-            console.log('❌ NO VERIFIED BADGE RESULTS - All results rejected by strict filtering')
+            console.log('❌ ALL GOOGLE RESULTS REJECTED - Entertainment content detected')
+          } else {
+            // Only proceed with normal filtering if it's not entertainment content
+            console.log('✅ First result is not entertainment, proceeding with badge filtering...')
+            
+            const requiredBadgeTerms = [
+              'conference badge', 'con badge', 'electronic badge', 'pcb badge', 'led badge',
+              'defcon badge', 'bsides badge', 'hacker badge', 'security badge',
+              'badge design', 'badge pcb', 'badge circuit'
+            ]
+            
+            const hasBadgeTerms = requiredBadgeTerms.some(term => testCombined.includes(term))
+            
+            console.log(`Has required badge terms: ${hasBadgeTerms}`)
+            
+            if (hasBadgeTerms) {
+              const validResult = {
+                name: firstResult.title || 'Unknown Badge',
+                description: firstResult.snippet || 'Found via Google reverse image search',
+                external_link: firstResult.link,
+                source: 'Google Image Search',
+                confidence: 65,
+                thumbnail: firstResult.thumbnail,
+                found_via_google: true,
+                search_source: 'Google Image Search'
+              }
+              
+              analytics.found_via_google = true
+              analytics.google_confidence = 65
+              analytics.total_duration_ms = Date.now() - searchStartTime
+              
+              statusUpdates.push({ 
+                stage: 'google_search', 
+                status: 'success', 
+                message: `Found verified badge: ${validResult.name}` 
+              })
+              
+              console.log(`✅ VERIFIED BADGE FOUND: "${validResult.name}"`)
+              
+              return new Response(
+                JSON.stringify({ 
+                  analysis: validResult,
+                  statusUpdates,
+                  analytics
+                }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            } else {
+              console.log('❌ No badge terminology found in non-entertainment result')
+              statusUpdates.push({ 
+                stage: 'google_search', 
+                status: 'failed', 
+                message: 'Google found results but no badge terminology detected' 
+              })
+            }
           }
         } else {
           statusUpdates.push({ 
