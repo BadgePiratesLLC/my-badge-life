@@ -8,6 +8,7 @@ import { BadgeCard } from "./BadgeCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAIFeedback } from "@/hooks/useAIFeedback";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BadgeAnalysis {
   name?: string;
@@ -41,6 +42,7 @@ interface BadgeAnalysisResultsProps {
   originalImageBase64?: string; // For web search
   canAddToDatabase?: boolean; // For admin to add high-confidence results
   onConfirmMatch?: (badgeId: string, similarity: number, confidence: number) => void;
+  onAuthRequired?: () => void; // Callback to show auth modal
 }
 
 export const BadgeAnalysisResults = ({
@@ -52,9 +54,11 @@ export const BadgeAnalysisResults = ({
   onCreateNew,
   originalImageBase64,
   canAddToDatabase,
-  onConfirmMatch
+  onConfirmMatch,
+  onAuthRequired
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
   const { submitFeedback, isSubmitting: feedbackSubmitting } = useAIFeedback();
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [webSearchResults, setWebSearchResults] = useState<any>(null);
@@ -148,6 +152,18 @@ export const BadgeAnalysisResults = ({
   };
 
   const handleCreateNew = () => {
+    if (!isAuthenticated) {
+      if (onAuthRequired) {
+        onAuthRequired();
+      } else {
+        toast({
+          title: "Login Required",
+          description: "Please login to add badges to the database."
+        });
+      }
+      return;
+    }
+
     const prefillData = {
       name: webSearchResults?.name || analysis?.name || '',
       year: webSearchResults?.year || analysis?.year || new Date().getFullYear(),
@@ -192,6 +208,12 @@ export const BadgeAnalysisResults = ({
       // Hide database results and show AI results instead
       setHideDatabaseMatches(true);
       setWebSearchResults(data.analysis);
+      
+      // Clear any existing web search to force UI update
+      setTimeout(() => {
+        setWebSearchResults(data.analysis);
+      }, 100);
+      
       toast({
         title: "AI search completed",
         description: "Found badge information using AI search"

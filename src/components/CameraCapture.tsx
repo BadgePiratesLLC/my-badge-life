@@ -13,6 +13,7 @@ interface CameraCaptureProps {
   isOpen: boolean;
   enableMatching?: boolean;
   onCreateBadge?: (prefillData: any) => void;
+  onAuthRequired?: () => void; // Callback to show auth modal
 }
 
 export const CameraCapture = ({ 
@@ -20,7 +21,8 @@ export const CameraCapture = ({
   onClose, 
   isOpen, 
   enableMatching = false,
-  onCreateBadge 
+  onCreateBadge,
+  onAuthRequired 
 }: CameraCaptureProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -257,6 +259,7 @@ export const CameraCapture = ({
           originalImageBase64={analysisResults?.originalImageBase64}
           canAddToDatabase={analysisResults?.canAddToDatabase}
           onConfirmMatch={enableMatching ? confirmMatch : undefined}
+          onAuthRequired={onAuthRequired}
         />
     </div>
   );

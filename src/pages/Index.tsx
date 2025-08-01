@@ -173,6 +173,7 @@ const Index = () => {
           onImageCapture={handleImageCapture}
           enableMatching={true}
           onCreateBadge={handleCreateBadgeWithPrefill}
+          onAuthRequired={() => setShowAuth(true)}
         />
         <AuthModal
           isOpen={showAuth}
@@ -345,6 +346,7 @@ const Index = () => {
         onImageCapture={handleImageCapture}
         enableMatching={true}
         onCreateBadge={handleCreateBadgeWithPrefill}
+        onAuthRequired={() => setShowAuth(true)}
       />
 
       <AuthModal
