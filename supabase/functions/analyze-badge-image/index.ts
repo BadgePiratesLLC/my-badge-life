@@ -297,7 +297,15 @@ serve(async (req) => {
                                    source.name === 'Hackaday' ? 80 : 
                                    result.confidence || 70
                   
-                  webResults = { ...result, source: source.name, confidence }
+                  // Normalize the URL field - some sources use 'url', others use 'external_link'
+                  const externalLink = result.url || result.external_link
+                  
+                  webResults = { 
+                    ...result, 
+                    source: source.name, 
+                    confidence,
+                    external_link: externalLink 
+                  }
                   searchSource = source.name
                   console.log(`Found via ${source.name}:`, webResults)
                   break; // Stop on first success
