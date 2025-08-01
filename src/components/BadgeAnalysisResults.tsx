@@ -171,7 +171,8 @@ export const BadgeAnalysisResults = ({
       team_name: webSearchResults?.maker || analysis?.maker || '',
       category: webSearchResults?.category || analysis?.category || 'Misc',
       description: webSearchResults?.description || analysis?.description || '',
-      external_link: webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link || ''
+      external_link: webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link || '',
+      image_url: imageUrl // Pass the current image URL from the analysis
     };
     onCreateNew(prefillData);
   };

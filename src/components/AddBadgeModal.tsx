@@ -33,6 +33,10 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
         description: prefillData?.description || "",
         external_link: prefillData?.external_link || "",
       });
+      // If prefillData has an image_url, we don't need file upload
+      if (prefillData?.image_url) {
+        setImageFile(null);
+      }
     }
   }, [prefillData]);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -63,9 +67,10 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     setUploading(true);
     
     try {
-      let imageUrl = "";
+      let imageUrl = prefillData?.image_url || "";
       
-      if (imageFile) {
+      // Only upload new image if one was selected and no prefilled URL exists
+      if (imageFile && !prefillData?.image_url) {
         const { url } = await uploadBadgeImage(imageFile);
         imageUrl = url;
       }
@@ -217,24 +222,58 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
 
             <div className="space-y-2">
               <Label htmlFor="image" className="font-mono text-xs">BADGE IMAGE</Label>
-              <div className="border-2 border-dashed border-border rounded p-4 text-center">
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('image')?.click()}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4" />
-                  {imageFile ? imageFile.name : "UPLOAD IMAGE"}
-                </Button>
-              </div>
+              {prefillData?.image_url ? (
+                <div className="space-y-2">
+                  <div className="border rounded p-2 bg-muted">
+                    <img 
+                      src={prefillData.image_url} 
+                      alt="Badge preview" 
+                      className="w-full max-w-32 mx-auto rounded"
+                    />
+                    <p className="text-xs text-center text-muted-foreground mt-2">
+                      Image from analysis
+                    </p>
+                  </div>
+                  <div className="border-2 border-dashed border-border rounded p-4 text-center">
+                    <input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('image')?.click()}
+                      className="w-full"
+                      size="sm"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {imageFile ? imageFile.name : "REPLACE WITH NEW IMAGE"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-border rounded p-4 text-center">
+                  <input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('image')?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {imageFile ? imageFile.name : "UPLOAD IMAGE"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="flex space-x-2 pt-4">
