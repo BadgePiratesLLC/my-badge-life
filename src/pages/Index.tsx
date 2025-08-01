@@ -46,8 +46,8 @@ const Index = () => {
     return () => clearTimeout(timeout);
   }, [authLoading]);
 
-  // Show minimal loading only briefly - but don't return early to avoid hooks issues
-  const showLoading = authLoading;
+  // Show minimal loading only for initial auth check, but not if user is clearly unauthenticated
+  const showLoading = authLoading && user === undefined;
 
   const handleCameraClick = () => {
     setShowCamera(true);
