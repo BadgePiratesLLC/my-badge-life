@@ -109,9 +109,13 @@ Return JSON: {"name": "specific badge name", "description": "detailed descriptio
         body: { imageBase64 }
       })
       
-      if (!matchError && matchResult?.matches) {
+      if (!matchError && matchResult?.matches && matchResult.matches.length > 0) {
         imageMatches = matchResult.matches
-        console.log(`Found ${imageMatches.length} image matches:`, imageMatches.map(m => `${m.badge.name}: ${Math.round(m.similarity * 100)}%`))
+        console.log(`Found ${imageMatches.length} image matches:`, imageMatches.map(m => 
+          `${m.badge?.name || 'Unknown'}: ${Math.round(m.similarity * 100)}%`
+        ))
+      } else {
+        console.log('No significant image matches found, focusing on enhanced AI analysis...')
       }
     } catch (error) {
       console.error('Image matching error (continuing with text search):', error)

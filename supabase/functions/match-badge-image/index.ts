@@ -117,20 +117,25 @@ serve(async (req) => {
       return dotProduct / (magnitudeA * magnitudeB)
     }
 
-    const matches = badgeEmbeddings
-      .map(item => {
-        const similarity = cosineSimilarity(embedding, item.embedding)
-        return {
-          badge: item.badges,
-          similarity,
-          confidence: Math.round(similarity * 100)
-        }
-      })
-      .filter(match => match.similarity >= 0.85)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 3)
+    const allMatches = badgeEmbeddings.map(item => {
+      const similarity = cosineSimilarity(embedding, item.embedding)
+      return {
+        badge: item.badges,
+        similarity,
+        confidence: Math.round(similarity * 100)
+      }
+    }).sort((a, b) => b.similarity - a.similarity)
 
-    console.log(`Found ${matches.length} matches above threshold`)
+    // Log all similarities for debugging
+    console.log('All badge similarities:', allMatches.slice(0, 10).map(m => 
+      `${m.badge?.name || 'Unknown'}: ${(m.similarity * 100).toFixed(1)}%`
+    ))
+
+    const matches = allMatches
+      .filter(match => match.similarity >= 0.6)  // Even lower threshold
+      .slice(0, 5)
+
+    console.log(`Found ${matches.length} matches above 60% threshold (out of ${badgeEmbeddings?.length || 0} total badges)`)
 
     return new Response(
       JSON.stringify({ matches }),
