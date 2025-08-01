@@ -142,10 +142,11 @@ serve(async (req) => {
       }
     }
 
-    console.log('Generated embedding, searching for matches...')
+    console.log('Generated embedding, searching database first...')
 
-    // Step 3: Search for similar embeddings in the database
+    // Step 3: Search database FIRST to avoid unnecessary web searches
     let matches = []
+    let hasGoodDatabaseMatch = false
     
     if (embedding) {
       try {
@@ -183,9 +184,16 @@ serve(async (req) => {
                 confidence: Math.round(similarity * 100)
               }
             })
-            .filter(match => match.similarity >= 0.7) // Lower threshold
+            .filter(match => match.similarity >= 0.7)
             .sort((a, b) => b.similarity - a.similarity)
             .slice(0, 3)
+
+          // Check if we have a high-confidence match (85%+)
+          hasGoodDatabaseMatch = matches.length > 0 && matches[0].confidence >= 85
+          
+          if (hasGoodDatabaseMatch) {
+            console.log(`Found high-confidence database match (${matches[0].confidence}%), skipping web search`)
+          }
         } else {
           console.error('Database search error:', searchError?.message || 'No embeddings found')
         }
@@ -194,39 +202,10 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Fallback to text-based search if no embedding matches
-    if (matches.length === 0) {
-      console.log('No embedding matches found, falling back to text search...')
-      
-      const { data: existingBadges } = await supabase
-        .from('badges')
-        .select(`
-          *,
-          profiles (display_name)
-        `)
-
-      if (existingBadges) {
-        const searchTerms = [
-          aiAnalysis.name,
-          aiAnalysis.event
-        ].filter(Boolean).map(term => term.toLowerCase())
-
-        const potentialMatches = existingBadges.filter(badge => {
-          const badgeText = `${badge.name} ${badge.description || ''} ${badge.team_name || ''}`.toLowerCase()
-          return searchTerms.some(term => badgeText.includes(term))
-        })
-
-        matches = potentialMatches.slice(0, 3).map(badge => ({
-          badge,
-          similarity: 0.5,
-          confidence: 50
-        }))
-      }
-    }
-
-    // Step 5: Search web for additional information (simplified for speed)
+    // Step 4: Only do web search if no good database match AND AI found something specific
     let webResults: any = null
-    if (aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
+    if (!hasGoodDatabaseMatch && aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
+      console.log('No high-confidence database match found, searching web...')
       try {
         const searchQuery = `${aiAnalysis.name} ${aiAnalysis.event || ''} electronic badge conference`.trim()
         
@@ -257,6 +236,7 @@ serve(async (req) => {
             const webJsonMatch = webContent.match(/\{[\s\S]*\}/)
             if (webJsonMatch) {
               webResults = JSON.parse(webJsonMatch[0])
+              console.log('Web search completed')
             }
           } catch (webParseError) {
             console.log('Could not parse web results as JSON')
@@ -264,6 +244,40 @@ serve(async (req) => {
         }
       } catch (webError) {
         console.error('Web search error:', webError)
+      }
+    } else if (hasGoodDatabaseMatch) {
+      console.log('Skipped web search - found good database match')
+    } else {
+      console.log('Skipped web search - AI could not identify badge clearly')
+    }
+
+    // Fallback to text-based search if no embedding matches
+    if (matches.length === 0) {
+      console.log('No embedding matches found, falling back to text search...')
+      
+      const { data: existingBadges } = await supabase
+        .from('badges')
+        .select(`
+          *,
+          profiles (display_name)
+        `)
+
+      if (existingBadges) {
+        const searchTerms = [
+          aiAnalysis.name,
+          aiAnalysis.event
+        ].filter(Boolean).map(term => term.toLowerCase())
+
+        const potentialMatches = existingBadges.filter(badge => {
+          const badgeText = `${badge.name} ${badge.description || ''} ${badge.team_name || ''}`.toLowerCase()
+          return searchTerms.some(term => badgeText.includes(term))
+        })
+
+        matches = potentialMatches.slice(0, 3).map(badge => ({
+          badge,
+          similarity: 0.5,
+          confidence: 50
+        }))
       }
     }
 
