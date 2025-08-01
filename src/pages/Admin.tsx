@@ -4,11 +4,29 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2 } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+
+interface BadgeData {
+  id: string
+  name: string
+  description: string | null
+  year: number | null
+  image_url: string | null
+  external_link: string | null
+  maker_id: string | null
+  created_at: string
+  updated_at: string
+  profiles?: {
+    display_name: string | null
+    email: string | null
+  } | null
+}
 
 interface Upload {
   id: string
@@ -33,6 +51,9 @@ export default function Admin() {
   const { user, loading: authLoading } = useAuth()
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [badges, setBadges] = useState<BadgeData[]>([])
+  const [editingBadge, setEditingBadge] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -40,6 +61,7 @@ export default function Admin() {
       if (isAdmin()) {
         fetchUploads()
         fetchUsers()
+        fetchBadges()
       }
       setLoading(false)
     }
@@ -96,6 +118,74 @@ export default function Admin() {
     } catch (error) {
       console.error('Error fetching users:', error)
       toast.error('Failed to load users')
+    }
+  }
+
+  const fetchBadges = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('badges')
+        .select(`
+          *,
+          profiles:maker_id (
+            display_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setBadges(data || [])
+    } catch (error) {
+      console.error('Error fetching badges:', error)
+      toast.error('Failed to load badges')
+    }
+  }
+
+  const startEditBadge = (badge: BadgeData) => {
+    setEditingBadge(badge.id)
+    setEditForm({
+      name: badge.name,
+      description: badge.description || '',
+      year: badge.year,
+      image_url: badge.image_url || '',
+      external_link: badge.external_link || ''
+    })
+  }
+
+  const cancelEditBadge = () => {
+    setEditingBadge(null)
+    setEditForm({})
+  }
+
+  const saveBadgeEdit = async (badgeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('badges')
+        .update({
+          name: editForm.name,
+          description: editForm.description || null,
+          year: editForm.year || null,
+          image_url: editForm.image_url || null,
+          external_link: editForm.external_link || null
+        })
+        .eq('id', badgeId)
+
+      if (error) throw error
+
+      // Update local state
+      setBadges(prev => prev.map(badge => 
+        badge.id === badgeId 
+          ? { ...badge, ...editForm, updated_at: new Date().toISOString() }
+          : badge
+      ))
+
+      setEditingBadge(null)
+      setEditForm({})
+      toast.success('Badge updated successfully!')
+    } catch (error) {
+      console.error('Error updating badge:', error)
+      toast.error('Failed to update badge')
     }
   }
 
@@ -263,10 +353,14 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="uploads" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="uploads" className="flex items-center gap-2">
               <Image className="h-4 w-4" />
               Uploaded Images
+            </TabsTrigger>
+            <TabsTrigger value="badges" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Badge Management
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -321,6 +415,163 @@ export default function Admin() {
                               </Button>
                             </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="badges" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-mono">
+                  <Settings className="h-5 w-5" />
+                  BADGE MANAGEMENT ({badges.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {badges.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No badges found</p>
+                ) : (
+                  <div className="space-y-4">
+                    {badges.map((badge) => (
+                      <Card key={badge.id}>
+                        <CardContent className="p-6">
+                          {editingBadge === badge.id ? (
+                            // Edit mode
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium mb-2 block">Badge Name</label>
+                                <Input
+                                  value={editForm.name || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                  placeholder="Badge name"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="text-sm font-medium mb-2 block">Description</label>
+                                <Textarea
+                                  value={editForm.description || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                  placeholder="Badge description"
+                                  rows={3}
+                                />
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-sm font-medium mb-2 block">Year</label>
+                                  <Input
+                                    type="number"
+                                    value={editForm.year || ''}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, year: e.target.value ? parseInt(e.target.value) : null }))}
+                                    placeholder="Year"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="text-sm font-medium mb-2 block">External Link</label>
+                                  <Input
+                                    value={editForm.external_link || ''}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, external_link: e.target.value }))}
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <label className="text-sm font-medium mb-2 block">Image URL</label>
+                                <Input
+                                  value={editForm.image_url || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, image_url: e.target.value }))}
+                                  placeholder="Image URL"
+                                />
+                              </div>
+                              
+                              <div className="flex gap-2 pt-4">
+                                <Button
+                                  onClick={() => saveBadgeEdit(badge.id)}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Save className="h-4 w-4" />
+                                  Save Changes
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={cancelEditBadge}
+                                  className="flex items-center gap-2"
+                                >
+                                  <X className="h-4 w-4" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            // View mode
+                            <div className="flex gap-6">
+                              {badge.image_url && (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={badge.image_url}
+                                    alt={badge.name}
+                                    className="w-24 h-24 object-cover rounded border"
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h3 className="text-lg font-semibold">{badge.name}</h3>
+                                    {badge.description && (
+                                      <p className="text-sm text-muted-foreground mt-1">{badge.description}</p>
+                                    )}
+                                  </div>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditBadge(badge)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit
+                                  </Button>
+                                </div>
+                                
+                                <div className="flex gap-4 text-sm text-muted-foreground">
+                                  {badge.year && <span>Year: {badge.year}</span>}
+                                  {badge.profiles?.display_name && (
+                                    <span>Creator: {badge.profiles.display_name}</span>
+                                  )}
+                                </div>
+                                
+                                {badge.external_link && (
+                                  <div className="text-sm">
+                                    <a 
+                                      href={badge.external_link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary hover:underline"
+                                    >
+                                      {badge.external_link}
+                                    </a>
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs text-muted-foreground">
+                                  Created: {new Date(badge.created_at).toLocaleDateString()}
+                                  {badge.updated_at !== badge.created_at && (
+                                    <span> • Updated: {new Date(badge.updated_at).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
