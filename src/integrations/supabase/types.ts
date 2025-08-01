@@ -47,6 +47,143 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_badge_interactions: {
+        Row: {
+          badge_id: string | null
+          created_at: string
+          id: string
+          interaction_type: string
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          badge_id?: string | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          badge_id?: string | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_badge_interactions_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_searches: {
+        Row: {
+          ai_analysis_duration_ms: number | null
+          best_confidence_score: number | null
+          created_at: string
+          found_in_database: boolean | null
+          found_via_image_matching: boolean | null
+          found_via_web_search: boolean | null
+          id: string
+          image_matching_duration_ms: number | null
+          results_found: number | null
+          search_duration_ms: number | null
+          search_source_used: string | null
+          search_type: string
+          session_id: string
+          total_duration_ms: number | null
+          user_id: string | null
+          web_search_duration_ms: number | null
+          web_search_sources_tried: string[] | null
+        }
+        Insert: {
+          ai_analysis_duration_ms?: number | null
+          best_confidence_score?: number | null
+          created_at?: string
+          found_in_database?: boolean | null
+          found_via_image_matching?: boolean | null
+          found_via_web_search?: boolean | null
+          id?: string
+          image_matching_duration_ms?: number | null
+          results_found?: number | null
+          search_duration_ms?: number | null
+          search_source_used?: string | null
+          search_type: string
+          session_id: string
+          total_duration_ms?: number | null
+          user_id?: string | null
+          web_search_duration_ms?: number | null
+          web_search_sources_tried?: string[] | null
+        }
+        Update: {
+          ai_analysis_duration_ms?: number | null
+          best_confidence_score?: number | null
+          created_at?: string
+          found_in_database?: boolean | null
+          found_via_image_matching?: boolean | null
+          found_via_web_search?: boolean | null
+          id?: string
+          image_matching_duration_ms?: number | null
+          results_found?: number | null
+          search_duration_ms?: number | null
+          search_source_used?: string | null
+          search_type?: string
+          session_id?: string
+          total_duration_ms?: number | null
+          user_id?: string | null
+          web_search_duration_ms?: number | null
+          web_search_sources_tried?: string[] | null
+        }
+        Relationships: []
+      }
+      analytics_sessions: {
+        Row: {
+          browser: string | null
+          country: string | null
+          created_at: string
+          device_type: string | null
+          id: string
+          ip_address: unknown | null
+          last_activity: string
+          platform: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          last_activity?: string
+          platform?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          last_activity?: string
+          platform?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       badge_confirmations: {
         Row: {
           badge_id: string

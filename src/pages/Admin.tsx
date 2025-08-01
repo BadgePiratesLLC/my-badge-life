@@ -13,12 +13,13 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
+import { AdminAnalytics } from '@/components/AdminAnalytics'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -529,7 +530,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="badges" className="w-full">
-          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-5' : 'grid-cols-3'}`}>
+          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-6' : 'grid-cols-4'}`}>
             {canAccessAdmin() && (
               <TabsTrigger value="uploads" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
@@ -558,6 +559,12 @@ export default function Admin() {
               <TabsTrigger value="search" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 Web Search
+              </TabsTrigger>
+            )}
+            {isAdmin() && (
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
               </TabsTrigger>
             )}
           </TabsList>
@@ -1259,6 +1266,13 @@ export default function Admin() {
               </Card>
               
               <WebSearchTester />
+            </TabsContent>
+          )}
+
+          {/* Analytics Tab - Admin Only */}
+          {isAdmin() && (
+            <TabsContent value="analytics" className="space-y-4">
+              <AdminAnalytics />
             </TabsContent>
           )}
         </Tabs>
