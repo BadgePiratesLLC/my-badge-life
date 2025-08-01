@@ -205,14 +205,13 @@ export const BadgeAnalysisResults = ({
 
       if (error) throw error;
       
+      console.log('AI search response:', data);
+      
       // Hide database results and show AI results instead
       setHideDatabaseMatches(true);
       setWebSearchResults(data.analysis);
       
-      // Clear any existing web search to force UI update
-      setTimeout(() => {
-        setWebSearchResults(data.analysis);
-      }, 100);
+      console.log('Set webSearchResults to:', data.analysis);
       
       toast({
         title: "AI search completed",
