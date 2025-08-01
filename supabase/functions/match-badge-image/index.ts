@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const replicateToken = Deno.env.get('REPLICATE_API_TOKEN')
+const replicateToken = Deno.env.get('REPLICATE_API_TOKEN') || Deno.env.get('REPLICATE_API_KEY')
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,6 +19,7 @@ serve(async (req) => {
 
   try {
     if (!replicateToken) {
+      console.error('❌ REPLICATE_API_TOKEN/REPLICATE_API_KEY not configured')
       throw new Error('REPLICATE_API_TOKEN not configured')
     }
 
