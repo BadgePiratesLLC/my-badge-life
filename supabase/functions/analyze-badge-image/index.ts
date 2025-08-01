@@ -105,73 +105,73 @@ serve(async (req) => {
           console.log('Searching for:', searchName, 'Words:', searchWords)
           console.log('Available badges:', badgeMatches.map(b => b.name))
           
-            // Get user confirmations for badges to boost confidence
-            const { data: confirmations } = await supabase
-              .from('badge_confirmations')
-              .select('badge_id, confirmation_type')
-              .eq('confirmation_type', 'correct_match')
+          // Get user confirmations for badges to boost confidence
+          const { data: confirmations } = await supabase
+            .from('badge_confirmations')
+            .select('badge_id, confirmation_type')
+            .eq('confirmation_type', 'correct_match')
 
-            const confirmationMap = new Map()
-            if (confirmations) {
-              confirmations.forEach(conf => {
-                const count = confirmationMap.get(conf.badge_id) || 0
-                confirmationMap.set(conf.badge_id, count + 1)
-              })
-            }
-
-            // Score badges based on text similarity
-            const scoredMatches = badgeMatches.map(badge => {
-              const badgeName = badge.name.toLowerCase()
-              const badgeDesc = badge.description?.toLowerCase() || ''
-              const badgeText = `${badgeName} ${badgeDesc}`
-              
-              let score = 0
-              let confidence = 0
-              
-              // Exact name match = 100%
-              if (badgeName === searchName) {
-                score = 100
-                confidence = 100
-              }
-              // Name contains search = 80%
-              else if (badgeName.includes(searchName) || searchName.includes(badgeName)) {
-                score = 80
-                confidence = 80
-              }
-              // Word matches
-              else {
-                const matchedWords = searchWords.filter(word => badgeText.includes(word))
-                if (matchedWords.length > 0) {
-                  score = (matchedWords.length / searchWords.length) * 70
-                  confidence = Math.round(score)
-                }
-              }
-              
-              // Boost confidence based on user confirmations (upvotes)
-              const userConfirmations = confirmationMap.get(badge.id) || 0
-              if (userConfirmations > 0) {
-                const boost = Math.min(userConfirmations * 5, 20) // Max 20% boost
-                confidence = Math.min(confidence + boost, 100)
-                console.log(`Badge "${badge.name}": +${boost}% boost from ${userConfirmations} confirmations`)
-              }
-              
-              console.log(`Badge "${badge.name}": score=${score}, confidence=${confidence}`)
-              
-              return {
-                badge,
-                similarity: score / 100,
-                confidence
-              }
+          const confirmationMap = new Map()
+          if (confirmations) {
+            confirmations.forEach(conf => {
+              const count = confirmationMap.get(conf.badge_id) || 0
+              confirmationMap.set(conf.badge_id, count + 1)
             })
-            .filter(match => match.confidence >= 20)  // Lower threshold for testing
-            .sort((a, b) => b.confidence - a.confidence)
-            .slice(0, 5)
+          }
+
+          // Score badges based on text similarity
+          const scoredMatches = badgeMatches.map(badge => {
+            const badgeName = badge.name.toLowerCase()
+            const badgeDesc = badge.description?.toLowerCase() || ''
+            const badgeText = `${badgeName} ${badgeDesc}`
             
+            let score = 0
+            let confidence = 0
+            
+            // Exact name match = 100%
+            if (badgeName === searchName) {
+              score = 100
+              confidence = 100
+            }
+            // Name contains search = 80%
+            else if (badgeName.includes(searchName) || searchName.includes(badgeName)) {
+              score = 80
+              confidence = 80
+            }
+            // Word matches
+            else {
+              const matchedWords = searchWords.filter(word => badgeText.includes(word))
+              if (matchedWords.length > 0) {
+                score = (matchedWords.length / searchWords.length) * 70
+                confidence = Math.round(score)
+              }
+            }
+            
+            // Boost confidence based on user confirmations (upvotes)
+            const userConfirmations = confirmationMap.get(badge.id) || 0
+            if (userConfirmations > 0) {
+              const boost = Math.min(userConfirmations * 5, 20) // Max 20% boost
+              confidence = Math.min(confidence + boost, 100)
+              console.log(`Badge "${badge.name}": +${boost}% boost from ${userConfirmations} confirmations`)
+            }
+            
+            console.log(`Badge "${badge.name}": score=${score}, confidence=${confidence}`)
+            
+            return {
+              badge,
+              similarity: score / 100,
+              confidence
+            }
+          })
+          .filter(match => match.confidence >= 20)  // Lower threshold for testing
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 5)
+          
           matches = scoredMatches
           console.log(`Found ${matches.length} local matches with confidence >= 20%`)
           if (matches.length > 0) {
             console.log('Best matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
-        }
+          }
       } catch (error) {
         console.error('Local database search error:', error)
       }
