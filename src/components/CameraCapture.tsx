@@ -61,9 +61,12 @@ export const CameraCapture = ({
 
   const handleFile = async (file: File) => {
     if (file.type.startsWith('image/')) {
+      console.log('CameraCapture handleFile - enableMatching:', enableMatching);
       if (enableMatching) {
+        console.log('Starting image analysis...');
         await handleImageAnalysis(file);
       } else {
+        console.log('Just uploading image...');
         onImageCapture(file);
         onClose();
       }

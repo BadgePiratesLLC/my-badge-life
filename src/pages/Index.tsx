@@ -170,6 +170,8 @@ const Index = () => {
           isOpen={showCamera}
           onClose={() => setShowCamera(false)}
           onImageCapture={handleImageCapture}
+          enableMatching={true}
+          onCreateBadge={handleCreateBadgeWithPrefill}
         />
         <AuthModal
           isOpen={showAuth}
