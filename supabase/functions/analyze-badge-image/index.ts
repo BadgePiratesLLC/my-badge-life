@@ -28,19 +28,63 @@ serve(async (req) => {
 
     console.log('Starting badge analysis...')
 
-    // Step 1: Quick database search first using basic image hash or simple analysis
-    let matches = []
-    let basicAnalysis = { name: 'Unknown Badge', confidence: 30 }
+    // Step 1: Quick AI analysis to get badge name/basic info for database search
+    console.log('Running quick AI analysis for badge identification...')
     
-    // If not forced web search, try database search first
-    if (!forceWebSearch) {
-      console.log('Searching database first...')
-      
-      // Create a simple text embedding for quick database comparison
-      // Use a basic description since we don't know what the badge is yet
-      const basicTextToEmbed = `Electronic conference badge image analysis`
-      
+    const quickAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',  // Cheaper, faster model for basic info
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Quickly identify this badge. Return only: {"name": "badge name", "description": "brief description"}. Be concise.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageBase64
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 100
+      })
+    })
+
+    let quickAnalysis = { name: 'Unknown Badge', description: 'Electronic conference badge' }
+    if (quickAnalysisResponse.ok) {
+      const quickData = await quickAnalysisResponse.json()
       try {
+        const quickText = quickData.choices[0].message.content
+        const quickMatch = quickText.match(/\{[\s\S]*\}/)
+        if (quickMatch) {
+          quickAnalysis = { ...quickAnalysis, ...JSON.parse(quickMatch[0]) }
+        }
+      } catch (e) {
+        console.log('Could not parse quick analysis, using defaults')
+      }
+    }
+
+    console.log('Quick analysis result:', quickAnalysis)
+
+    // Step 2: Search database using the identified badge info
+    console.log('Searching database with identified badge info...')
+    let matches = []
+    
+    if (!forceWebSearch) {
+      try {
+        // Create embedding using identified badge info (consistent with stored embeddings)
+        const textToEmbed = `Badge: ${quickAnalysis.name}. Description: ${quickAnalysis.description}. Image URL: analysis`
+        
         const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
           method: 'POST',
           headers: {
@@ -48,7 +92,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            input: basicTextToEmbed,
+            input: textToEmbed,
             model: 'text-embedding-3-small'
           })
         })
@@ -101,11 +145,11 @@ serve(async (req) => {
                   confidence
                 }
               })
-              .filter(match => match.similarity >= 0.3)  // Very low threshold for initial screening
+              .filter(match => match.similarity >= 0.6)  // Higher threshold for better quality
               .sort((a, b) => b.similarity - a.similarity)
               .slice(0, 5)
 
-            console.log(`Found ${matches.length} potential database matches`)
+            console.log(`Found ${matches.length} database matches with identified badge info`)
           }
         }
       } catch (error) {
@@ -113,12 +157,12 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Only do expensive AI analysis if forced web search OR no good database matches
-    let aiAnalysis: any = basicAnalysis
+    // Step 3: Only do full detailed AI analysis if forced OR no good database matches
+    let aiAnalysis: any = quickAnalysis
     if (forceWebSearch || matches.length === 0) {
-      console.log('Running full AI vision analysis...')
+      console.log('Running detailed AI analysis...')
       
-      const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const detailedResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openaiApiKey}`,
@@ -132,7 +176,7 @@ serve(async (req) => {
               content: [
                 {
                   type: 'text',
-                  text: 'Analyze this electronic badge/conference badge image. Extract: name, year, event/conference name, maker/creator, category (Elect Badge/None Elect Badge/SAO/Tool/Misc), description, and any other relevant details. Return as JSON with fields: name, year, maker, category, description, event, confidence (0-100).'
+                  text: 'Analyze this electronic badge/conference badge image in detail. Extract: name, year, event/conference name, maker/creator, category (Elect Badge/None Elect Badge/SAO/Tool/Misc), description, and any other relevant details. Return as JSON with fields: name, year, maker, category, description, event, confidence (0-100).'
                 },
                 {
                   type: 'image_url',
@@ -147,34 +191,23 @@ serve(async (req) => {
         })
       })
 
-      if (visionResponse.ok) {
-        const visionData = await visionResponse.json()
+      if (detailedResponse.ok) {
+        const detailedData = await detailedResponse.json()
         
         try {
-          const analysisText = visionData.choices[0].message.content
+          const analysisText = detailedData.choices[0].message.content
           const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
             aiAnalysis = JSON.parse(jsonMatch[0])
-          } else {
-            aiAnalysis = {
-              name: 'Unknown Badge',
-              confidence: 50,
-              description: analysisText
-            }
           }
         } catch (parseError) {
-          console.error('Error parsing AI analysis:', parseError)
-          aiAnalysis = {
-            name: 'Unknown Badge',
-            confidence: 30,
-            description: visionData.choices[0].message.content
-          }
+          console.error('Error parsing detailed analysis:', parseError)
         }
         
-        console.log('Full AI Analysis complete:', aiAnalysis)
+        console.log('Detailed AI Analysis complete:', aiAnalysis)
       }
     } else {
-      console.log('Skipping AI vision analysis - found database matches')
+      console.log('Skipping detailed AI analysis - found good database matches')
     }
 
     // Step 4: Do web search if forced OR if no database matches found
