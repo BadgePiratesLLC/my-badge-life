@@ -2,6 +2,7 @@ import { Badge, Heart, Star, ExternalLink, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge as BadgeComponent } from "@/components/ui/badge";
+import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
 
 interface BadgeData {
   id: string;
@@ -29,8 +30,20 @@ export const BadgeCard = ({
   onBadgeClick, 
   isAuthenticated = false 
 }: BadgeCardProps) => {
+  const { trackBadgeInteraction } = useAnalyticsTracking();
+
+  const handleBadgeClick = async () => {
+    await trackBadgeInteraction(badge.id, 'view');
+    onBadgeClick?.(badge);
+  };
+
+  const handleOwnershipToggle = async (type: 'own' | 'want') => {
+    await trackBadgeInteraction(badge.id, 'ownership_toggle');
+    onOwnershipToggle?.(badge.id, type);
+  };
+
   return (
-    <Card className="badge-card group cursor-pointer" onClick={() => onBadgeClick?.(badge)}>
+    <Card className="badge-card group cursor-pointer" onClick={handleBadgeClick}>
       <CardHeader className="p-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -104,7 +117,7 @@ export const BadgeCard = ({
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              onOwnershipToggle(badge.id, 'own');
+              handleOwnershipToggle('own');
             }}
           >
             <Star className={`h-3 w-3 ${badge.isOwned ? 'fill-current' : ''}`} />
@@ -117,7 +130,7 @@ export const BadgeCard = ({
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              onOwnershipToggle(badge.id, 'want');
+              handleOwnershipToggle('want');
             }}
           >
             <Heart className={`h-3 w-3 ${badge.isWanted ? 'fill-current' : ''}`} />

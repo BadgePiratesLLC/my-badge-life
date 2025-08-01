@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BadgeAnalysisResults } from "./BadgeAnalysisResults";
 import { useBadgeConfirmations } from "@/hooks/useBadgeConfirmations";
+import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
 
 interface CameraCaptureProps {
   onImageCapture: (file: File) => void;
@@ -32,6 +33,7 @@ export const CameraCapture = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { confirmMatch } = useBadgeConfirmations();
+  const { trackSearch } = useAnalyticsTracking();
 
   if (!isOpen) return null;
 
@@ -79,6 +81,7 @@ export const CameraCapture = ({
 
   const handleImageAnalysis = async (file: File) => {
     setIsAnalyzing(true);
+    const startTime = Date.now();
     
     try {
       // Create image URL for preview
@@ -99,11 +102,42 @@ export const CameraCapture = ({
             throw error;
           }
 
+          const endTime = Date.now();
+          const totalDuration = endTime - startTime;
+
+          // Track search analytics
+          const matchCount = data.matches?.length || 0;
+          const bestConfidence = matchCount > 0 ? Math.max(...data.matches.map((m: any) => m.confidence || 0)) : 0;
+          
+          await trackSearch({
+            searchType: 'image_upload',
+            totalDuration,
+            resultsFound: matchCount,
+            bestConfidenceScore: bestConfidence,
+            searchSourceUsed: data.analysis?.search_source || 'local_database',
+            foundInDatabase: matchCount > 0,
+            foundViaWebSearch: data.analysis?.search_source === 'web_search',
+            foundViaImageMatching: data.analysis?.search_source === 'image_matching'
+          });
+
           setAnalysisResults({...data, originalImageBase64: base64, originalFile: file});
           setShowAnalysis(true);
           setIsAnalyzing(false);
         } catch (analysisError) {
           console.error('Error analyzing badge:', analysisError);
+          
+          // Track failed search
+          const endTime = Date.now();
+          const totalDuration = endTime - startTime;
+          await trackSearch({
+            searchType: 'image_upload',
+            totalDuration,
+            resultsFound: 0,
+            foundInDatabase: false,
+            foundViaWebSearch: false,
+            foundViaImageMatching: false
+          });
+          
           toast({
             title: "Analysis Failed",
             description: "Could not analyze the badge. Try creating a new one.",
@@ -119,6 +153,19 @@ export const CameraCapture = ({
     } catch (error) {
       console.error('Error processing image:', error);
       setIsAnalyzing(false);
+      
+      // Track failed search
+      const endTime = Date.now();
+      const totalDuration = endTime - startTime;
+      await trackSearch({
+        searchType: 'image_upload',
+        totalDuration,
+        resultsFound: 0,
+        foundInDatabase: false,
+        foundViaWebSearch: false,
+        foundViaImageMatching: false
+      });
+      
       toast({
         title: "Error",
         description: "Could not process the image",

@@ -236,6 +236,49 @@ export const BadgeAnalysisResults = ({
     }
   };
 
+  const handleRetrySearch = async () => {
+    if (!originalImageBase64) {
+      toast({
+        title: "Cannot retry search",
+        description: "Original image data not available",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Clear previous results
+    setWebSearchResults(null);
+    setHideDatabaseMatches(false);
+    
+    setIsSearchingWeb(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
+        body: { 
+          imageBase64: originalImageBase64,
+          forceWebSearch: true,
+          retryCount: Math.floor(Math.random() * 3) + 1 // Add some randomness to retry
+        }
+      });
+
+      if (error) throw error;
+      
+      setWebSearchResults(data.analysis);
+      toast({
+        title: "Retry search completed",
+        description: "Found new badge information"
+      });
+    } catch (error) {
+      console.error('Retry search error:', error);
+      toast({
+        title: "Retry search failed", 
+        description: "Could not find alternative badge information",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearchingWeb(false);
+    }
+  };
+
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return "bg-green-500";
     if (confidence >= 60) return "bg-yellow-500";
@@ -383,6 +426,16 @@ export const BadgeAnalysisResults = ({
                             className="text-red-600 hover:text-red-700"
                           >
                             ❌ Incorrect
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={handleRetrySearch}
+                            disabled={isSearchingWeb}
+                            className="gap-2"
+                          >
+                            <Search className="h-4 w-4" />
+                            {isSearchingWeb ? "Searching..." : "This is completely wrong - Try again"}
                           </Button>
                         </div>
                       </div>

@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge as BadgeComponent } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
+import { useEffect } from "react";
 
 interface BadgeData {
   id: string;
@@ -37,6 +39,15 @@ export const BadgeDetailModal = ({
   onOwnershipToggle, 
   isAuthenticated = false 
 }: BadgeDetailModalProps) => {
+  const { trackBadgeInteraction } = useAnalyticsTracking();
+
+  // Track detail view when modal opens
+  useEffect(() => {
+    if (isOpen && badge) {
+      trackBadgeInteraction(badge.id, 'detail_view');
+    }
+  }, [isOpen, badge?.id]);
+
   if (!badge) return null;
 
   const makerName = badge.profiles?.[0]?.display_name || badge.maker;
