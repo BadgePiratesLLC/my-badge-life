@@ -231,6 +231,26 @@ export default function Admin() {
     navigate(`/badge/register?image_url=${encodeURIComponent(upload.image_url)}&upload_id=${upload.id}`)
   }
 
+  const deleteBadge = async (badge: BadgeData) => {
+    if (!confirm('Are you sure you want to delete this badge? This action cannot be undone.')) return
+
+    try {
+      const { error } = await supabase
+        .from('badges')
+        .delete()
+        .eq('id', badge.id)
+
+      if (error) throw error
+
+      // Update local state
+      setBadges(prev => prev.filter(b => b.id !== badge.id))
+      toast.success('Badge deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting badge:', error)
+      toast.error('Failed to delete badge')
+    }
+  }
+
   const deleteUpload = async (upload: Upload) => {
     if (!confirm('Are you sure you want to delete this upload?')) return
 
@@ -589,17 +609,30 @@ export default function Admin() {
                                     )}
                                   </div>
                                   
-                                   {canEditBadge(badge.team_name) && (
-                                     <Button
-                                       size="sm"
-                                       variant="outline"
-                                       onClick={() => startEditBadge(badge)}
-                                       className="flex items-center gap-2"
-                                     >
-                                       <Edit className="h-4 w-4" />
-                                       Edit
-                                     </Button>
-                                   )}
+                                   <div className="flex gap-2">
+                                     {canEditBadge(badge.team_name) && (
+                                       <Button
+                                         size="sm"
+                                         variant="outline"
+                                         onClick={() => startEditBadge(badge)}
+                                         className="flex items-center gap-2"
+                                       >
+                                         <Edit className="h-4 w-4" />
+                                         Edit
+                                       </Button>
+                                     )}
+                                     {isAdmin() && (
+                                       <Button
+                                         size="sm"
+                                         variant="destructive"
+                                         onClick={() => deleteBadge(badge)}
+                                         className="flex items-center gap-2"
+                                       >
+                                         <Trash2 className="h-4 w-4" />
+                                         Delete
+                                       </Button>
+                                     )}
+                                   </div>
                                 </div>
                                 
                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
