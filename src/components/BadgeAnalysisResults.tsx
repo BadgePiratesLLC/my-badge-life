@@ -348,7 +348,7 @@ export const BadgeAnalysisResults = ({
                 <div>
                   <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                     {webSearchResults ? "Web Search Results" : "AI Analysis"}
-                    {analysis.search_source && analysis.search_source !== 'none' && (
+                    {analysis?.search_source && analysis.search_source !== 'none' && (
                       <Badge variant="secondary" className="text-xs">
                         Found on {analysis.search_source}
                       </Badge>
