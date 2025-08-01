@@ -20,6 +20,7 @@ const Index = () => {
   const [showAddBadge, setShowAddBadge] = useState(false);
   const [showAllBadges, setShowAllBadges] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [badgePrefillData, setBadgePrefillData] = useState<any>(null);
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
@@ -69,6 +70,11 @@ const Index = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleCreateBadgeWithPrefill = (prefillData: any) => {
+    setBadgePrefillData(prefillData);
+    setShowAddBadge(true);
   };
 
   const handleOwnershipToggle = async (badgeId: string, type: 'own' | 'want') => {
@@ -335,6 +341,7 @@ const Index = () => {
         onClose={() => setShowCamera(false)}
         onImageCapture={handleImageCapture}
         enableMatching={true}
+        onCreateBadge={handleCreateBadgeWithPrefill}
       />
 
       <AuthModal
@@ -342,10 +349,14 @@ const Index = () => {
         onClose={() => setShowAuth(false)}
       />
 
-      <AddBadgeModal
-        isOpen={showAddBadge}
-        onClose={() => setShowAddBadge(false)}
-      />
+          <AddBadgeModal
+            isOpen={showAddBadge}
+            onClose={() => {
+              setShowAddBadge(false);
+              setBadgePrefillData(null);
+            }}
+            prefillData={badgePrefillData}
+          />
     </div>
   );
 };

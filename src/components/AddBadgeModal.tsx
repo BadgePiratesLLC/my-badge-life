@@ -13,14 +13,15 @@ import { useDiscordNotifications } from "@/hooks/useDiscordNotifications";
 interface AddBadgeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  prefillData?: any;
 }
 
-export const AddBadgeModal = ({ isOpen, onClose }: AddBadgeModalProps) => {
+export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalProps) => {
   const [formData, setFormData] = useState({
-    name: "",
-    year: "",
-    description: "",
-    external_link: "",
+    name: prefillData?.name || "",
+    year: prefillData?.year?.toString() || "",
+    description: prefillData?.description || "",
+    external_link: prefillData?.external_link || "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);

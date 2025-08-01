@@ -3,7 +3,7 @@ import { Camera, Upload, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { BadgeMatchResults } from "./BadgeMatchResults";
+import { BadgeAnalysisResults } from "./BadgeAnalysisResults";
 import { useToast } from "@/hooks/use-toast";
 
 interface CameraCaptureProps {
@@ -11,13 +11,21 @@ interface CameraCaptureProps {
   onClose: () => void;
   isOpen: boolean;
   enableMatching?: boolean;
+  onCreateBadge?: (prefillData: any) => void;
 }
 
-export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching = false }: CameraCaptureProps) => {
+export const CameraCapture = ({ 
+  onImageCapture, 
+  onClose, 
+  isOpen, 
+  enableMatching = false,
+  onCreateBadge 
+}: CameraCaptureProps) => {
   const [dragActive, setDragActive] = useState(false);
-  const [isMatching, setIsMatching] = useState(false);
-  const [matchResults, setMatchResults] = useState<any[]>([]);
-  const [showResults, setShowResults] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -54,7 +62,7 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
   const handleFile = async (file: File) => {
     if (file.type.startsWith('image/')) {
       if (enableMatching) {
-        await handleImageMatching(file);
+        await handleImageAnalysis(file);
       } else {
         onImageCapture(file);
         onClose();
@@ -62,17 +70,21 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
     }
   };
 
-  const handleImageMatching = async (file: File) => {
-    setIsMatching(true);
+  const handleImageAnalysis = async (file: File) => {
+    setIsAnalyzing(true);
     
     try {
+      // Create image URL for preview
+      const imageUrl = URL.createObjectURL(file);
+      setUploadedImageUrl(imageUrl);
+      
       // Convert file to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
         
         try {
-          const { data, error } = await supabase.functions.invoke('match-badge-image', {
+          const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
             body: { imageBase64: base64 }
           });
 
@@ -80,17 +92,17 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
             throw error;
           }
 
-          setMatchResults(data.matches || []);
-          setShowResults(true);
-          setIsMatching(false);
-        } catch (matchError) {
-          console.error('Error matching badge:', matchError);
+          setAnalysisResults(data);
+          setShowAnalysis(true);
+          setIsAnalyzing(false);
+        } catch (analysisError) {
+          console.error('Error analyzing badge:', analysisError);
           toast({
-            title: "Matching Failed",
-            description: "Could not search for similar badges. Try creating a new one.",
+            title: "Analysis Failed",
+            description: "Could not analyze the badge. Try creating a new one.",
             variant: "destructive"
           });
-          setIsMatching(false);
+          setIsAnalyzing(false);
           // Fallback to regular creation
           onImageCapture(file);
           onClose();
@@ -99,7 +111,7 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error processing image:', error);
-      setIsMatching(false);
+      setIsAnalyzing(false);
       toast({
         title: "Error",
         description: "Could not process the image",
@@ -108,18 +120,16 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
     }
   };
 
-  const handleCreateNew = () => {
-    setShowResults(false);
-    const fileInput = fileInputRef.current;
-    if (fileInput?.files?.[0]) {
-      onImageCapture(fileInput.files[0]);
-    }
+  const handleCreateNew = (prefillData: any) => {
+    setShowAnalysis(false);
+    onCreateBadge?.(prefillData);
     onClose();
   };
 
-  const handleCloseResults = () => {
-    setShowResults(false);
-    setMatchResults([]);
+  const handleCloseAnalysis = () => {
+    setShowAnalysis(false);
+    setAnalysisResults(null);
+    setUploadedImageUrl('');
   };
 
   const triggerFileInput = () => {
@@ -178,7 +188,7 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
               variant="outline"
               className="flex-1"
               onClick={triggerFileInput}
-              disabled={isMatching}
+              disabled={isAnalyzing}
             >
               <Upload className="h-4 w-4" />
               UPLOAD
@@ -188,7 +198,7 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
               variant="matrix"
               className="flex-1"
               onClick={triggerFileInput}
-              disabled={isMatching}
+              disabled={isAnalyzing}
             >
               <Camera className="h-4 w-4" />
               CAMERA
@@ -201,10 +211,10 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
                 variant="secondary"
                 className="flex-1"
                 onClick={triggerFileInput}
-                disabled={isMatching}
+                disabled={isAnalyzing}
               >
                 <Search className="h-4 w-4" />
-                {isMatching ? "SEARCHING..." : "FIND SIMILAR"}
+                {isAnalyzing ? "ANALYZING..." : "FIND SIMILAR"}
               </Button>
             </div>
           )}
@@ -216,7 +226,7 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
             }
           </p>
           
-          {isMatching && (
+          {isAnalyzing && (
             <div className="flex items-center justify-center space-x-2 py-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
               <span className="text-xs font-mono text-muted-foreground">
@@ -227,12 +237,14 @@ export const CameraCapture = ({ onImageCapture, onClose, isOpen, enableMatching 
         </CardContent>
       </Card>
       
-      <BadgeMatchResults
-        matches={matchResults}
-        isOpen={showResults}
-        onClose={handleCloseResults}
-        onCreateNew={handleCreateNew}
-      />
+        <BadgeAnalysisResults
+          isOpen={showAnalysis}
+          imageUrl={uploadedImageUrl}
+          analysis={analysisResults?.analysis}
+          matches={analysisResults?.matches || []}
+          onClose={handleCloseAnalysis}
+          onCreateNew={handleCreateNew}
+        />
     </div>
   );
 };
