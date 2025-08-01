@@ -182,7 +182,16 @@ serve(async (req) => {
     let webResults: any = null
     let searchSource = 'none'
     
-    if (forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)) {
+    const shouldSearchWeb = forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)
+    
+    console.log('=== WEB SEARCH DECISION ===')
+    console.log('forceWebSearch:', forceWebSearch)
+    console.log('matches.length:', matches.length)
+    console.log('bestConfidence:', matches[0]?.confidence || 'N/A')
+    console.log('shouldSearchWeb:', shouldSearchWeb)
+    console.log('=== ===')
+    
+    if (shouldSearchWeb) {
       console.log('Searching external badge sources...')
       console.log(`Reason: forceWebSearch=${forceWebSearch}, matches=${matches.length}, bestConfidence=${matches[0]?.confidence || 0}%`)
       

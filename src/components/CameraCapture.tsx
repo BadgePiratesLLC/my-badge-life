@@ -251,7 +251,7 @@ export const CameraCapture = ({
           onCreateNew={handleCreateNew}
           originalImageBase64={analysisResults?.originalImageBase64}
           canAddToDatabase={analysisResults?.canAddToDatabase}
-          onConfirmMatch={confirmMatch}
+          onConfirmMatch={enableMatching ? confirmMatch : undefined}
         />
     </div>
   );
