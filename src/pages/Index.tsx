@@ -14,12 +14,10 @@ import { useBadges } from "@/hooks/useBadges";
 import { useRoles } from "@/hooks/useRoles";
 
 const Index = () => {
-  const [showWelcome, setShowWelcome] = useState(true);
   const [showCamera, setShowCamera] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showAddBadge, setShowAddBadge] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [badgeFilter, setBadgeFilter] = useState<'all' | 'owned' | 'wanted'>('all');
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
@@ -34,15 +32,6 @@ const Index = () => {
     getOwnershipStats,
     uploadBadgeImage 
   } = useBadges();
-
-  // Always show welcome screen first
-  // Remove the localStorage check to always show welcome
-  // useEffect(() => {
-  //   const hasVisited = localStorage.getItem('mybadgelife-visited');
-  //   if (hasVisited) {
-  //     setShowWelcome(false);
-  //   }
-  // }, []);
 
   // Loading state with timeout fallback
   useEffect(() => {
@@ -59,11 +48,6 @@ const Index = () => {
 
   // Show minimal loading only briefly - but don't return early to avoid hooks issues
   const showLoading = authLoading;
-
-  const handleGetStarted = () => {
-    setShowWelcome(false);
-    localStorage.setItem('mybadgelife-visited', 'true');
-  };
 
   const handleCameraClick = () => {
     setShowCamera(true);
@@ -111,32 +95,35 @@ const Index = () => {
     setShowAuth(true);
   };
 
-  // Filter badges based on search and filter type
-  const filteredBadges = badges.filter(badge => {
-    // First apply search filter
-    const matchesSearch = badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      badge.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      badge.description?.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleGetStarted = () => {
+    // This won't be called for logged-in users, but keeping for consistency
+    localStorage.setItem('mybadgelife-visited', 'true');
+  };
 
-    if (!matchesSearch) return false;
+  // Filter badges based on search
+  const getFilteredBadges = (filterType?: 'owned' | 'wanted') => {
+    return badges.filter(badge => {
+      // First apply search filter
+      const matchesSearch = badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        badge.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        badge.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Then apply ownership filter
-    if (badgeFilter === 'owned') {
-      return isOwned(badge.id);
-    } else if (badgeFilter === 'wanted') {
-      return isWanted(badge.id);
-    }
-    
-    // 'all' shows all badges
-    return true;
-  });
+      if (!matchesSearch) return false;
+
+      // Then apply ownership filter if specified
+      if (filterType === 'owned') {
+        return isOwned(badge.id);
+      } else if (filterType === 'wanted') {
+        return isWanted(badge.id);
+      }
+      
+      // No filter means all badges
+      return true;
+    });
+  };
 
   // Get ownership stats
   const stats = getOwnershipStats();
-
-  if (showWelcome) {
-    return <WelcomeScreen onGetStarted={handleGetStarted} />;
-  }
 
   // Show loading screen if needed
   if (showLoading) {
@@ -153,6 +140,75 @@ const Index = () => {
     );
   }
 
+  // Show welcome screen for non-authenticated users
+  if (!isAuthenticated) {
+    return <WelcomeScreen onGetStarted={handleGetStarted} />;
+  }
+
+  // Get badge sections for authenticated users
+  const ownedBadges = getFilteredBadges('owned');
+  const wantedBadges = getFilteredBadges('wanted');
+  const allBadges = getFilteredBadges();
+
+  const renderBadgeSection = (title: string, badges: typeof allBadges, emptyMessage: string) => {
+    if (badgesLoading) {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-xl font-mono font-bold text-foreground">{title}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-lg p-4">
+                <div className="h-4 bg-muted animate-pulse rounded mb-3"></div>
+                <div className="aspect-square bg-muted animate-pulse rounded mb-3"></div>
+                <div className="h-3 bg-muted animate-pulse rounded mb-2"></div>
+                <div className="h-3 bg-muted animate-pulse rounded w-2/3"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-mono font-bold text-foreground">{title} ({badges.length})</h2>
+        {badges.length === 0 ? (
+          <div className="text-center py-8 bg-card border border-border rounded-lg">
+            <p className="text-muted-foreground font-mono text-sm">{emptyMessage}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {badges.map((badge) => (
+              <BadgeCard
+                key={badge.id}
+                badge={{
+                  id: badge.id,
+                  name: badge.name,
+                  year: badge.year || undefined,
+                  maker: badge.profiles?.display_name || undefined,
+                  description: badge.description || undefined,
+                  imageUrl: badge.image_url || undefined,
+                  externalLink: badge.external_link || undefined,
+                  isOwned: isOwned(badge.id),
+                  isWanted: isWanted(badge.id),
+                  retired: badge.retired,
+                }}
+                onOwnershipToggle={handleOwnershipToggle}
+                onBadgeClick={(badge) => {
+                  toast({
+                    title: badge.name,
+                    description: `${badge.year ? badge.year + ' • ' : ''}Made by ${badge.maker || 'Unknown'}`,
+                  });
+                }}
+                isAuthenticated={isAuthenticated}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -163,8 +219,8 @@ const Index = () => {
         isAdmin={isAdmin()}
       />
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Search and Filters */}
+      <main className="container mx-auto px-4 py-6 space-y-8">
+        {/* Search and Add Badge */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -193,36 +249,6 @@ const Index = () => {
             )}
           </div>
         </div>
-
-        {/* Badge Filter Tabs (for authenticated users) */}
-        {isAuthenticated && (
-          <div className="flex gap-2 justify-center">
-            <Button
-              variant={badgeFilter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setBadgeFilter('all')}
-              className="font-mono"
-            >
-              ALL ({badges.length})
-            </Button>
-            <Button
-              variant={badgeFilter === 'owned' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setBadgeFilter('owned')}
-              className="font-mono"
-            >
-              OWNED ({stats.owned})
-            </Button>
-            <Button
-              variant={badgeFilter === 'wanted' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setBadgeFilter('wanted')}
-              className="font-mono"
-            >
-              WANTED ({stats.wanted})
-            </Button>
-          </div>
-        )}
 
         {/* Stats Bar */}
         {badgesLoading ? (
@@ -257,57 +283,23 @@ const Index = () => {
           </div>
         )}
 
-        {/* Badge Grid */}
-        {badgesLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-lg p-4">
-                <div className="h-4 bg-muted animate-pulse rounded mb-3"></div>
-                <div className="aspect-square bg-muted animate-pulse rounded mb-3"></div>
-                <div className="h-3 bg-muted animate-pulse rounded mb-2"></div>
-                <div className="h-3 bg-muted animate-pulse rounded w-2/3"></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredBadges.map((badge) => (
-              <BadgeCard
-                key={badge.id}
-                badge={{
-                  id: badge.id,
-                  name: badge.name,
-                  year: badge.year || undefined,
-                  maker: badge.profiles?.display_name || undefined,
-                  description: badge.description || undefined,
-                  imageUrl: badge.image_url || undefined,
-                  externalLink: badge.external_link || undefined,
-                  isOwned: isOwned(badge.id),
-                  isWanted: isWanted(badge.id),
-                  retired: badge.retired,
-                }}
-                onOwnershipToggle={handleOwnershipToggle}
-                onBadgeClick={(badge) => {
-                  toast({
-                    title: badge.name,
-                    description: `${badge.year ? badge.year + ' • ' : ''}Made by ${badge.maker || 'Unknown'}`,
-                  });
-                }}
-                isAuthenticated={isAuthenticated}
-              />
-            ))}
-          </div>
+        {/* Badge Sections */}
+        {renderBadgeSection(
+          "MY BADGES", 
+          ownedBadges, 
+          "You haven't collected any badges yet. Start by marking badges you own!"
         )}
 
-        {/* Empty State */}
-        {filteredBadges.length === 0 && searchQuery && (
-          <div className="text-center py-12">
-            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-mono text-foreground mb-2">No badges found</h3>
-            <p className="text-muted-foreground text-sm">
-              Try adjusting your search or add new badges to the database.
-            </p>
-          </div>
+        {renderBadgeSection(
+          "WISHLIST", 
+          wantedBadges, 
+          "No badges in your wishlist yet. Mark badges you want to collect!"
+        )}
+
+        {renderBadgeSection(
+          "ALL BADGES", 
+          allBadges, 
+          searchQuery ? "No badges found matching your search." : "No badges available."
         )}
       </main>
 
