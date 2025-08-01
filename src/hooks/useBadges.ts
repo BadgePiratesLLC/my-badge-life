@@ -1,22 +1,35 @@
+// Global badge cache to prevent multiple fetches
+let badgesCache: any[] = []
+let badgesCacheTime = 0
+let isFetching = false
+
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import type { Badge, Ownership } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useBadges() {
-  const [badges, setBadges] = useState<Badge[]>([])
+  const [badges, setBadges] = useState<Badge[]>(badgesCache)
   const [ownership, setOwnership] = useState<Ownership[]>([])
-  const [loading, setLoading] = useState(true)
-  const [badgesFetched, setBadgesFetched] = useState(false)
+  const [loading, setLoading] = useState(badgesCache.length === 0)
   const { user } = useAuth()
 
   useEffect(() => {
-    // Only fetch badges once when hook first mounts
-    if (!badgesFetched) {
-      console.log('useBadges hook mounted, fetching badges...')
-      fetchBadges()
+    // Check if we need to fetch badges (no cache or cache is old)
+    const now = Date.now()
+    const cacheExpiry = 5 * 60 * 1000 // 5 minutes
+    
+    if (badgesCache.length === 0 || (now - badgesCacheTime) > cacheExpiry) {
+      if (!isFetching) {
+        console.log('Fetching badges (cache miss or expired)...')
+        fetchBadges()
+      }
+    } else {
+      console.log('Using cached badges:', badgesCache.length)
+      setBadges(badgesCache)
+      setLoading(false)
     }
-  }, [badgesFetched])
+  }, [])
 
   useEffect(() => {
     // Only fetch ownership if user is logged in
@@ -30,6 +43,13 @@ export function useBadges() {
   }, [user])
 
   const fetchBadges = async () => {
+    if (isFetching) {
+      console.log('Already fetching badges, skipping...')
+      return
+    }
+    
+    isFetching = true
+    
     try {
       console.log('Starting fetchBadges function...')
       
@@ -54,9 +74,13 @@ export function useBadges() {
       if (error) {
         console.error('Supabase error fetching badges:', error)
         setBadges([])
+        badgesCache = []
       } else {
         console.log('Badges fetched successfully:', data?.length || 0, 'badges')
-        setBadges((data as unknown as Badge[]) || [])
+        const badgeData = (data as unknown as Badge[]) || []
+        setBadges(badgeData)
+        badgesCache = badgeData
+        badgesCacheTime = Date.now()
       }
     } catch (error) {
       console.error('Error in fetchBadges:', error)
@@ -75,18 +99,22 @@ export function useBadges() {
           const fallbackData = await response.json()
           console.log('Fallback fetch successful:', fallbackData?.length || 0, 'badges')
           setBadges(fallbackData || [])
+          badgesCache = fallbackData || []
+          badgesCacheTime = Date.now()
         } else {
           console.error('Fallback fetch failed:', response.status, response.statusText)
           setBadges([])
+          badgesCache = []
         }
       } catch (fallbackError) {
         console.error('Fallback fetch error:', fallbackError)
         setBadges([])
+        badgesCache = []
       }
     } finally {
       console.log('Setting loading to false')
       setLoading(false)
-      setBadgesFetched(true)
+      isFetching = false
     }
   }
 
@@ -174,7 +202,10 @@ export function useBadges() {
       throw error
     }
 
-    setBadges(prev => [data as unknown as Badge, ...prev])
+    // Update local state and cache
+    const newBadge = data as unknown as Badge
+    setBadges(prev => [newBadge, ...prev])
+    badgesCache = [newBadge, ...badgesCache]
     return data
   }
 
@@ -241,7 +272,11 @@ export function useBadges() {
     isOwned,
     isWanted,
     getOwnershipStats,
-    refreshBadges: fetchBadges,
+    refreshBadges: () => {
+      badgesCache = []
+      badgesCacheTime = 0
+      fetchBadges()
+    },
     refreshOwnership: fetchOwnership
   }
 }

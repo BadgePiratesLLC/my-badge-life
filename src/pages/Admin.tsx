@@ -55,17 +55,20 @@ export default function Admin() {
   const [editingBadge, setEditingBadge] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
   const [loading, setLoading] = useState(true)
+  const [usersFetched, setUsersFetched] = useState(false)
 
   useEffect(() => {
     if (!rolesLoading && !authLoading) {
       if (isAdmin()) {
         fetchUploads()
-        fetchUsers()
+        if (!usersFetched) {
+          fetchUsers()
+        }
         fetchBadges()
       }
       setLoading(false)
     }
-  }, [isAdmin, rolesLoading, authLoading])
+  }, [isAdmin, rolesLoading, authLoading, usersFetched])
 
   const fetchUploads = async () => {
     try {
@@ -123,10 +126,12 @@ export default function Admin() {
       }))
 
       setUsers(usersWithRoles)
+      setUsersFetched(true)
     } catch (error) {
       console.error('Error fetching users:', error)
       // Don't show error toast repeatedly, just log it
       setUsers([])
+      setUsersFetched(true) // Still set to true to prevent repeated attempts
     }
   }
 
