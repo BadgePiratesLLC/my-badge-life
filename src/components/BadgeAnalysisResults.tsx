@@ -69,6 +69,7 @@ export const BadgeAnalysisResults = ({
   const [selectedMatch, setSelectedMatch] = useState<AnalysisMatch | null>(
     filteredMatches.length > 0 ? filteredMatches[0] : null
   );
+  const [hideDatabaseMatches, setHideDatabaseMatches] = useState(false);
 
   if (!isOpen) return null;
 
@@ -188,6 +189,8 @@ export const BadgeAnalysisResults = ({
 
       if (error) throw error;
       
+      // Hide database results and show AI results instead
+      setHideDatabaseMatches(true);
       setWebSearchResults(data.analysis);
       toast({
         title: "AI search completed",
@@ -355,7 +358,7 @@ export const BadgeAnalysisResults = ({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Database Matches</h3>
               
-              {filteredMatches.length === 0 ? (
+              {(filteredMatches.length === 0 || hideDatabaseMatches) ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">
                     No matches found in our database.
