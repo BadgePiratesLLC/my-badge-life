@@ -75,7 +75,23 @@ serve(async (req) => {
 
     console.log('Quick analysis result:', quickAnalysis)
 
-    // Step 2: Search local database first
+    // Step 2: Try image-based matching first for higher accuracy
+    console.log('Attempting image-based matching...')
+    let imageMatches = []
+    try {
+      const { data: matchResult, error: matchError } = await supabase.functions.invoke('match-badge-image', {
+        body: { imageBase64 }
+      })
+      
+      if (!matchError && matchResult?.matches) {
+        imageMatches = matchResult.matches
+        console.log(`Found ${imageMatches.length} image matches:`, imageMatches.map(m => `${m.badge.name}: ${Math.round(m.similarity * 100)}%`))
+      }
+    } catch (error) {
+      console.error('Image matching error (continuing with text search):', error)
+    }
+
+    // Step 3: Search local database for text matches
     console.log('Searching local database...')
     let matches = []
     
@@ -166,17 +182,42 @@ serve(async (req) => {
           .filter(match => match.confidence >= 20)  // Lower threshold for testing
           .sort((a, b) => b.confidence - a.confidence)
           .slice(0, 5)
-          
+           
           matches = scoredMatches
-          console.log(`Found ${matches.length} local matches with confidence >= 20%`)
+          console.log(`Found ${matches.length} local text matches with confidence >= 20%`)
           if (matches.length > 0) {
-            console.log('Best matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
-            console.log(`BEST LOCAL MATCH: ${matches[0].confidence}% confidence`)
+            console.log('Best text matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
+            console.log(`BEST LOCAL TEXT MATCH: ${matches[0].confidence}% confidence`)
           }
         }
       } catch (error) {
         console.error('Local database search error:', error)
       }
+    }
+
+    // Combine image matches with text matches, prioritizing image matches
+    if (imageMatches.length > 0) {
+      console.log('Merging image and text matches...')
+      // Convert image matches to same format as text matches
+      const imageMatchesFormatted = imageMatches.map(match => ({
+        badge: match.badge,
+        similarity: match.similarity,
+        confidence: Math.round(match.similarity * 100) // Convert similarity to percentage
+      }))
+      
+      // Prioritize high-confidence image matches
+      const highConfidenceImageMatches = imageMatchesFormatted.filter(m => m.confidence >= 85)
+      if (highConfidenceImageMatches.length > 0) {
+        console.log(`Found ${highConfidenceImageMatches.length} high-confidence image matches (≥85%)`)
+        matches = highConfidenceImageMatches.concat(matches).slice(0, 5) // Image matches first, then text
+      } else {
+        // Merge all matches and sort by confidence
+        matches = imageMatchesFormatted.concat(matches)
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 5)
+      }
+      
+      console.log('Final combined matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
     }
 
     // Step 3: Search external sources ONLY if no good local matches
