@@ -205,31 +205,55 @@ export const BadgeAnalysisResults = ({
     
     setIsSearchingWeb(true);
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
-        body: { 
-          imageBase64: originalImageBase64,
-          forceWebSearch: true // Force web search, skip local database
-        }
+      // Step 1: Try Google search first
+      toast({
+        title: "Searching...",
+        description: "Starting Google search for badge information"
+      });
+      
+      const { data: googleData, error: googleError } = await supabase.functions.invoke('google-badge-search', {
+        body: { imageBase64: originalImageBase64 }
       });
 
-      if (error) throw error;
+      if (googleError) throw googleError;
       
-      console.log('AI search response:', data);
+      // If Google search found good results (60%+ confidence), use them
+      if (googleData?.analysis && googleData.analysis.confidence >= 60) {
+        setHideDatabaseMatches(true);
+        setWebSearchResults(googleData.analysis);
+        
+        toast({
+          title: "Google search completed",
+          description: `Found: ${googleData.analysis.name} (${googleData.analysis.confidence}% confidence)`
+        });
+        return;
+      }
       
-      // Hide database results and show AI results instead
-      setHideDatabaseMatches(true);
-      setWebSearchResults(data.analysis);
-      
-      console.log('Set webSearchResults to:', data.analysis);
-      
+      // Step 2: If Google search didn't find good results, try AI analysis
       toast({
-        title: "AI search completed",
-        description: "Found badge information using AI search"
+        title: "Trying AI analysis...",
+        description: "Google search insufficient, running AI analysis as fallback"
       });
-    } catch (error) {
-      console.error('AI search error:', error);
+      
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('ai-badge-analysis', {
+        body: { imageBase64: originalImageBase64 }
+      });
+
+      if (aiError) throw aiError;
+      
+      // Hide database results and show AI results
+      setHideDatabaseMatches(true);
+      setWebSearchResults(aiData.analysis);
+      
       toast({
-        title: "AI search failed", 
+        title: "AI analysis completed",
+        description: `AI identified: ${aiData.analysis.name} (${aiData.analysis.confidence}% confidence)`
+      });
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search failed", 
         description: "Could not search for badge information",
         variant: "destructive"
       });
