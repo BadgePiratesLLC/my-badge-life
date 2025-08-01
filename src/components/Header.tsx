@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Camera, Menu, User } from "lucide-react";
+import { Camera, Menu, User, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import mybadgelifeLogo from "@/assets/mybadgelife-logo.jpg";
 
 interface HeaderProps {
@@ -7,9 +8,10 @@ interface HeaderProps {
   onMenuClick: () => void;
   isAuthenticated: boolean;
   onAuthClick: () => void;
+  isAdmin?: boolean;
 }
 
-export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
+export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick, isAdmin }: HeaderProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -37,6 +39,20 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
             <Camera className="h-4 w-4" />
             <span className="hidden sm:inline">SCAN</span>
           </Button>
+          
+          
+          {/* Admin Button */}
+          {isAdmin && (
+            <Link to="/admin">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-orange-500 hover:text-orange-400"
+              >
+                <Shield className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
           
           <Button
             variant={isAuthenticated ? "ghost" : "outline"}

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBadges } from "@/hooks/useBadges";
+import { useRoles } from "@/hooks/useRoles";
 
 const Index = () => {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -22,6 +23,7 @@ const Index = () => {
   
   // Real authentication and data
   const { user, profile, loading: authLoading, isAuthenticated } = useAuth();
+  const { isAdmin } = useRoles();
   const { 
     badges, 
     loading: badgesLoading, 
@@ -124,6 +126,7 @@ const Index = () => {
         onMenuClick={() => {}}
         isAuthenticated={isAuthenticated}
         onAuthClick={handleAuthClick}
+        isAdmin={isAdmin()}
       />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
