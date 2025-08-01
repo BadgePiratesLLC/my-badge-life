@@ -82,8 +82,8 @@ serve(async (req) => {
     
     if (!forceWebSearch) {
       try {
-        // Create embedding using identified badge info (consistent with stored embeddings)
-        const textToEmbed = `Badge: ${quickAnalysis.name}. Description: ${quickAnalysis.description}. Image URL: analysis`
+        // Create embedding using identified badge info (consistent with stored embeddings format)
+        const textToEmbed = `Badge: ${quickAnalysis.name || 'Unknown Badge'}. Description: ${quickAnalysis.description || 'Electronic conference badge'}. Image URL: analysis`
         
         const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
           method: 'POST',
@@ -145,7 +145,7 @@ serve(async (req) => {
                   confidence
                 }
               })
-              .filter(match => match.similarity >= 0.6)  // Higher threshold for better quality
+              .filter(match => match.similarity >= 0.4)  // Lower threshold for testing
               .sort((a, b) => b.similarity - a.similarity)
               .slice(0, 5)
 

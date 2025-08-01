@@ -53,6 +53,7 @@ const Index = () => {
   const showLoading = authLoading && user === undefined;
 
   const handleCameraClick = () => {
+    console.log('Camera clicked. Auth state:', { isAuthenticated, user: user?.email, profile: profile?.role });
     setShowCamera(true);
   };
 
