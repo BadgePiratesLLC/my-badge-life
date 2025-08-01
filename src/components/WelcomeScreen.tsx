@@ -22,7 +22,7 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="font-mono text-sm text-foreground">MyBadgeLife</span>
+          <span className="font-mono text-sm text-foreground">My Badge Life</span>
         </div>
         <Button
           variant="outline"
@@ -49,7 +49,7 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
             
             <div>
               <h1 className="text-hero gradient-text font-bold font-mono">
-                MyBadgeLife
+                My Badge Life
               </h1>
               <p className="text-subtitle text-muted-foreground font-mono mt-2">
                 Track every badge. Connect with makers.

@@ -24,7 +24,7 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
             className="h-8 w-8 rounded border border-primary/30"
           />
           <div className="flex flex-col">
-            <span className="text-hero gradient-text font-bold">MyBadgeLife</span>
+            <span className="text-hero gradient-text font-bold">My Badge Life</span>
             <span className="text-xs text-muted-foreground font-mono">BADGE TRACKER</span>
           </div>
         </div>
