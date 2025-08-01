@@ -119,22 +119,38 @@ serve(async (req) => {
             message: `Google API error: ${googleData.error}` 
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
-          // Filter results for badge-related content
-          const badgeKeywords = ['badge', 'pin', 'patch', 'emblem', 'logo', 'sticker', 'decal', 'conference', 'convention', 'security', 'electronics', 'hacker', 'defcon', 'bsides', 'con', 'cyber', 'tech']
+          console.log('Google returned results, filtering for badge content...')
+          
+          // Very strict badge-related keywords
+          const strictBadgeKeywords = ['badge', 'pin', 'patch', 'emblem', 'defcon', 'bsides', 'con badge', 'conference badge', 'security badge', 'hacker badge', 'electronic badge', 'pcb badge', 'led badge']
+          const techEventKeywords = ['defcon', 'bsides', 'blackhat', 'derbycon', 'shmoocon', 'toorcon', 'summercon', 'hackaday', 'maker faire', 'security conference']
           
           let bestResult = null
           let confidence = 0
           
-          for (const result of googleData.image_results.slice(0, 5)) {
+          for (let i = 0; i < Math.min(googleData.image_results.length, 5); i++) {
+            const result = googleData.image_results[i]
             const title = (result.title || '').toLowerCase()
             const snippet = (result.snippet || '').toLowerCase()
             const link = (result.link || '').toLowerCase()
             
-            const combinedText = `${title} ${snippet} ${link}`
-            const matchCount = badgeKeywords.filter(keyword => combinedText.includes(keyword)).length
+            console.log(`Checking result ${i + 1}: "${result.title}"`)
+            console.log(`  Snippet: "${result.snippet}"`)
+            console.log(`  Link: "${result.link}"`)
             
-            if (matchCount > 0) {
-              const resultConfidence = Math.min(30 + (matchCount * 15), 75) // Max 75% for Google results
+            const combinedText = `${title} ${snippet} ${link}`
+            
+            // Check for strict badge keywords
+            const badgeMatches = strictBadgeKeywords.filter(keyword => combinedText.includes(keyword)).length
+            const techEventMatches = techEventKeywords.filter(keyword => combinedText.includes(keyword)).length
+            
+            console.log(`  Badge matches: ${badgeMatches}, Tech event matches: ${techEventMatches}`)
+            
+            // Only accept if it has explicit badge terminology OR is from a known tech event
+            if (badgeMatches > 0 || techEventMatches > 0) {
+              const resultConfidence = Math.min(40 + (badgeMatches * 20) + (techEventMatches * 15), 75)
+              console.log(`  Calculated confidence: ${resultConfidence}%`)
+              
               if (resultConfidence > confidence) {
                 confidence = resultConfidence
                 bestResult = {
@@ -146,13 +162,16 @@ serve(async (req) => {
                   thumbnail: result.thumbnail,
                   found_via_google: true,
                   search_source: 'Google Image Search',
-                  keyword_matches: matchCount
+                  badge_keywords: badgeMatches,
+                  tech_event_keywords: techEventMatches
                 }
               }
+            } else {
+              console.log(`  Rejected: No badge or tech event keywords found`)
             }
           }
           
-          if (bestResult && confidence >= 30) {
+          if (bestResult && confidence >= 40) {
             analytics.found_via_google = true
             analytics.google_confidence = confidence
             analytics.total_duration_ms = Date.now() - searchStartTime
@@ -194,9 +213,9 @@ serve(async (req) => {
             statusUpdates.push({ 
               stage: 'google_search', 
               status: 'failed', 
-              message: 'No badge-related results found in Google search' 
+              message: 'No badge-related results found in Google search (found general results but not badge-specific)' 
             })
-            console.log('❌ Google search found results but none appear to be badge-related')
+            console.log('❌ Google search found results but none appear to be badge-related (strict filtering)')
           }
         } else {
           statusUpdates.push({ 
