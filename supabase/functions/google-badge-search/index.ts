@@ -61,25 +61,46 @@ serve(async (req) => {
     try {
       const imageData = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '')
       
-      statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
-      console.log('Performing Google reverse image search...')
+      statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Uploading image for Google search...' })
       
-      // For SerpAPI reverse image search, we need to use POST with JSON body
-      const requestBody = {
-        engine: 'google_reverse_image',
-        api_key: serpApiKey,
-        num: 3,
-        image_base64: imageData
+      // Upload image to storage first to get a public URL
+      const fileName = `temp-search-${Date.now()}.jpg`
+      const imageBuffer = Uint8Array.from(atob(imageData), c => c.charCodeAt(0))
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('badge-images')
+        .upload(fileName, imageBuffer, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600'
+        })
+      
+      if (uploadError) {
+        console.error('Failed to upload image:', uploadError)
+        throw new Error('Failed to upload image for search')
       }
       
-      console.log('Making reverse image search request with POST...')
-      const googleResponse = await fetch('https://serpapi.com/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+      const { data: { publicUrl } } = supabase.storage
+        .from('badge-images')
+        .getPublicUrl(fileName)
+      
+      statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
+      console.log('Performing Google reverse image search with URL:', publicUrl)
+      
+      // Use the public URL for reverse image search
+      const searchParams = new URLSearchParams({
+        engine: 'google_reverse_image',
+        api_key: serpApiKey,
+        num: '3',
+        image_url: publicUrl
       })
+      
+      console.log('Making reverse image search request...')
+      const googleResponse = await fetch(`https://serpapi.com/search?${searchParams.toString()}`, {
+        method: 'GET'
+      })
+      
+      // Clean up the temporary file
+      await supabase.storage.from('badge-images').remove([fileName])
 
       analytics.google_search_duration_ms = Date.now() - searchStartTime
       
