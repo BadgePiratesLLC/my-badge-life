@@ -30,15 +30,23 @@ export function useBadges() {
     try {
       console.log('Starting fetchBadges function...')
       
-      // Simple query first to test connection
-      const { data, error } = await supabase
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout')), 10000)
+      )
+      
+      const queryPromise = supabase
         .from('badges')
         .select('*')
         .order('created_at', { ascending: false })
 
-      console.log('Supabase query completed')
+      console.log('About to execute query with timeout...')
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
+
+      console.log('Query completed!')
       console.log('Error:', error)
-      console.log('Data length:', data?.length)
+      console.log('Data:', data)
 
       if (error) {
         console.error('Supabase error fetching badges:', error)
@@ -48,8 +56,30 @@ export function useBadges() {
         setBadges((data as unknown as Badge[]) || [])
       }
     } catch (error) {
-      console.error('JavaScript error in fetchBadges:', error)
-      setBadges([])
+      console.error('Error in fetchBadges:', error)
+      
+      // Fallback: Try to use a direct REST call
+      console.log('Trying fallback method...')
+      try {
+        const response = await fetch(`https://zdegwavcldwlgzzandae.supabase.co/rest/v1/badges?select=*&order=created_at.desc`, {
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs'
+          }
+        })
+        
+        if (response.ok) {
+          const fallbackData = await response.json()
+          console.log('Fallback fetch successful:', fallbackData?.length || 0, 'badges')
+          setBadges(fallbackData || [])
+        } else {
+          console.error('Fallback fetch failed:', response.status, response.statusText)
+          setBadges([])
+        }
+      } catch (fallbackError) {
+        console.error('Fallback fetch error:', fallbackError)
+        setBadges([])
+      }
     } finally {
       console.log('Setting loading to false')
       setLoading(false)
