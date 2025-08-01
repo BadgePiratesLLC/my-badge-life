@@ -1,0 +1,198 @@
+import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { useBadges } from '@/hooks/useBadges'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { ArrowLeft, Save, Upload } from 'lucide-react'
+import { toast } from 'sonner'
+
+export default function BadgeRegister() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { user } = useAuth()
+  const { createBadge } = useBadges()
+  
+  // Get image URL from query params if coming from admin
+  const prefilledImageUrl = searchParams.get('image_url') || ''
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    year: '',
+    external_link: '',
+    image_url: prefilledImageUrl
+  })
+  
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!user) {
+      toast.error('You must be logged in to create a badge')
+      return
+    }
+
+    if (!formData.name.trim()) {
+      toast.error('Badge name is required')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      await createBadge({
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        year: formData.year ? parseInt(formData.year) : undefined,
+        external_link: formData.external_link.trim() || undefined,
+        image_url: formData.image_url.trim() || undefined
+      })
+
+      toast.success('Badge created successfully!')
+      navigate('/')
+    } catch (error) {
+      console.error('Error creating badge:', error)
+      toast.error('Failed to create badge: ' + (error as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold font-mono">BADGE REGISTER</h1>
+              <p className="text-muted-foreground">Create a new badge entry</p>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Badge Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Badge Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="e.g., DEF CON 31, BSides Vegas 2024"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Describe the badge, event, or significance..."
+                    rows={4}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="year">Year</Label>
+                    <Input
+                      id="year"
+                      type="number"
+                      value={formData.year}
+                      onChange={(e) => handleInputChange('year', e.target.value)}
+                      placeholder="2024"
+                      min="1990"
+                      max="2030"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="external_link">External Link</Label>
+                    <Input
+                      id="external_link"
+                      type="url"
+                      value={formData.external_link}
+                      onChange={(e) => handleInputChange('external_link', e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="image_url">Image URL</Label>
+                  <Input
+                    id="image_url"
+                    type="url"
+                    value={formData.image_url}
+                    onChange={(e) => handleInputChange('image_url', e.target.value)}
+                    placeholder="https://..."
+                  />
+                  {formData.image_url && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.image_url}
+                        alt="Badge preview"
+                        className="w-32 h-32 object-cover rounded border"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="submit"
+                    disabled={loading || !formData.name.trim()}
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {loading ? 'Creating Badge...' : 'Create Badge'}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate(-1)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -49,6 +49,7 @@ interface User {
 export default function Admin() {
   const { isAdmin, loading: rolesLoading } = useRoles()
   const { user, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [badges, setBadges] = useState<BadgeData[]>([])
@@ -203,32 +204,9 @@ export default function Admin() {
     }
   }
 
-  const createBadgeFromUpload = async (upload: Upload) => {
-    try {
-      const badgeName = prompt('Enter badge name:')
-      if (!badgeName) return
-
-      const description = prompt('Enter badge description (optional):') || ''
-      const year = prompt('Enter badge year (optional):')
-
-      const { error } = await supabase
-        .from('badges')
-        .insert({
-          name: badgeName,
-          description,
-          year: year ? parseInt(year) : null,
-          image_url: upload.image_url,
-          maker_id: user?.id
-        })
-
-      if (error) throw error
-
-      toast.success('Badge created successfully!')
-      // Optionally remove from uploads or mark as processed
-    } catch (error) {
-      console.error('Error creating badge:', error)
-      toast.error('Failed to create badge')
-    }
+  const createBadgeFromUpload = (upload: Upload) => {
+    // Navigate to badge register form with the image URL prefilled
+    navigate(`/badge/register?image_url=${encodeURIComponent(upload.image_url)}`)
   }
 
   const deleteUpload = async (upload: Upload) => {
