@@ -1,0 +1,3 @@
+UPDATE web_search_sources 
+SET prompt_template = 'Search Tindie.com for electronic conference badges, SAO badges, hacker badges, DEF CON badges, or any PCB badges related to "{query}". Look for badges with characters, skulls, totems, or similar designs. Be flexible with naming - badges might have completely different names than the query. Focus on: 1) Shape/design similarity (character, totem, skull), 2) Green PCB color, 3) Electronic components, 4) Conference/hacker context. Return JSON: {name, maker, year, description, price, url, found: true/false}. Include the full Tindie URL in the url field. If you find ANY electronic badge that could visually match a green character/totem PCB design, set found=true.'
+WHERE name = 'Tindie'
