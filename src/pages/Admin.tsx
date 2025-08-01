@@ -72,11 +72,13 @@ export default function Admin() {
   const [editingTeam, setEditingTeam] = useState<string | null>(null)
   const [teamForm, setTeamForm] = useState<{ name: string; description: string }>({ name: '', description: '' })
   const [showCreateTeam, setShowCreateTeam] = useState(false)
+  const [allUsers, setAllUsers] = useState<{id: string, display_name: string | null, email: string | null}[]>([])
 
   useEffect(() => {
     if (!rolesLoading && !authLoading) {
       if (canAccessAdmin()) {
         fetchUploads()
+        fetchAllUsers() // Fetch all users for the "Created By" dropdown
         if (!usersFetched && canManageUsers()) {
           fetchUsers()
         }
@@ -85,6 +87,20 @@ export default function Admin() {
       setLoading(false)
     }
   }, [rolesLoading, authLoading, usersFetched]) // Removed function dependencies to prevent infinite loop
+
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, email')
+        .order('display_name')
+
+      if (error) throw error
+      setAllUsers(data || [])
+    } catch (error) {
+      console.error('Error fetching all users:', error)
+    }
+  }
 
   const fetchUploads = async () => {
     try {
@@ -183,7 +199,8 @@ export default function Admin() {
       external_link: badge.external_link || '',
       team_name: badge.team_name || '',
       category: badge.category || null,
-      retired: badge.retired
+      retired: badge.retired,
+      maker_id: badge.maker_id || ''
     })
   }
 
@@ -204,7 +221,8 @@ export default function Admin() {
           external_link: editForm.external_link || null,
           team_name: editForm.team_name || null,
           category: editForm.category || null,
-          retired: editForm.retired
+          retired: editForm.retired,
+          maker_id: editForm.maker_id || null
         })
         .eq('id', badgeId)
 
@@ -540,8 +558,9 @@ export default function Admin() {
                                 </div>
                                 
                                 <div>
-                                  <label className="text-sm font-medium mb-2 block">External Link</label>
+                                  <Label htmlFor="purchase_link">Purchase Link</Label>
                                   <Input
+                                    id="purchase_link"
                                     value={editForm.external_link || ''}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, external_link: e.target.value }))}
                                     placeholder="https://..."
@@ -556,6 +575,26 @@ export default function Admin() {
                                   onChange={(e) => setEditForm(prev => ({ ...prev, image_url: e.target.value }))}
                                   placeholder="Image URL"
                                 />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="created_by">Created By</Label>
+                                <Select 
+                                  value={editForm.maker_id || 'none'} 
+                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, maker_id: value === 'none' ? null : value }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select creator" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">No Creator</SelectItem>
+                                    {allUsers.map((user) => (
+                                      <SelectItem key={user.id} value={user.id}>
+                                        {user.display_name || user.email}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
 
                               <div className="flex items-center space-x-2">
@@ -585,6 +624,16 @@ export default function Admin() {
                                   <X className="h-4 w-4" />
                                   Cancel
                                 </Button>
+                                {isAdmin() && (
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() => deleteBadge(badge)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete Badge
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -609,30 +658,17 @@ export default function Admin() {
                                     )}
                                   </div>
                                   
-                                   <div className="flex gap-2">
-                                     {canEditBadge(badge.team_name) && (
-                                       <Button
-                                         size="sm"
-                                         variant="outline"
-                                         onClick={() => startEditBadge(badge)}
-                                         className="flex items-center gap-2"
-                                       >
-                                         <Edit className="h-4 w-4" />
-                                         Edit
-                                       </Button>
-                                     )}
-                                     {isAdmin() && (
-                                       <Button
-                                         size="sm"
-                                         variant="destructive"
-                                         onClick={() => deleteBadge(badge)}
-                                         className="flex items-center gap-2"
-                                       >
-                                         <Trash2 className="h-4 w-4" />
-                                         Delete
-                                       </Button>
-                                     )}
-                                   </div>
+                                   {canEditBadge(badge.team_name) && (
+                                     <Button
+                                       size="sm"
+                                       variant="outline"
+                                       onClick={() => startEditBadge(badge)}
+                                       className="flex items-center gap-2"
+                                     >
+                                       <Edit className="h-4 w-4" />
+                                       Edit
+                                     </Button>
+                                   )}
                                 </div>
                                 
                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
