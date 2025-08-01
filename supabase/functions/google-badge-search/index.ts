@@ -59,17 +59,19 @@ serve(async (req) => {
       statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
       console.log('Performing Google reverse image search...')
       
-      const googleResponse = await fetch('https://serpapi.com/search', {
-        method: 'POST',
+      // SerpAPI uses GET requests with query parameters
+      const searchParams = new URLSearchParams({
+        engine: 'google_reverse_image',
+        image_base64: imageData,
+        api_key: serpApiKey,
+        num: '3'
+      })
+      
+      const googleResponse = await fetch(`https://serpapi.com/search?${searchParams.toString()}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          engine: 'google_reverse_image',
-          image_base64: imageData,
-          api_key: serpApiKey,
-          num: 3
-        })
+          'Content-Type': 'application/json',
+        }
       })
 
       analytics.google_search_duration_ms = Date.now() - searchStartTime
