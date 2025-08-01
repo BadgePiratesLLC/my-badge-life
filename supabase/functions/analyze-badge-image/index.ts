@@ -44,7 +44,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: 'Quickly identify this badge. Return only: {"name": "badge name", "description": "brief description"}. Be concise.'
+                text: 'You are analyzing an electronic conference badge or SAO (Shitty Add-On). Look carefully at any text, logos, or distinctive features. If you see "SAO", "Totem", version numbers, or connector layouts, mention them specifically. Return only: {"name": "badge name", "description": "brief description"}. Focus on technical details and exact text visible.'
               },
               {
                 type: 'image_url',
