@@ -59,19 +59,24 @@ serve(async (req) => {
       statusUpdates.push({ stage: 'google_search', status: 'processing', message: 'Submitting image to Google...' })
       console.log('Performing Google reverse image search...')
       
-      // SerpAPI uses GET requests with query parameters
-      const searchParams = new URLSearchParams({
-        engine: 'google_reverse_image',
-        image_base64: imageData,
-        api_key: serpApiKey,
-        num: '3'
-      })
+      // For SerpAPI reverse image search, we need to use POST with multipart/form-data
+      const formData = new FormData()
+      formData.append('engine', 'google_reverse_image')
+      formData.append('api_key', serpApiKey)
+      formData.append('num', '3')
       
-      const googleResponse = await fetch(`https://serpapi.com/search?${searchParams.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+      // Convert base64 to blob for the image upload
+      const binaryString = atob(imageData)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      const blob = new Blob([bytes], { type: 'image/jpeg' })
+      formData.append('image_upload', blob, 'image.jpg')
+      
+      const googleResponse = await fetch('https://serpapi.com/search', {
+        method: 'POST',
+        body: formData
       })
 
       analytics.google_search_duration_ms = Date.now() - searchStartTime
