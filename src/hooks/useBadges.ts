@@ -254,6 +254,42 @@ export function useBadges() {
       throw error
     }
 
+    // Send Discord notification for new upload
+    try {
+      const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-discord-notification', {
+        body: {
+          type: 'badge_submitted',
+          data: {
+            title: '📷 New Badge Image Uploaded',
+            description: user 
+              ? `**${user.email}** uploaded a new badge image for identification.`
+              : 'An anonymous user uploaded a new badge image for identification.',
+            fields: [
+              {
+                name: 'Upload ID',
+                value: data.id,
+                inline: true
+              },
+              {
+                name: 'Status',
+                value: 'Awaiting admin processing',
+                inline: true
+              }
+            ],
+            thumbnail: {
+              url: publicUrl
+            }
+          }
+        }
+      })
+      
+      if (notificationError) {
+        console.error('Discord notification failed:', notificationError)
+      }
+    } catch (notificationError) {
+      console.error('Failed to send Discord notification:', notificationError)
+    }
+
     return { url: publicUrl, upload: data }
   }
 
