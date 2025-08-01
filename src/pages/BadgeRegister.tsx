@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useBadges } from '@/hooks/useBadges'
+import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,8 +17,9 @@ export default function BadgeRegister() {
   const { user } = useAuth()
   const { createBadge } = useBadges()
   
-  // Get image URL from query params if coming from admin
+  // Get image URL and upload ID from query params if coming from admin
   const prefilledImageUrl = searchParams.get('image_url') || ''
+  const uploadId = searchParams.get('upload_id')
   
   const [formData, setFormData] = useState({
     name: '',
@@ -52,6 +54,27 @@ export default function BadgeRegister() {
         external_link: formData.external_link.trim() || undefined,
         image_url: formData.image_url.trim() || undefined
       })
+
+      // If this badge was created from an upload, delete the upload record
+      if (uploadId) {
+        try {
+          console.log('Deleting upload record:', uploadId)
+          const { error: deleteError } = await supabase
+            .from('uploads')
+            .delete()
+            .eq('id', uploadId)
+
+          if (deleteError) {
+            console.error('Error deleting upload:', deleteError)
+            // Don't fail the whole operation, just log it
+          } else {
+            console.log('Upload record deleted successfully')
+          }
+        } catch (error) {
+          console.error('Error deleting upload record:', error)
+          // Don't fail the whole operation
+        }
+      }
 
       toast.success('Badge created successfully!')
       navigate('/')

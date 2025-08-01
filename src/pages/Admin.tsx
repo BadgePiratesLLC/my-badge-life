@@ -205,8 +205,8 @@ export default function Admin() {
   }
 
   const createBadgeFromUpload = (upload: Upload) => {
-    // Navigate to badge register form with the image URL prefilled
-    navigate(`/badge/register?image_url=${encodeURIComponent(upload.image_url)}`)
+    // Navigate to badge register form with the image URL and upload ID
+    navigate(`/badge/register?image_url=${encodeURIComponent(upload.image_url)}&upload_id=${upload.id}`)
   }
 
   const deleteUpload = async (upload: Upload) => {
