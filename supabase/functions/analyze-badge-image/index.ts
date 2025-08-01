@@ -24,9 +24,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-    const { imageBase64 } = await req.json()
+    const { imageBase64, forceWebSearch } = await req.json()
 
-    console.log('Analyzing badge image with AI...')
+    console.log('Analyzing badge image with AI...', forceWebSearch ? '(forced web search)' : '')
 
     // Step 1: Analyze image with OpenAI Vision
     const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -189,10 +189,10 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Only do web search if no good database match AND AI found something specific
+    // Step 4: Do web search if forced OR if no database matches found
     let webResults: any = null
-    if (!hasGoodDatabaseMatch && aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
-      console.log('No high-confidence database match found, searching web...')
+    if ((forceWebSearch || matches.length === 0) && aiAnalysis.name && aiAnalysis.name !== 'Unknown Badge') {
+      console.log(forceWebSearch ? 'Forced web search requested' : 'No database matches found, searching web...')
       try {
         const searchQuery = `${aiAnalysis.name} ${aiAnalysis.event || ''} electronic badge conference`.trim()
         
@@ -207,11 +207,11 @@ serve(async (req) => {
             messages: [
               {
                 role: 'user',
-                content: `Find basic info about: ${searchQuery}. Return brief JSON: {name, maker, year, description}`
+                content: `Find detailed information about: ${searchQuery}. Return JSON with: {name, maker, year, description, external_link, confidence}`
               }
             ],
             temperature: 0.2,
-            max_tokens: 200
+            max_tokens: 300
           })
         })
 
@@ -223,7 +223,7 @@ serve(async (req) => {
             const webJsonMatch = webContent.match(/\{[\s\S]*\}/)
             if (webJsonMatch) {
               webResults = JSON.parse(webJsonMatch[0])
-              console.log('Web search completed')
+              console.log('Web search completed successfully')
             }
           } catch (webParseError) {
             console.log('Could not parse web results as JSON')
@@ -232,8 +232,8 @@ serve(async (req) => {
       } catch (webError) {
         console.error('Web search error:', webError)
       }
-    } else if (hasGoodDatabaseMatch) {
-      console.log('Skipped web search - found good database match')
+    } else if (matches.length > 0 && !forceWebSearch) {
+      console.log('Found database matches - skipping web search (user can request it)')
     } else {
       console.log('Skipped web search - AI could not identify badge clearly')
     }

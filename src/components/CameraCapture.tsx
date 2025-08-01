@@ -95,7 +95,7 @@ export const CameraCapture = ({
             throw error;
           }
 
-          setAnalysisResults(data);
+          setAnalysisResults({...data, originalImageBase64: base64});
           setShowAnalysis(true);
           setIsAnalyzing(false);
         } catch (analysisError) {
@@ -247,6 +247,7 @@ export const CameraCapture = ({
           matches={analysisResults?.matches || []}
           onClose={handleCloseAnalysis}
           onCreateNew={handleCreateNew}
+          originalImageBase64={analysisResults?.originalImageBase64}
         />
     </div>
   );

@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Plus, ExternalLink } from "lucide-react";
+import { X, Plus, ExternalLink, Search } from "lucide-react";
 import { BadgeCard } from "./BadgeCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface BadgeAnalysis {
   name?: string;
@@ -32,6 +34,7 @@ interface BadgeAnalysisResultsProps {
   matches: AnalysisMatch[];
   onClose: () => void;
   onCreateNew: (prefillData: any) => void;
+  originalImageBase64?: string; // For web search
 }
 
 export const BadgeAnalysisResults = ({
@@ -40,8 +43,13 @@ export const BadgeAnalysisResults = ({
   analysis,
   matches,
   onClose,
-  onCreateNew
+  onCreateNew,
+  originalImageBase64
 }: BadgeAnalysisResultsProps) => {
+  const { toast } = useToast();
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [webSearchResults, setWebSearchResults] = useState<any>(null);
+  
   // Filter matches to show only the highest confidence, or tied matches
   const filteredMatches = matches.length > 0 ? (() => {
     const topConfidence = matches[0].confidence;
@@ -54,15 +62,53 @@ export const BadgeAnalysisResults = ({
 
   if (!isOpen) return null;
 
+  const handleSearchWeb = async () => {
+    if (!originalImageBase64) {
+      toast({
+        title: "Cannot search web",
+        description: "Original image data not available",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSearchingWeb(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
+        body: { 
+          imageBase64: originalImageBase64,
+          forceWebSearch: true // Force web search
+        }
+      });
+
+      if (error) throw error;
+      
+      setWebSearchResults(data.analysis);
+      toast({
+        title: "Web search completed",
+        description: "Found additional information from the internet"
+      });
+    } catch (error) {
+      console.error('Web search error:', error);
+      toast({
+        title: "Web search failed", 
+        description: "Could not search for badge information online",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearchingWeb(false);
+    }
+  };
+
   const handleCreateNew = () => {
     const prefillData = {
-      name: analysis?.name || '',
-      year: analysis?.year || new Date().getFullYear(),
+      name: webSearchResults?.name || analysis?.name || '',
+      year: webSearchResults?.year || analysis?.year || new Date().getFullYear(),
       maker_id: null, // Will be set by current user
-      team_name: analysis?.maker || '',
-      category: analysis?.category || 'Misc',
-      description: analysis?.description || '',
-      external_link: analysis?.external_link || ''
+      team_name: webSearchResults?.maker || analysis?.maker || '',
+      category: webSearchResults?.category || analysis?.category || 'Misc',
+      description: webSearchResults?.description || analysis?.description || '',
+      external_link: webSearchResults?.external_link || analysis?.external_link || ''
     };
     onCreateNew(prefillData);
   };
@@ -97,65 +143,67 @@ export const BadgeAnalysisResults = ({
 
               {analysis && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">AI Analysis</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {webSearchResults ? "Web Search Results" : "AI Analysis"}
+                  </h3>
                   <div className="space-y-2">
-                    {analysis.confidence && (
+                    {(webSearchResults || analysis).confidence && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Confidence:</span>
-                        <Badge className={`${getConfidenceColor(analysis.confidence)} text-white`}>
-                          {analysis.confidence}%
+                        <Badge className={`${getConfidenceColor((webSearchResults || analysis).confidence)} text-white`}>
+                          {(webSearchResults || analysis).confidence}%
                         </Badge>
                       </div>
                     )}
                     
-                    {analysis.name && (
+                    {(webSearchResults?.name || analysis?.name) && (
                       <div>
                         <span className="text-sm font-medium">Name:</span>
-                        <span className="ml-2">{analysis.name}</span>
+                        <span className="ml-2">{webSearchResults?.name || analysis.name}</span>
                       </div>
                     )}
                     
-                    {analysis.maker && (
+                    {(webSearchResults?.maker || analysis?.maker) && (
                       <div>
                         <span className="text-sm font-medium">Maker:</span>
-                        <span className="ml-2">{analysis.maker}</span>
+                        <span className="ml-2">{webSearchResults?.maker || analysis.maker}</span>
                       </div>
                     )}
                     
-                    {analysis.year && (
+                    {(webSearchResults?.year || analysis?.year) && (
                       <div>
                         <span className="text-sm font-medium">Year:</span>
-                        <span className="ml-2">{analysis.year}</span>
+                        <span className="ml-2">{webSearchResults?.year || analysis.year}</span>
                       </div>
                     )}
                     
-                    {analysis.category && (
+                    {(webSearchResults?.category || analysis?.category) && (
                       <div>
                         <span className="text-sm font-medium">Category:</span>
-                        <span className="ml-2">{analysis.category}</span>
+                        <span className="ml-2">{webSearchResults?.category || analysis.category}</span>
                       </div>
                     )}
                     
-                    {analysis.event && (
+                    {(webSearchResults?.event || analysis?.event) && (
                       <div>
                         <span className="text-sm font-medium">Event:</span>
-                        <span className="ml-2">{analysis.event}</span>
+                        <span className="ml-2">{webSearchResults?.event || analysis.event}</span>
                       </div>
                     )}
                     
-                    {analysis.description && (
+                    {(webSearchResults?.description || analysis?.description) && (
                       <div>
                         <span className="text-sm font-medium">Description:</span>
                         <p className="ml-2 text-sm text-muted-foreground">
-                          {analysis.description}
+                          {webSearchResults?.description || analysis.description}
                         </p>
                       </div>
                     )}
                     
-                    {analysis.external_link && (
+                    {(webSearchResults?.external_link || analysis?.external_link) && (
                       <div>
                         <a
-                          href={analysis.external_link}
+                          href={webSearchResults?.external_link || analysis.external_link}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700"
@@ -232,18 +280,29 @@ export const BadgeAnalysisResults = ({
                   
                   <Separator />
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
                       variant="outline" 
                       onClick={handleCreateNew}
-                      className="gap-2"
+                      className="gap-2 flex-1"
                     >
                       <Plus className="h-4 w-4" />
                       Add as New Badge
                     </Button>
                     {selectedMatch && (
-                      <Button onClick={onClose}>
+                      <Button onClick={onClose} className="flex-1">
                         This is the Badge
+                      </Button>
+                    )}
+                    {originalImageBase64 && (
+                      <Button 
+                        variant="secondary"
+                        onClick={handleSearchWeb}
+                        disabled={isSearchingWeb}
+                        className="gap-2"
+                      >
+                        <Search className="h-4 w-4" />
+                        {isSearchingWeb ? "Searching..." : "Search Web"}
                       </Button>
                     )}
                   </div>
