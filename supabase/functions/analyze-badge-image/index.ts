@@ -44,7 +44,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: 'You are analyzing an electronic conference badge or SAO (Shitty Add-On). Look carefully at any text, logos, or distinctive features. If you see "SAO", "Totem", version numbers, or connector layouts, mention them specifically. Return only: {"name": "badge name", "description": "brief description"}. Focus on technical details and exact text visible.'
+                text: 'You are analyzing an electronic conference badge. Look for ANY visible text, logos, brand names, or distinctive features. Focus on: 1) Any text on the badge (even partial), 2) Shape/design (skull, totem, character, etc.), 3) Colors and materials, 4) Electronic components visible. Generate multiple search terms that could find this badge online. Return JSON: {"name": "most likely name", "description": "detailed visual description", "search_terms": ["term1", "term2", "term3"]}. Be creative with search terms - include design elements, colors, and any text you can see.'
               },
               {
                 type: 'image_url',
@@ -55,11 +55,11 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 100
+        max_tokens: 150
       })
     })
 
-    let quickAnalysis = { name: 'Unknown Badge', description: 'Electronic conference badge' }
+    let quickAnalysis = { name: 'Unknown Badge', description: 'Electronic conference badge', search_terms: [] }
     if (quickAnalysisResponse.ok) {
       const quickData = await quickAnalysisResponse.json()
       try {
@@ -295,70 +295,83 @@ serve(async (req) => {
           
           console.log(`Trying search source: ${source.name} (priority ${source.priority})`)
           
-          try {
-            // Replace {query} placeholder in prompt template
-            const searchQuery = source.prompt_template.replace('{query}', quickAnalysis.name)
+          // For each source, try multiple search terms
+          const searchTerms = [
+            quickAnalysis.name,
+            ...(quickAnalysis.search_terms || [])
+          ].filter(term => term && term.length > 0)
+          
+          for (const searchTerm of searchTerms) {
+            if (webResults) break; // Stop on first success
             
-            const response = await fetch(source.url, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${perplexityApiKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'sonar',
-                messages: [
-                  {
-                    role: 'user',
-                    content: searchQuery
-                  }
-                ],
-                temperature: 0.2,
-                max_tokens: source.name === 'General Web Search' ? 250 : 200
-              })
-            })
-
-            if (response.ok) {
-              const responseData = await response.json()
-              const content = responseData.choices[0].message.content
+            try {
+              // Replace {query} placeholder in prompt template
+              const searchQuery = source.prompt_template.replace('{query}', searchTerm)
               
-              try {
-                const match = content.match(/\{[\s\S]*\}/)
-                if (match) {
-                  const result = JSON.parse(match[0])
-                  
-                  // For specific sources, check if they found something
-                  if (source.name !== 'General Web Search' && result.found === false) {
-                    console.log(`${source.name} search found no results, trying next source...`)
-                    continue
+              console.log(`Searching ${source.name} for: "${searchTerm}"`)
+              
+              const response = await fetch(source.url, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${perplexityApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'sonar',
+                  messages: [
+                    {
+                      role: 'user',
+                      content: searchQuery
+                    }
+                  ],
+                  temperature: 0.2,
+                  max_tokens: source.name === 'General Web Search' ? 250 : 200
+                })
+              })
+
+              if (response.ok) {
+                const responseData = await response.json()
+                const content = responseData.choices[0].message.content
+                
+                try {
+                  const match = content.match(/\{[\s\S]*\}/)
+                  if (match) {
+                    const result = JSON.parse(match[0])
+                    
+                    // For specific sources, check if they found something
+                    if (source.name !== 'General Web Search' && result.found === false) {
+                      console.log(`${source.name} search for "${searchTerm}" found no results, trying next term...`)
+                      continue
+                    }
+                    
+                    // Set confidence based on source type
+                    const confidence = source.name === 'Tindie' ? 85 : 
+                                     source.name === 'Hackaday' ? 80 : 
+                                     result.confidence || 70
+                    
+                    // Normalize the URL field - some sources use 'url', others use 'external_link'
+                    const externalLink = result.url || result.external_link
+                    
+                    webResults = { 
+                      ...result, 
+                      source: source.name, 
+                      confidence,
+                      external_link: externalLink,
+                      search_term_used: searchTerm
+                    }
+                    searchSource = source.name
+                    console.log(`Found via ${source.name} using "${searchTerm}":`, webResults)
+                    break; // Stop on first success
                   }
-                  
-                  // Set confidence based on source type
-                  const confidence = source.name === 'Tindie' ? 85 : 
-                                   source.name === 'Hackaday' ? 80 : 
-                                   result.confidence || 70
-                  
-                  // Normalize the URL field - some sources use 'url', others use 'external_link'
-                  const externalLink = result.url || result.external_link
-                  
-                  webResults = { 
-                    ...result, 
-                    source: source.name, 
-                    confidence,
-                    external_link: externalLink 
-                  }
-                  searchSource = source.name
-                  console.log(`Found via ${source.name}:`, webResults)
-                  break; // Stop on first success
+                } catch (e) {
+                  console.log(`Could not parse ${source.name} results for "${searchTerm}", trying next term...`)
                 }
-              } catch (e) {
-                console.log(`Could not parse ${source.name} results, trying next source...`)
+              } else {
+                console.log(`${source.name} search for "${searchTerm}" failed with status ${response.status}`)
               }
-            } else {
-              console.log(`${source.name} search failed with status ${response.status}, trying next source...`)
+            } catch (error) {
+              console.error(`${source.name} search error for "${searchTerm}":`, error)
             }
-          } catch (error) {
-            console.error(`${source.name} search error:`, error, 'trying next source...')
           }
         }
         
