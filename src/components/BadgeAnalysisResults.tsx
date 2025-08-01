@@ -167,6 +167,44 @@ export const BadgeAnalysisResults = ({
     await submitFeedback(searchQuery, aiResult, feedbackType, sourceUrl);
   };
 
+  const handleForceAISearch = async () => {
+    if (!originalImageBase64) {
+      toast({
+        title: "Cannot search",
+        description: "Original image data not available",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSearchingWeb(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
+        body: { 
+          imageBase64: originalImageBase64,
+          forceWebSearch: true // Force web search, skip local database
+        }
+      });
+
+      if (error) throw error;
+      
+      setWebSearchResults(data.analysis);
+      toast({
+        title: "AI search completed",
+        description: "Found badge information using AI search"
+      });
+    } catch (error) {
+      console.error('AI search error:', error);
+      toast({
+        title: "AI search failed", 
+        description: "Could not search for badge information",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearchingWeb(false);
+    }
+  };
+
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return "bg-green-500";
     if (confidence >= 60) return "bg-yellow-500";
@@ -374,23 +412,35 @@ export const BadgeAnalysisResults = ({
                           </div>
                         )}
                         
-                        {/* Show confirmation button for each match */}
-                        {onConfirmMatch && (
-                          <Button 
-                            onClick={() => {
-                              onConfirmMatch(
-                                match.badge.id, 
-                                match.similarity || 0,
-                                match.confidence || 0
-                              );
-                              onClose();
-                            }} 
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            size="sm"
-                          >
-                            ✓ YES, THIS IS IT
-                          </Button>
-                        )}
+                         {/* Show confirmation button for each match */}
+                         {onConfirmMatch && (
+                           <div className="space-y-2">
+                             <Button 
+                               onClick={() => {
+                                 onConfirmMatch(
+                                   match.badge.id, 
+                                   match.similarity || 0,
+                                   match.confidence || 0
+                                 );
+                                 onClose();
+                               }} 
+                               className="w-full bg-green-600 hover:bg-green-700"
+                               size="sm"
+                             >
+                               ✓ YES, THIS IS IT
+                             </Button>
+                             
+                             <Button
+                               onClick={handleForceAISearch}
+                               variant="destructive"
+                               size="sm"
+                               className="w-full"
+                               disabled={isSearchingWeb}
+                             >
+                               {isSearchingWeb ? "Searching..." : "✗ NO, NOT IT - Search AI"}
+                             </Button>
+                           </div>
+                         )}
                       </div>
                     </div>
                   ))}
