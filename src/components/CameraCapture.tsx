@@ -94,12 +94,54 @@ export const CameraCapture = ({
         const base64 = e.target?.result as string;
         
         try {
+          // Step 1: Local database search
           const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
             body: { imageBase64: base64 }
           });
 
           if (error) {
             throw error;
+          }
+
+          // Check if we need to continue to Google search
+          if (data.shouldContinueToGoogle && !data.analysis) {
+            console.log('🔍 Local search insufficient, continuing to Google search...');
+            
+            // Step 2: Google search
+            try {
+              const { data: googleData, error: googleError } = await supabase.functions.invoke('google-badge-search', {
+                body: { imageBase64: base64 }
+              });
+
+              if (!googleError && googleData.analysis) {
+                console.log('✅ Google search found result:', googleData.analysis.name);
+                // Merge Google results with local results
+                data.analysis = googleData.analysis;
+                data.statusUpdates = [...(data.statusUpdates || []), ...(googleData.statusUpdates || [])];
+              } else if (!googleError && googleData.shouldContinueToAI) {
+                console.log('🔍 Google search insufficient, continuing to AI analysis...');
+                
+                // Step 3: AI analysis as final fallback
+                try {
+                  const { data: aiData, error: aiError } = await supabase.functions.invoke('analyze-badge-image', {
+                    body: { 
+                      imageBase64: base64,
+                      forceWebSearch: true // This triggers AI analysis
+                    }
+                  });
+
+                  if (!aiError && aiData.analysis) {
+                    console.log('✅ AI analysis found result:', aiData.analysis.name);
+                    data.analysis = aiData.analysis;
+                    data.statusUpdates = [...(data.statusUpdates || []), ...(aiData.statusUpdates || [])];
+                  }
+                } catch (aiError) {
+                  console.error('AI analysis failed:', aiError);
+                }
+              }
+            } catch (googleError) {
+              console.error('Google search failed:', googleError);
+            }
           }
 
           const endTime = Date.now();
@@ -116,7 +158,7 @@ export const CameraCapture = ({
             bestConfidenceScore: bestConfidence,
             searchSourceUsed: data.analysis?.search_source || 'local_database',
             foundInDatabase: matchCount > 0,
-            foundViaWebSearch: data.analysis?.search_source === 'web_search',
+            foundViaWebSearch: data.analysis?.search_source?.includes('Google'),
             foundViaImageMatching: data.analysis?.search_source === 'image_matching'
           });
 
