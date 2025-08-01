@@ -95,10 +95,9 @@ const Index = () => {
     setShowAuth(true);
   };
 
-  const handleGetStarted = () => {
-    console.log('START SCANNING button clicked!');
+  const handleLogin = () => {
+    console.log('Login button clicked from welcome screen');
     setShowAuth(true);
-    console.log('Auth modal should open, showAuth set to true');
   };
 
   // Filter badges based on search
@@ -143,7 +142,7 @@ const Index = () => {
 
   // Show welcome screen for non-authenticated users
   if (!isAuthenticated) {
-    return <WelcomeScreen onGetStarted={handleGetStarted} />;
+    return <WelcomeScreen onLogin={handleLogin} />;
   }
 
   // Get badge sections for authenticated users
