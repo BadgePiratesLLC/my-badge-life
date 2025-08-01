@@ -10,44 +10,48 @@ export function useBadges() {
   const { user } = useAuth()
 
   useEffect(() => {
-    // Always fetch badges regardless of auth state
+    // Always fetch badges immediately, regardless of auth state
+    console.log('useBadges hook mounted, fetching badges...')
     fetchBadges()
   }, [])
 
   useEffect(() => {
     // Only fetch ownership if user is logged in
     if (user) {
+      console.log('User logged in, fetching ownership...')
       fetchOwnership()
     } else {
+      console.log('No user, clearing ownership...')
       setOwnership([]) // Clear ownership when not logged in
     }
   }, [user])
 
   const fetchBadges = async () => {
     try {
-      console.log('Fetching badges...')
+      console.log('Starting fetchBadges function...')
+      
+      // Simple query first to test connection
       const { data, error } = await supabase
         .from('badges')
-        .select(`
-          *,
-          profiles:maker_id (
-            id,
-            display_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
+      console.log('Supabase query completed')
+      console.log('Error:', error)
+      console.log('Data length:', data?.length)
+
       if (error) {
-        console.error('Error fetching badges:', error)
+        console.error('Supabase error fetching badges:', error)
         setBadges([])
       } else {
-        console.log('Badges fetched successfully:', data?.length || 0)
+        console.log('Badges fetched successfully:', data?.length || 0, 'badges')
         setBadges((data as unknown as Badge[]) || [])
       }
     } catch (error) {
-      console.error('Error fetching badges:', error)
+      console.error('JavaScript error in fetchBadges:', error)
       setBadges([])
     } finally {
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }
