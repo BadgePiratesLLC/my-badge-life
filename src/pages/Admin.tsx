@@ -18,6 +18,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
+import { WebSearchTester } from '@/components/WebSearchTester'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -1256,6 +1257,8 @@ export default function Admin() {
                   )}
                 </CardContent>
               </Card>
+              
+              <WebSearchTester />
             </TabsContent>
           )}
         </Tabs>
