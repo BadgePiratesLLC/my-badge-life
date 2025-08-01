@@ -166,6 +166,41 @@ export const WebSearchTester = () => {
     setIsTestingAll(false);
   };
 
+  const testSerpApi = async () => {
+    setIsTestingAll(true);
+    setTestResults([]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('test-serpapi');
+      
+      if (error) {
+        setTestResults([{
+          sourceId: 'serpapi',
+          sourceName: 'SerpAPI Test',
+          success: false,
+          error: error.message
+        }]);
+      } else {
+        setTestResults([{
+          sourceId: 'serpapi',
+          sourceName: 'SerpAPI Test',
+          success: data.success,
+          result: data,
+          rawResponse: data.response
+        }]);
+      }
+    } catch (error) {
+      setTestResults([{
+        sourceId: 'serpapi',
+        sourceName: 'SerpAPI Test',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }]);
+    } finally {
+      setIsTestingAll(false);
+    }
+  };
+
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -174,7 +209,7 @@ export const WebSearchTester = () => {
           WEB SEARCH TESTER
         </CardTitle>
         <p className="text-muted-foreground">
-          Test your web search sources to understand how they work and fine-tune the AI searching.
+          Test your SerpAPI key and web search sources.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -192,6 +227,20 @@ export const WebSearchTester = () => {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={testSerpApi}
+              disabled={isTestingAll}
+              className="flex items-center gap-2"
+              variant="destructive"
+            >
+              {isTestingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Test SerpAPI Key
+            </Button>
+            
             <Button
               onClick={testAllSources}
               disabled={isTestingAll || !searchQuery.trim()}
