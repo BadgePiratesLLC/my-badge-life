@@ -27,8 +27,11 @@ serve(async (req) => {
 
     console.log('Starting smart badge analysis...')
 
-    // Step 1: Quick AI analysis to get badge name/basic info
-    console.log('Running quick AI analysis for badge identification...')
+    // Step 1: Detailed AI analysis to get badge identification
+    console.log('Running detailed AI analysis for badge identification...')
+    
+    // Add timestamp to prevent cached responses
+    const timestamp = Date.now()
     
     const quickAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -37,14 +40,36 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',  // Cheaper, faster model for basic info
+        model: 'gpt-4o',  // Use better model for more accurate analysis
         messages: [
+          {
+            role: 'system',
+            content: `You are an expert in electronic conference badges, SAO badges, and hacker badges. Analyze the image carefully and identify specific details. Focus on:
+
+1. EXACT readable text (words, letters, numbers, symbols)
+2. Character/figure identification (if any - be specific about what character)
+3. Brand/maker indicators or logos
+4. Shape and design elements
+5. Colors and materials
+6. Electronic components visible
+7. Context clues (conference, event, brand)
+
+Generate DIVERSE search terms that would help find this specific badge online. Include:
+- Exact text if visible
+- Character names if applicable
+- Descriptive terms about shape/design
+- Color and material descriptions
+- Electronic/PCB related terms
+- Brand or maker names if identifiable
+
+Return JSON: {"name": "specific badge name", "description": "detailed description", "search_terms": ["term1", "term2", "term3", "term4", "term5", "term6"]}`
+          },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'You are analyzing an electronic conference badge. Look for ANY visible text, logos, brand names, or distinctive features. Focus on: 1) Any text on the badge (even partial), 2) Shape/design (skull, totem, character, etc.), 3) Colors and materials, 4) Electronic components visible. Generate multiple search terms that could find this badge online. Return JSON: {"name": "most likely name", "description": "detailed visual description", "search_terms": ["term1", "term2", "term3"]}. Be creative with search terms - include design elements, colors, and any text you can see.'
+                text: `[Analysis #${timestamp}] Analyze this electronic badge image in detail. What specific text, characters, shapes, colors, and design elements do you see? Generate diverse and specific search terms that would help identify this exact badge online.`
               },
               {
                 type: 'image_url',
@@ -55,7 +80,8 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 150
+        max_tokens: 300,
+        temperature: 0.5  // Add some variation to prevent identical responses
       })
     })
 
@@ -295,11 +321,16 @@ serve(async (req) => {
           
           console.log(`Trying search source: ${source.name} (priority ${source.priority})`)
           
-          // For each source, try multiple search terms
-          const searchTerms = [
+          // For each source, try multiple search terms with randomization
+          const baseSearchTerms = [
             quickAnalysis.name,
             ...(quickAnalysis.search_terms || [])
           ].filter(term => term && term.length > 0)
+          
+          // Add randomization to prevent getting stuck on same results
+          const searchTerms = [...baseSearchTerms].sort(() => Math.random() - 0.5)
+          
+          console.log(`${source.name} search terms (randomized):`, searchTerms)
           
           for (const searchTerm of searchTerms) {
             if (webResults) break; // Stop on first success
