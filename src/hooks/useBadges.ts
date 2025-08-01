@@ -130,11 +130,11 @@ export function useBadges() {
   }
 
   const uploadBadgeImage = async (file: File) => {
-    if (!user) throw new Error('Must be logged in')
-
-    // Create unique filename
+    // Create unique filename - allow anonymous uploads for testing
     const fileExt = file.name.split('.').pop()
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`
+    const fileName = user 
+      ? `${user.id}/${Date.now()}.${fileExt}`
+      : `anonymous/${Date.now()}.${fileExt}`
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -151,11 +151,11 @@ export function useBadges() {
       .from('badge-images')
       .getPublicUrl(uploadData.path)
 
-    // Record upload in database
+    // Record upload in database (allow anonymous uploads)
     const { data, error } = await supabase
       .from('uploads')
       .insert({
-        user_id: user.id,
+        user_id: user?.id || null,
         image_url: publicUrl
       })
       .select()
