@@ -96,8 +96,7 @@ const Index = () => {
   };
 
   const handleGetStarted = () => {
-    // This won't be called for logged-in users, but keeping for consistency
-    localStorage.setItem('mybadgelife-visited', 'true');
+    setShowAuth(true);
   };
 
   // Filter badges based on search
