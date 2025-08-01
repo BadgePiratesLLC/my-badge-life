@@ -90,19 +90,27 @@ export default function Admin() {
 
   const fetchUsers = async () => {
     try {
-      // First get all profiles
+      // Get profiles first
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, display_name')
 
-      if (profilesError) throw profilesError
+      if (profilesError) {
+        console.error('Profiles error:', profilesError)
+        // Don't throw error, just show empty users
+        setUsers([])
+        return
+      }
 
-      // Then get roles for each user
+      // Get roles separately  
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role')
 
-      if (rolesError) throw rolesError
+      if (rolesError) {
+        console.error('Roles error:', rolesError)
+        // Continue without roles data
+      }
 
       // Combine the data
       const usersWithRoles = (profilesData || []).map(profile => ({
@@ -117,7 +125,8 @@ export default function Admin() {
       setUsers(usersWithRoles)
     } catch (error) {
       console.error('Error fetching users:', error)
-      toast.error('Failed to load users')
+      // Don't show error toast repeatedly, just log it
+      setUsers([])
     }
   }
 

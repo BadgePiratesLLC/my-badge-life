@@ -25,6 +25,7 @@ export function useBadges() {
 
   const fetchBadges = async () => {
     try {
+      console.log('Fetching badges...')
       const { data, error } = await supabase
         .from('badges')
         .select(`
@@ -38,11 +39,14 @@ export function useBadges() {
 
       if (error) {
         console.error('Error fetching badges:', error)
+        setBadges([])
       } else {
+        console.log('Badges fetched successfully:', data?.length || 0)
         setBadges((data as unknown as Badge[]) || [])
       }
     } catch (error) {
       console.error('Error fetching badges:', error)
+      setBadges([])
     } finally {
       setLoading(false)
     }
