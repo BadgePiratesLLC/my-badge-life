@@ -284,6 +284,7 @@ const Index = () => {
                   externalLink: badge.external_link || undefined,
                   isOwned: isOwned(badge.id),
                   isWanted: isWanted(badge.id),
+                  retired: badge.retired,
                 }}
                 onOwnershipToggle={handleOwnershipToggle}
                 onBadgeClick={(badge) => {

@@ -49,6 +49,7 @@ export interface Badge {
   image_url: string | null
   description: string | null
   external_link: string | null
+  retired: boolean
   created_at: string
   updated_at: string
   profiles?: Profile | null // For maker info
