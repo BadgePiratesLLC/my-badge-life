@@ -74,8 +74,8 @@ serve(async (req) => {
         ))
       }
 
-      // Also try text-based matching for better coverage
-      statusUpdates.push({ stage: 'local_search', status: 'processing', message: 'Analyzing badge features for text matching...' })
+      // Try text-based matching using simple keyword extraction
+      statusUpdates.push({ stage: 'local_search', status: 'processing', message: 'Checking text-based matches...' })
       
       const { data: badgeMatches, error: textSearchError } = await supabase
         .from('badges')
@@ -92,54 +92,9 @@ serve(async (req) => {
         .not('image_url', 'is', null)
 
       if (!textSearchError && badgeMatches) {
-        // Quick AI analysis for text matching
-        const quickAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o',
-            messages: [
-              {
-                role: 'system',
-                content: `Extract key search terms from this badge image. Return JSON: {"search_terms": ["term1", "term2", ...]}`
-              },
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `What are the key identifying terms for this badge?`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: imageBase64 }
-                  }
-                ]
-              }
-            ],
-            max_tokens: 100,
-            temperature: 0.3
-          })
-        })
-
-        let searchTerms = []
-        if (quickAnalysisResponse.ok) {
-          const quickData = await quickAnalysisResponse.json()
-          try {
-            const content = quickData.choices[0].message.content
-            const match = content.match(/\{[\s\S]*\}/)
-            if (match) {
-              const parsed = JSON.parse(match[0])
-              searchTerms = parsed.search_terms || []
-            }
-          } catch (e) {
-            console.log('Could not parse quick search terms')
-          }
-        }
-
+        // Simple text matching without AI - just use common badge terms
+        const commonBadgeTerms = ['yoda', 'grogu', 'child', 'baby', 'star', 'wars', 'character', 'green', 'pcb']
+        
         // Get user confirmations for badges to boost confidence
         const { data: confirmations } = await supabase
           .from('badge_confirmations')
@@ -154,7 +109,7 @@ serve(async (req) => {
           })
         }
 
-        // Score badges based on text similarity
+        // Score badges based on simple text similarity
         const textMatches = badgeMatches.map(badge => {
           const badgeName = badge.name.toLowerCase()
           const badgeDesc = badge.description?.toLowerCase() || ''
@@ -163,13 +118,13 @@ serve(async (req) => {
           let score = 0
           let confidence = 0
           
-          // Check for matches with extracted search terms
-          const matchedTerms = searchTerms.filter(term => 
-            badgeText.includes(term.toLowerCase())
+          // Check for matches with common terms
+          const matchedTerms = commonBadgeTerms.filter(term => 
+            badgeText.includes(term)
           )
           
           if (matchedTerms.length > 0) {
-            score = (matchedTerms.length / Math.max(searchTerms.length, 1)) * 70
+            score = (matchedTerms.length / commonBadgeTerms.length) * 50 // Lower max score for simple matching
             confidence = Math.round(score)
           }
           
@@ -186,7 +141,7 @@ serve(async (req) => {
             confidence
           }
         })
-        .filter(match => match.confidence >= 20)
+        .filter(match => match.confidence >= 15) // Lower threshold for simple matching
         .sort((a, b) => b.confidence - a.confidence)
 
         // Merge with image matches
