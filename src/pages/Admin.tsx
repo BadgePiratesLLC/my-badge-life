@@ -229,10 +229,10 @@ export default function Admin() {
   const deleteUpload = async (upload: Upload) => {
     if (!confirm('Are you sure you want to delete this upload?')) return
 
-    console.log('Starting delete process for upload:', upload.id, upload.image_url)
+    console.log('Starting delete process for upload:', upload.id)
 
     try {
-      // First delete from database - this is what matters most for the UI
+      // Delete from database first (this is what matters for the UI)
       console.log('Deleting from database...')
       const { error: dbError } = await supabase
         .from('uploads')
@@ -241,38 +241,13 @@ export default function Admin() {
 
       if (dbError) {
         console.error('Database delete error:', dbError)
-        throw dbError
+        toast.error('Failed to delete upload: ' + dbError.message)
+        return
       }
       
       console.log('Database deletion successful')
 
-      // Then try to delete from storage (optional - don't fail if this doesn't work)
-      try {
-        const url = new URL(upload.image_url)
-        const pathParts = url.pathname.split('/')
-        const bucketIndex = pathParts.findIndex(part => part === 'badge-images')
-        
-        if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-          const filePath = pathParts.slice(bucketIndex + 1).join('/')
-          
-          console.log('Attempting to delete from storage, file path:', filePath)
-          
-          const { error: storageError } = await supabase.storage
-            .from('badge-images')
-            .remove([filePath])
-          
-          if (storageError) {
-            console.error('Storage delete error (non-critical):', storageError)
-          } else {
-            console.log('Storage deletion successful')
-          }
-        }
-      } catch (storageErr) {
-        console.error('Storage deletion failed (non-critical):', storageErr)
-      }
-
       // Update UI immediately
-      console.log('Updating UI...')
       setUploads(prev => {
         const newUploads = prev.filter(u => u.id !== upload.id)
         console.log('Upload count before:', prev.length, 'after:', newUploads.length)
@@ -280,10 +255,6 @@ export default function Admin() {
       })
       
       toast.success('Upload deleted successfully!')
-      
-      // Refresh the uploads list to ensure consistency
-      console.log('Refreshing uploads list...')
-      setTimeout(() => fetchUploads(), 500) // Small delay to let UI update first
       
     } catch (error) {
       console.error('Error deleting upload:', error)
