@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import type { Profile } from '@/lib/supabase'
 import { User } from '@supabase/supabase-js'
+import { useDiscordNotifications } from './useDiscordNotifications'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const { notifyUserRegistered, notifyMakerRequest } = useDiscordNotifications()
 
   useEffect(() => {
     // Set a maximum loading time to prevent infinite loading
@@ -53,7 +55,7 @@ export function useAuth() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        await fetchProfile(session.user.id)
+        await fetchProfile(session.user.id, event === 'SIGNED_IN')
       } else {
         setProfile(null)
         setLoading(false)
@@ -67,7 +69,7 @@ export function useAuth() {
     }
   }, [])
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, isNewUser = false) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -79,6 +81,18 @@ export function useAuth() {
         console.error('Error fetching profile:', error)
       } else {
         setProfile(data as unknown as Profile)
+        
+        // Send notification for new user registration
+        if (isNewUser) {
+          try {
+            await notifyUserRegistered({
+              display_name: data.display_name,
+              email: data.email,
+            });
+          } catch (error) {
+            console.error('Failed to send user registration notification:', error);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -129,7 +143,19 @@ export function useAuth() {
   }
 
   const requestMakerStatus = async () => {
-    return updateProfile({ wants_to_be_maker: true })
+    const result = await updateProfile({ wants_to_be_maker: true })
+    
+    // Send Discord notification for maker request
+    try {
+      await notifyMakerRequest({
+        display_name: profile?.display_name,
+        email: profile?.email,
+      });
+    } catch (error) {
+      console.error('Failed to send maker request notification:', error);
+    }
+    
+    return result
   }
 
   return {

@@ -8,6 +8,7 @@ import { X, Upload, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBadges } from "@/hooks/useBadges";
 import { useToast } from "@/hooks/use-toast";
+import { useDiscordNotifications } from "@/hooks/useDiscordNotifications";
 
 interface AddBadgeModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const AddBadgeModal = ({ isOpen, onClose }: AddBadgeModalProps) => {
   const { profile } = useAuth();
   const { createBadge, uploadBadgeImage } = useBadges();
   const { toast } = useToast();
+  const { notifyBadgeSubmitted } = useDiscordNotifications();
 
   if (!isOpen) return null;
 
@@ -62,6 +64,21 @@ export const AddBadgeModal = ({ isOpen, onClose }: AddBadgeModalProps) => {
         external_link: formData.external_link || undefined,
         image_url: imageUrl || undefined,
       });
+
+      // Send Discord notification
+      try {
+        await notifyBadgeSubmitted({
+          name: formData.name,
+          team_name: undefined, // No team selection in this modal
+          category: undefined, // No category selection in this modal
+          year: formData.year ? parseInt(formData.year) : undefined,
+          maker_name: profile?.display_name || undefined,
+          image_url: imageUrl || undefined,
+        });
+      } catch (error) {
+        console.error('Failed to send Discord notification:', error);
+        // Don't fail the badge creation if notification fails
+      }
 
       toast({
         title: "Badge Added!",
