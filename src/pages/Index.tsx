@@ -42,13 +42,29 @@ const Index = () => {
     }
   }, []);
 
-  // Loading state
+  // Loading state with timeout fallback
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.log('Auth loading timeout - forcing continue');
+        // Force continue after 10 seconds if still loading
+        window.location.reload();
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, [authLoading]);
+
+  // Show minimal loading only briefly
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
           <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
+          <p className="text-xs text-muted-foreground">
+            If this takes too long, try refreshing the page
+          </p>
         </div>
       </div>
     );

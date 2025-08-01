@@ -9,20 +9,47 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Set a maximum loading time to prevent infinite loading
+    const maxLoadTime = setTimeout(() => {
+      console.log('Auth initialization timeout - setting loading to false')
+      setLoading(false)
+    }, 8000) // 8 seconds max
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          setLoading(false)
+          clearTimeout(maxLoadTime)
+          return
+        }
+
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id)
+        } else {
+          setLoading(false)
+          clearTimeout(maxLoadTime)
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
         setLoading(false)
+        clearTimeout(maxLoadTime)
       }
-    })
+    }
+
+    initializeAuth()
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id)
+      
       setUser(session?.user ?? null)
       
       if (session?.user) {
@@ -30,10 +57,14 @@ export function useAuth() {
       } else {
         setProfile(null)
         setLoading(false)
+        clearTimeout(maxLoadTime)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(maxLoadTime)
+    }
   }, [])
 
   const fetchProfile = async (userId: string) => {
