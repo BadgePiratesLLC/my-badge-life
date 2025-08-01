@@ -84,7 +84,7 @@ export default function Admin() {
       }
       setLoading(false)
     }
-  }, [canAccessAdmin, rolesLoading, authLoading, usersFetched, canManageUsers])
+  }, [rolesLoading, authLoading, usersFetched]) // Removed function dependencies to prevent infinite loop
 
   const fetchUploads = async () => {
     try {
