@@ -217,14 +217,14 @@ export const BadgeAnalysisResults = ({
 
       if (googleError) throw googleError;
       
-      // If Google search found good results (60%+ confidence), use them
-      if (googleData?.analysis && googleData.analysis.confidence >= 60) {
+      // If Google search found any results, use them
+      if (googleData?.analysis) {
         setHideDatabaseMatches(true);
         setWebSearchResults(googleData.analysis);
         
         toast({
           title: "Google search completed",
-          description: `Found: ${googleData.analysis.name} (${googleData.analysis.confidence}% confidence)`
+          description: `Found: ${googleData.analysis.name} (${googleData.analysis.confidence || 'Unknown'}% confidence)`
         });
         return;
       }
