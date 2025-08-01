@@ -113,7 +113,73 @@ Return JSON: {"name": "specific character/badge name", "description": "detailed 
           `${m.badge?.name || 'Unknown'}: ${Math.round(m.similarity * 100)}%`
         ))
       } else {
-        console.log('No significant image matches found, focusing on enhanced AI analysis...')
+        console.log('No significant local image matches found, trying Google image search...')
+        
+        // Step 2.5: Google reverse image search if no local matches
+        try {
+          console.log('Performing Google reverse image search...')
+          const googleSearchResponse = await fetch('https://serpapi.com/search', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              engine: 'google_reverse_image',
+              image_url: imageBase64,
+              api_key: Deno.env.get('SERPAPI_KEY') || 'demo' // Use demo for now
+            })
+          })
+
+          if (googleSearchResponse.ok) {
+            const googleData = await googleSearchResponse.json()
+            console.log('Google image search response:', googleData)
+            
+            // Look for Tindie results in Google's findings
+            const googleResults = googleData.image_results || []
+            const tindieResults = googleResults.filter(result => 
+              result.link?.includes('tindie.com') || 
+              result.source?.toLowerCase().includes('tindie')
+            )
+            
+            if (tindieResults.length > 0) {
+              console.log(`Found ${tindieResults.length} Tindie results via Google image search`)
+              // Convert Google results to our format for web search results
+              const googleWebResult = {
+                name: tindieResults[0].title || quickAnalysis.name,
+                maker: 'Found via Google Image Search',
+                description: `Badge found on Tindie via Google reverse image search: ${tindieResults[0].title || 'Electronic badge'}`,
+                url: tindieResults[0].link,
+                external_link: tindieResults[0].link,
+                source: 'Google Image Search',
+                confidence: 90,
+                found: true
+              }
+              
+              // Set this as our web result and skip other searches
+              console.log('Google found Tindie result:', googleWebResult)
+              return new Response(
+                JSON.stringify({ 
+                  analysis: {
+                    ...quickAnalysis,
+                    ...googleWebResult,
+                    search_source: 'Google Image Search',
+                    web_info: googleWebResult
+                  },
+                  matches: [],
+                  canAddToDatabase: true
+                }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            } else {
+              console.log('No Tindie results found in Google image search, continuing with other methods...')
+            }
+          } else {
+            console.log('Google image search failed, continuing with other methods...')
+          }
+        } catch (googleError) {
+          console.error('Google image search error:', googleError)
+          console.log('Continuing with other search methods...')
+        }
       }
     } catch (error) {
       console.error('Image matching error (continuing with text search):', error)
