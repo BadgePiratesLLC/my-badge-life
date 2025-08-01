@@ -452,15 +452,15 @@ export default function Admin() {
 
                               <div>
                                 <Label htmlFor="team_name">Badge Maker Team</Label>
-                                <Select 
-                                  value={editForm.team_name || ''} 
-                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, team_name: value || null }))}
+                                 <Select 
+                                   value={editForm.team_name || 'none'} 
+                                   onValueChange={(value) => setEditForm(prev => ({ ...prev, team_name: value === 'none' ? null : value }))}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select team (or leave empty)" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">No Team</SelectItem>
+                                    <SelectItem value="none">No Team</SelectItem>
                                     {teams.map((team) => (
                                       <SelectItem key={team.id} value={team.name}>
                                         {team.name}
