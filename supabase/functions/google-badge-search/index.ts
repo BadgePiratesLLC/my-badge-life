@@ -119,55 +119,85 @@ serve(async (req) => {
             message: `Google API error: ${googleData.error}` 
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
-          const topResult = googleData.image_results[0]
-          const googleResult = {
-            name: topResult.title || 'Unknown Badge',
-            description: topResult.snippet || 'Found via Google reverse image search',
-            external_link: topResult.link,
-            source: 'Google Image Search',
-            confidence: 90,
-            thumbnail: topResult.thumbnail,
-            found_via_google: true,
-            search_source: 'Google Image Search'
+          // Filter results for badge-related content
+          const badgeKeywords = ['badge', 'pin', 'patch', 'emblem', 'logo', 'sticker', 'decal', 'conference', 'convention', 'security', 'electronics', 'hacker', 'defcon', 'bsides', 'con', 'cyber', 'tech']
+          
+          let bestResult = null
+          let confidence = 0
+          
+          for (const result of googleData.image_results.slice(0, 5)) {
+            const title = (result.title || '').toLowerCase()
+            const snippet = (result.snippet || '').toLowerCase()
+            const link = (result.link || '').toLowerCase()
+            
+            const combinedText = `${title} ${snippet} ${link}`
+            const matchCount = badgeKeywords.filter(keyword => combinedText.includes(keyword)).length
+            
+            if (matchCount > 0) {
+              const resultConfidence = Math.min(30 + (matchCount * 15), 75) // Max 75% for Google results
+              if (resultConfidence > confidence) {
+                confidence = resultConfidence
+                bestResult = {
+                  name: result.title || 'Unknown Badge',
+                  description: result.snippet || 'Found via Google reverse image search',
+                  external_link: result.link,
+                  source: 'Google Image Search',
+                  confidence: resultConfidence,
+                  thumbnail: result.thumbnail,
+                  found_via_google: true,
+                  search_source: 'Google Image Search',
+                  keyword_matches: matchCount
+                }
+              }
+            }
           }
           
-          analytics.found_via_google = true
-          analytics.google_confidence = 90
-          analytics.total_duration_ms = Date.now() - searchStartTime
-          
-          statusUpdates.push({ 
-            stage: 'google_search', 
-            status: 'success', 
-            message: `Found: ${googleResult.name}` 
-          })
-          
-          console.log(`✅ GOOGLE MATCH FOUND: "${googleResult.name}"`)
-          
-          // Save analytics
-          try {
-            await supabase.from('analytics_searches').insert({
-              search_type: analytics.search_type,
-              web_search_duration_ms: analytics.google_search_duration_ms,
-              total_duration_ms: analytics.total_duration_ms,
-              results_found: 1,
-              best_confidence_score: 90,
-              found_in_database: false,
-              found_via_web_search: true,
-              found_via_image_matching: false,
-              search_source_used: 'Google Image Search'
+          if (bestResult && confidence >= 30) {
+            analytics.found_via_google = true
+            analytics.google_confidence = confidence
+            analytics.total_duration_ms = Date.now() - searchStartTime
+            
+            statusUpdates.push({ 
+              stage: 'google_search', 
+              status: 'success', 
+              message: `Found badge-related result: ${bestResult.name} (${confidence}% confidence)` 
             })
-          } catch (error) {
-            console.error('Analytics tracking error:', error)
+            
+            console.log(`✅ GOOGLE BADGE MATCH FOUND: "${bestResult.name}" with ${confidence}% confidence`)
+            
+            // Save analytics
+            try {
+              await supabase.from('analytics_searches').insert({
+                search_type: analytics.search_type,
+                web_search_duration_ms: analytics.google_search_duration_ms,
+                total_duration_ms: analytics.total_duration_ms,
+                results_found: 1,
+                best_confidence_score: confidence,
+                found_in_database: false,
+                found_via_web_search: true,
+                found_via_image_matching: false,
+                search_source_used: 'Google Image Search'
+              })
+            } catch (error) {
+              console.error('Analytics tracking error:', error)
+            }
+            
+            return new Response(
+              JSON.stringify({ 
+                analysis: bestResult,
+                statusUpdates,
+                analytics
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          } else {
+            statusUpdates.push({ 
+              stage: 'google_search', 
+              status: 'failed', 
+              message: 'No badge-related results found in Google search' 
+            })
+            console.log('❌ Google search found results but none appear to be badge-related')
           }
-          
-          return new Response(
-            JSON.stringify({ 
-              analysis: googleResult,
-              statusUpdates,
-              analytics
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          )
         } else {
           statusUpdates.push({ 
             stage: 'google_search', 
