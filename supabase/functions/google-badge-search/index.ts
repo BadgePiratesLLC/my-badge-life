@@ -82,12 +82,22 @@ serve(async (req) => {
       })
 
       analytics.google_search_duration_ms = Date.now() - searchStartTime
+      
+      console.log('Google response status:', googleResponse.status)
+      console.log('Google response headers:', Object.fromEntries(googleResponse.headers.entries()))
 
       if (googleResponse.ok) {
         const googleData = await googleResponse.json()
-        console.log('Google search response received')
+        console.log('Google search response received:', JSON.stringify(googleData, null, 2))
         
-        if (googleData.image_results && googleData.image_results.length > 0) {
+        if (googleData.error) {
+          console.log('❌ Google API returned error:', googleData.error)
+          statusUpdates.push({ 
+            stage: 'google_search', 
+            status: 'failed', 
+            message: `Google API error: ${googleData.error}` 
+          })
+        } else if (googleData.image_results && googleData.image_results.length > 0) {
           const topResult = googleData.image_results[0]
           const googleResult = {
             name: topResult.title || 'Unknown Badge',
