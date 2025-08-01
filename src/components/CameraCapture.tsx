@@ -123,10 +123,9 @@ export const CameraCapture = ({
                 
                 // Step 3: AI analysis as final fallback
                 try {
-                  const { data: aiData, error: aiError } = await supabase.functions.invoke('analyze-badge-image', {
+                  const { data: aiData, error: aiError } = await supabase.functions.invoke('ai-badge-analysis', {
                     body: { 
-                      imageBase64: base64,
-                      forceWebSearch: true // This triggers AI analysis
+                      imageBase64: base64
                     }
                   });
 
