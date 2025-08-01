@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
@@ -25,6 +26,7 @@ interface BadgeData {
   maker_id: string | null
   team_name: string | null
   category: 'Elect Badge' | 'None Elect Badge' | 'SAO' | 'Tool' | 'Misc' | null
+  retired: boolean
   created_at: string
   updated_at: string
   profiles?: {
@@ -173,7 +175,8 @@ export default function Admin() {
       image_url: badge.image_url || '',
       external_link: badge.external_link || '',
       team_name: badge.team_name || '',
-      category: badge.category || null
+      category: badge.category || null,
+      retired: badge.retired
     })
   }
 
@@ -193,7 +196,8 @@ export default function Admin() {
           image_url: editForm.image_url || null,
           external_link: editForm.external_link || null,
           team_name: editForm.team_name || null,
-          category: editForm.category || null
+          category: editForm.category || null,
+          retired: editForm.retired
         })
         .eq('id', badgeId)
 
@@ -495,6 +499,17 @@ export default function Admin() {
                                   placeholder="Image URL"
                                 />
                               </div>
+
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id="retired"
+                                  checked={editForm.retired || false}
+                                  onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, retired: !!checked }))}
+                                />
+                                <Label htmlFor="retired" className="text-sm font-medium">
+                                  Retired Badge (can no longer be obtained)
+                                </Label>
+                              </div>
                               
                               <div className="flex gap-2 pt-4">
                                 <Button
@@ -553,6 +568,9 @@ export default function Admin() {
                                   {badge.category && <span>Category: {badge.category}</span>}
                                   {badge.profiles?.display_name && (
                                     <span>Creator: {badge.profiles.display_name}</span>
+                                  )}
+                                  {badge.retired && (
+                                    <Badge variant="destructive" className="text-xs">RETIRED</Badge>
                                   )}
                                 </div>
                                 

@@ -1,6 +1,7 @@
 import { Badge, Heart, Star, ExternalLink, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Badge as BadgeComponent } from "@/components/ui/badge";
 
 interface BadgeData {
   id: string;
@@ -12,6 +13,7 @@ interface BadgeData {
   externalLink?: string;
   isOwned?: boolean;
   isWanted?: boolean;
+  retired?: boolean;
 }
 
 interface BadgeCardProps {
@@ -85,6 +87,12 @@ export const BadgeCard = ({
           <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
             {badge.description}
           </p>
+        )}
+        
+        {badge.retired && (
+          <BadgeComponent variant="destructive" className="text-xs mt-2">
+            RETIRED
+          </BadgeComponent>
         )}
       </CardContent>
 

@@ -24,6 +24,7 @@ export type Database = {
           image_url: string | null
           maker_id: string | null
           name: string
+          retired: boolean
           team_name: string | null
           updated_at: string
           year: number | null
@@ -37,6 +38,7 @@ export type Database = {
           image_url?: string | null
           maker_id?: string | null
           name: string
+          retired?: boolean
           team_name?: string | null
           updated_at?: string
           year?: number | null
@@ -50,6 +52,7 @@ export type Database = {
           image_url?: string | null
           maker_id?: string | null
           name?: string
+          retired?: boolean
           team_name?: string | null
           updated_at?: string
           year?: number | null
