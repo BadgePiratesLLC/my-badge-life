@@ -92,7 +92,8 @@ serve(async (req) => {
     let embedding = null
     try {
       console.log('Generating text embedding for comparison...')
-      const textToEmbed = `Badge: ${aiAnalysis.name}. Description: ${aiAnalysis.description || 'Electronic conference badge'}. Event: ${aiAnalysis.event || ''}. Year: ${aiAnalysis.year || ''}`
+      // Use consistent format with process-badge-embeddings
+      const textToEmbed = `Badge: ${aiAnalysis.name || 'Unknown Badge'}. Description: ${aiAnalysis.description || 'Electronic conference badge'}. Image URL: analysis`
       
       const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
@@ -168,12 +169,12 @@ serve(async (req) => {
                 confidence
               }
             })
-            .filter(match => match.similarity >= 0.7)
+            .filter(match => match.similarity >= 0.5)  // Lower threshold for better matching
             .sort((a, b) => b.similarity - a.similarity)
-            .slice(0, 3)
+            .slice(0, 5)  // Show more potential matches
 
-          // Check if we have a high-confidence match (85%+)
-          hasGoodDatabaseMatch = matches.length > 0 && matches[0].confidence >= 85
+          // Check if we have a high-confidence match (70%+ for better detection)
+          hasGoodDatabaseMatch = matches.length > 0 && matches[0].confidence >= 70
           
           console.log(`Found ${matches.length} matches. Top match: ${matches[0]?.confidence}% confidence`)
           
