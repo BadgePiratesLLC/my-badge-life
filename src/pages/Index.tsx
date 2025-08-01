@@ -47,10 +47,10 @@ const Index = () => {
     const timeout = setTimeout(() => {
       if (authLoading) {
         console.log('Auth loading timeout - forcing continue');
-        // Force continue after 10 seconds if still loading
+        // Force continue after 5 seconds if still loading
         window.location.reload();
       }
-    }, 10000);
+    }, 5000);
 
     return () => clearTimeout(timeout);
   }, [authLoading]);

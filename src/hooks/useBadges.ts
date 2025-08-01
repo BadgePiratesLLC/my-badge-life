@@ -10,9 +10,16 @@ export function useBadges() {
   const { user } = useAuth()
 
   useEffect(() => {
+    // Always fetch badges regardless of auth state
     fetchBadges()
+  }, [])
+
+  useEffect(() => {
+    // Only fetch ownership if user is logged in
     if (user) {
       fetchOwnership()
+    } else {
+      setOwnership([]) // Clear ownership when not logged in
     }
   }, [user])
 

@@ -13,7 +13,7 @@ export function useAuth() {
     const maxLoadTime = setTimeout(() => {
       console.log('Auth initialization timeout - setting loading to false')
       setLoading(false)
-    }, 8000) // 8 seconds max
+    }, 3000) // 3 seconds max
 
     // Get initial session
     const initializeAuth = async () => {
