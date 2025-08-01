@@ -96,7 +96,9 @@ const Index = () => {
   };
 
   const handleGetStarted = () => {
+    console.log('START SCANNING button clicked!');
     setShowAuth(true);
+    console.log('Auth modal should open, showAuth set to true');
   };
 
   // Filter badges based on search
