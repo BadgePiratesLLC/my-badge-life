@@ -135,6 +135,11 @@ export const CameraCapture = ({
     setShowAnalysis(false);
     setAnalysisResults(null);
     setUploadedImageUrl('');
+    setIsAnalyzing(false);
+    // Reset file input to allow re-scanning
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const triggerFileInput = () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,18 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     description: prefillData?.description || "",
     external_link: prefillData?.external_link || "",
   });
+  
+  // Update form when prefillData changes
+  React.useEffect(() => {
+    if (prefillData) {
+      setFormData({
+        name: prefillData?.name || "",
+        year: prefillData?.year?.toString() || "",
+        description: prefillData?.description || "",
+        external_link: prefillData?.external_link || "",
+      });
+    }
+  }, [prefillData]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   

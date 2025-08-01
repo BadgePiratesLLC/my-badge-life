@@ -183,7 +183,6 @@ serve(async (req) => {
     let webResults: any = null
     let searchSource = 'none'
     
-    
     const shouldSearchWeb = forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)
     
     console.log('=== WEB SEARCH DECISION ===')
