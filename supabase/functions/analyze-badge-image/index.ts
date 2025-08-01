@@ -171,6 +171,7 @@ serve(async (req) => {
           console.log(`Found ${matches.length} local matches with confidence >= 20%`)
           if (matches.length > 0) {
             console.log('Best matches:', matches.map(m => `${m.badge.name}: ${m.confidence}%`))
+            console.log(`BEST LOCAL MATCH: ${matches[0].confidence}% confidence`)
           }
         }
       } catch (error) {
@@ -178,9 +179,10 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Search external sources if no good local matches
+    // Step 3: Search external sources ONLY if no good local matches
     let webResults: any = null
     let searchSource = 'none'
+    
     
     const shouldSearchWeb = forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)
     
@@ -188,11 +190,12 @@ serve(async (req) => {
     console.log('forceWebSearch:', forceWebSearch)
     console.log('matches.length:', matches.length)
     console.log('bestConfidence:', matches[0]?.confidence || 'N/A')
+    console.log('threshold: 50%')
     console.log('shouldSearchWeb:', shouldSearchWeb)
-    console.log('=== ===')
+    console.log('=== END DECISION ===')
     
     if (shouldSearchWeb) {
-      console.log('Searching external badge sources...')
+      console.log('🔍 STARTING EXTERNAL SEARCH...')
       console.log(`Reason: forceWebSearch=${forceWebSearch}, matches=${matches.length}, bestConfidence=${matches[0]?.confidence || 0}%`)
       
       // Try Tindie first (badge marketplace)
@@ -330,8 +333,8 @@ serve(async (req) => {
         }
       }
     } else {
-      console.log('Skipping external search - found good local matches')
-      console.log(`Best local match: "${matches[0]?.badge.name}" with ${matches[0]?.confidence}% confidence`)
+      console.log('⏭️ SKIPPING EXTERNAL SEARCH - Good local matches found!')
+      console.log(`Best local match: "${matches[0]?.badge.name}" with ${matches[0]?.confidence}% confidence (≥50% threshold)`)
     }
 
     console.log('Analysis complete, returning results')
