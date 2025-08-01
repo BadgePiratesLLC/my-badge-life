@@ -24,9 +24,13 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
           </div>
           <span className="font-mono text-sm text-foreground">MyBadgeLife</span>
         </div>
-        <Button variant="outline" onClick={onLogin}>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onLogin}
+          className="relative"
+        >
           <User className="h-4 w-4" />
-          SIGN IN
         </Button>
       </header>
 
