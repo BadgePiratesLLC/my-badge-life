@@ -15,6 +15,12 @@ export function useBadges() {
   const { user } = useAuth()
 
   useEffect(() => {
+    // Only fetch badges if user is authenticated
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     // Check if we need to fetch badges (no cache or cache is old)
     const now = Date.now()
     const cacheExpiry = 5 * 60 * 1000 // 5 minutes
@@ -29,7 +35,7 @@ export function useBadges() {
       setBadges(badgesCache)
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     // Only fetch ownership if user is logged in
