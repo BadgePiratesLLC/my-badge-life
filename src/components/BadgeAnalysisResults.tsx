@@ -20,6 +20,7 @@ interface BadgeAnalysis {
   confidence?: number;
   external_link?: string;
   url?: string; // Alternative to external_link
+  image_url?: string; // Image URL from web search
   source?: string; // Source of the analysis (Tindie, Hackaday, etc.)
   search_source?: string; // Source of the search
   web_info?: any;
@@ -172,7 +173,12 @@ export const BadgeAnalysisResults = ({
       category: webSearchResults?.category || analysis?.category || 'Misc',
       description: webSearchResults?.description || analysis?.description || '',
       external_link: webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link || '',
-      image_url: imageUrl // Pass the current image URL from the analysis
+      // Only use web search image if it's a valid HTTP/HTTPS URL, otherwise use uploaded image
+      image_url: ((webSearchResults?.image_url || analysis?.image_url) && 
+                 ((webSearchResults?.image_url || analysis?.image_url).startsWith('http://') || 
+                  (webSearchResults?.image_url || analysis?.image_url).startsWith('https://'))) 
+                ? (webSearchResults?.image_url || analysis?.image_url) 
+                : imageUrl
     };
     onCreateNew(prefillData);
   };
@@ -313,19 +319,29 @@ export const BadgeAnalysisResults = ({
                         <span className="ml-2">{webSearchResults?.event || analysis.event}</span>
                       </div>
                     )}
-                    {(webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link) && (
-                      <div>
-                        <span className="text-sm font-medium">Source:</span>
-                        <a 
-                          href={webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="ml-2 text-blue-500 hover:text-blue-700 underline text-sm"
-                        >
-                          {webSearchResults?.source || analysis?.search_source || 'View Source'}
-                        </a>
-                      </div>
-                    )}
+                     {/* Source Information - always show for web search results */}
+                     {(webSearchResults || (analysis?.search_source && analysis.search_source !== 'none')) && (
+                       <div className="border-t pt-2 mt-2">
+                         {(webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link) ? (
+                           <div>
+                             <span className="text-sm font-medium">Source:</span>
+                             <a 
+                               href={webSearchResults?.external_link || webSearchResults?.url || analysis?.external_link} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="ml-2 text-primary hover:text-primary/80 underline text-sm"
+                             >
+                               {webSearchResults?.source || analysis?.search_source || 'View Original Source'}
+                             </a>
+                           </div>
+                         ) : (
+                           <div className="text-sm text-muted-foreground">
+                             <span className="font-medium">Source:</span>
+                             <span className="ml-2">No specific source found - this is an AI-generated guess based on image analysis</span>
+                           </div>
+                         )}
+                       </div>
+                     )}
                     
                     {(webSearchResults?.description || analysis?.description) && (
                       <div>
