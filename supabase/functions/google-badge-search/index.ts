@@ -34,22 +34,25 @@ serve(async (req) => {
     statusUpdates.push({ stage: 'google_search', status: 'searching', message: 'Trying Google reverse image search...' })
     
     const serpApiKey = Deno.env.get('SERPAPI_KEY')
-    console.log('SERPAPI_KEY check:', serpApiKey ? 'Found' : 'Not found')
+    console.log('SERPAPI_KEY check:', serpApiKey ? `Found (length: ${serpApiKey.length})` : 'Not found')
     
     if (!serpApiKey) {
       statusUpdates.push({ 
         stage: 'google_search', 
         status: 'skipped', 
-        message: 'Google search unavailable (no API key)' 
+        message: 'Google search unavailable - SERPAPI_KEY not configured in Supabase secrets' 
       })
       console.log('❌ SERPAPI_KEY not found, skipping Google search')
+      
+      analytics.total_duration_ms = Date.now() - searchStartTime
       
       return new Response(
         JSON.stringify({ 
           analysis: null,
           statusUpdates,
           analytics,
-          shouldContinueToAI: true
+          shouldContinueToAI: true,
+          error: 'SERPAPI_KEY not configured'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
