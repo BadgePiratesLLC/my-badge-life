@@ -9,8 +9,6 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!
-const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY')!
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,10 +16,6 @@ serve(async (req) => {
   }
 
   try {
-    if (!openaiApiKey || !perplexityApiKey) {
-      throw new Error('Missing required API keys (OpenAI and Perplexity required)')
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { imageBase64, forceWebSearch } = await req.json()
 
