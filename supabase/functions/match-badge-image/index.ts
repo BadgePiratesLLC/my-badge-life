@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import Replicate from "https://esm.sh/replicate@0.25.2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,61 +30,28 @@ serve(async (req) => {
     // Generate embedding for uploaded image using Replicate CLIP
     console.log('Generating image embedding with CLIP...')
     
+    const replicate = new Replicate({
+      auth: replicateToken,
+    })
+    
     // Ensure proper image format
     let imageData = imageBase64;
     if (!imageData.startsWith('data:')) {
       imageData = `data:image/jpeg;base64,${imageBase64}`;
     }
     
-    const clipResponse = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${replicateToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: "75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a",
+    console.log('Calling Replicate API...')
+    const embedding = await replicate.run(
+      "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a",
+      {
         input: {
           image: imageData
         }
-      })
-    })
-
-    if (!clipResponse.ok) {
-      throw new Error(`Replicate API error: ${clipResponse.statusText}`)
-    }
-
-    const clipPrediction = await clipResponse.json()
-    let predictionId = clipPrediction.id
-
-    // Poll for completion
-    let embedding = null
-    let attempts = 0
-    const maxAttempts = 30
-
-    while (!embedding && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-        headers: {
-          'Authorization': `Token ${replicateToken}`,
-        }
-      })
-      
-      const statusData = await statusResponse.json()
-      
-      if (statusData.status === 'succeeded') {
-        embedding = statusData.output
-        break
-      } else if (statusData.status === 'failed') {
-        throw new Error('Image processing failed')
       }
-      
-      attempts++
-    }
+    ) as number[]
 
-    if (!embedding) {
-      throw new Error('Image processing timed out')
+    if (!embedding || !Array.isArray(embedding)) {
+      throw new Error('Invalid embedding received from Replicate')
     }
 
     console.log('Generated embedding, searching for matches...')
