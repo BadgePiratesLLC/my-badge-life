@@ -183,6 +183,7 @@ serve(async (req) => {
     let webResults: any = null
     let searchSource = 'none'
     
+    // CRITICAL: Only search web if we have NO good local matches (confidence < 50%)
     const shouldSearchWeb = forceWebSearch || matches.length === 0 || (matches.length > 0 && matches[0].confidence < 50)
     
     console.log('=== WEB SEARCH DECISION ===')
@@ -338,13 +339,16 @@ serve(async (req) => {
 
     console.log('Analysis complete, returning results')
     
-    // Combine all analysis results
-    const combinedAnalysis = {
+    // Combine all analysis results - but ONLY include web results if we actually searched
+    const combinedAnalysis = shouldSearchWeb ? {
       ...quickAnalysis,
       ...webResults,
       confidence: webResults?.confidence || quickAnalysis.confidence || 50,
       search_source: searchSource,
       web_info: webResults,
+      database_matches: matches.map(m => m.badge)
+    } : {
+      // No web search performed - return only quick analysis for display but don't make it primary
       database_matches: matches.map(m => m.badge)
     }
 

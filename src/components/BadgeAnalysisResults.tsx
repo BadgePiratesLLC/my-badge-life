@@ -195,7 +195,8 @@ export const BadgeAnalysisResults = ({
                 />
               </div>
 
-              {analysis && (
+              {/* Only show AI analysis if we actually performed a web search or have results */}
+              {analysis && (analysis.search_source && analysis.search_source !== 'none') && (
                 <div>
                   <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                     {webSearchResults ? "Web Search Results" : "AI Analysis"}
@@ -271,9 +272,9 @@ export const BadgeAnalysisResults = ({
                         </p>
                       </div>
                      )}
-                    
-                    {/* AI Feedback Section */}
-                    {(webSearchResults || analysis?.search_source !== 'none') && (
+                     
+                     {/* AI Feedback Section - only show if we actually did AI search */}
+                     {(webSearchResults || (analysis?.search_source && analysis.search_source !== 'none')) && (
                       <div className="mt-4 p-3 bg-muted rounded-lg">
                         <p className="text-sm font-medium mb-2">Rate this AI search result:</p>
                         <div className="flex gap-2 flex-wrap">
