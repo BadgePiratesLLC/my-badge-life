@@ -119,6 +119,7 @@ serve(async (req) => {
             message: `Google API error: ${googleData.error}` 
           })
         } else if (googleData.image_results && googleData.image_results.length > 0) {
+          console.log('Raw Google response:', JSON.stringify(googleData.image_results.slice(0, 3), null, 2))
           console.log('Google returned results, filtering for badge content...')
           
           // Very strict badge-related keywords
