@@ -7,13 +7,16 @@ export function useBadges() {
   const [badges, setBadges] = useState<Badge[]>([])
   const [ownership, setOwnership] = useState<Ownership[]>([])
   const [loading, setLoading] = useState(true)
+  const [badgesFetched, setBadgesFetched] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
-    // Always fetch badges immediately, regardless of auth state
-    console.log('useBadges hook mounted, fetching badges...')
-    fetchBadges()
-  }, [])
+    // Only fetch badges once when hook first mounts
+    if (!badgesFetched) {
+      console.log('useBadges hook mounted, fetching badges...')
+      fetchBadges()
+    }
+  }, [badgesFetched])
 
   useEffect(() => {
     // Only fetch ownership if user is logged in
@@ -83,6 +86,7 @@ export function useBadges() {
     } finally {
       console.log('Setting loading to false')
       setLoading(false)
+      setBadgesFetched(true)
     }
   }
 
