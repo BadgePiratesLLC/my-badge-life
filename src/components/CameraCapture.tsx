@@ -196,6 +196,24 @@ export const CameraCapture = ({
     }
   };
 
+  const handleRetrySearch = async () => {
+    if (!analysisResults?.originalFile) {
+      toast({
+        title: "Cannot retry search",
+        description: "Original image data not available",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Clear all previous results
+    setAnalysisResults(null);
+    setShowAnalysis(false);
+    
+    // Re-analyze the same image
+    await handleImageAnalysis(analysisResults.originalFile);
+  };
+
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
@@ -312,6 +330,7 @@ export const CameraCapture = ({
           canAddToDatabase={analysisResults?.canAddToDatabase}
           onConfirmMatch={enableMatching ? confirmMatch : undefined}
           onAuthRequired={onAuthRequired}
+          onRetrySearch={handleRetrySearch}
         />
     </div>
   );

@@ -44,6 +44,7 @@ interface BadgeAnalysisResultsProps {
   canAddToDatabase?: boolean; // For admin to add high-confidence results
   onConfirmMatch?: (badgeId: string, similarity: number, confidence: number) => void;
   onAuthRequired?: () => void; // Callback to show auth modal
+  onRetrySearch?: () => void; // Callback to trigger a complete retry from parent
 }
 
 export const BadgeAnalysisResults = ({
@@ -56,7 +57,8 @@ export const BadgeAnalysisResults = ({
   originalImageBase64,
   canAddToDatabase,
   onConfirmMatch,
-  onAuthRequired
+  onAuthRequired,
+  onRetrySearch
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -236,7 +238,17 @@ export const BadgeAnalysisResults = ({
     }
   };
 
-  const handleRetrySearch = async () => {
+  const handleRetrySearch = () => {
+    if (onRetrySearch) {
+      // Use parent's retry function to completely restart the search
+      onRetrySearch();
+    } else {
+      // Fallback to local retry if parent doesn't provide retry function
+      handleLocalRetry();
+    }
+  };
+
+  const handleLocalRetry = async () => {
     if (!originalImageBase64) {
       toast({
         title: "Cannot retry search",
@@ -427,16 +439,16 @@ export const BadgeAnalysisResults = ({
                           >
                             ❌ Incorrect
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={handleRetrySearch}
-                            disabled={isSearchingWeb}
-                            className="gap-2"
-                          >
-                            <Search className="h-4 w-4" />
-                            {isSearchingWeb ? "Searching..." : "This is completely wrong - Try again"}
-                          </Button>
+                           <Button 
+                             size="sm" 
+                             variant="destructive"
+                             onClick={handleRetrySearch}
+                             disabled={isSearchingWeb}
+                             className="gap-2"
+                           >
+                             <Search className="h-4 w-4" />
+                             {isSearchingWeb ? "Searching..." : "This is completely wrong - Try again"}
+                           </Button>
                         </div>
                       </div>
                     )}
