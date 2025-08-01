@@ -153,10 +153,19 @@ serve(async (req) => {
           matches = badgeEmbeddings
             .map(item => {
               const similarity = cosineSimilarity(embedding, item.embedding)
+              let confidence = Math.round(similarity * 100)
+              
+              // Boost confidence for very high similarities (likely exact matches)
+              if (similarity > 0.95) {
+                confidence = Math.min(100, confidence + 5)
+              }
+              
+              console.log(`Badge ${item.badges?.name}: similarity = ${similarity}, confidence = ${confidence}%`)
+              
               return {
                 badge: item.badges,
                 similarity,
-                confidence: Math.round(similarity * 100)
+                confidence
               }
             })
             .filter(match => match.similarity >= 0.7)
@@ -165,6 +174,8 @@ serve(async (req) => {
 
           // Check if we have a high-confidence match (85%+)
           hasGoodDatabaseMatch = matches.length > 0 && matches[0].confidence >= 85
+          
+          console.log(`Found ${matches.length} matches. Top match: ${matches[0]?.confidence}% confidence`)
           
           if (hasGoodDatabaseMatch) {
             console.log(`Found high-confidence database match (${matches[0].confidence}%), skipping web search`)
