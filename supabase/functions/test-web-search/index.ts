@@ -39,7 +39,7 @@ serve(async (req) => {
     const searchPrompt = promptTemplate.replace('{query}', query);
     console.log(`Search prompt: ${searchPrompt}`);
 
-    // Make the API call
+    // Make the API call using a valid Perplexity model
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -47,7 +47,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'llama-3.1-sonar-large-128k-online',
         messages: [
           {
             role: 'system',
@@ -60,11 +60,7 @@ serve(async (req) => {
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 1000,
-        return_images: false,
-        return_related_questions: false,
-        frequency_penalty: 1,
-        presence_penalty: 0
+        max_tokens: 1000
       }),
     });
 
