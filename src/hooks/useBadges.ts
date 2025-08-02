@@ -217,7 +217,7 @@ export function useBadges() {
     return data
   }
 
-  const uploadBadgeImage = async (file: File) => {
+  const uploadBadgeImage = async (file: File, sendNotification: boolean = true) => {
     // Create unique filename - allow anonymous uploads for testing
     const fileExt = file.name.split('.').pop()
     const fileName = user 
@@ -254,40 +254,43 @@ export function useBadges() {
       throw error
     }
 
-    // Send Discord notification for new upload
-    try {
-      const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-discord-notification', {
-        body: {
-          type: 'badge_submitted',
-          data: {
-            title: '📷 New Badge Image Uploaded',
-            description: user 
-              ? `**${user.email}** uploaded a new badge image for identification.`
-              : 'An anonymous user uploaded a new badge image for identification.',
-            fields: [
-              {
-                name: 'Upload ID',
-                value: data.id,
-                inline: true
-              },
-              {
-                name: 'Status',
-                value: 'Awaiting admin processing',
-                inline: true
+    // Send Discord notification for new upload (only if requested)
+    if (sendNotification) {
+      try {
+        const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-discord-notification', {
+          body: {
+            type: 'badge_submitted',
+            data: {
+              title: '📷 New Badge Image Uploaded',
+              description: user 
+                ? `**${user.email}** uploaded a new badge image for identification.`
+                : 'An anonymous user uploaded a new badge image for identification.',
+              fields: [
+                {
+                  name: 'Upload ID',
+                  value: data.id,
+                  inline: true
+                },
+                {
+                  name: 'Status',
+                  value: 'Awaiting admin processing',
+                  inline: true
+                }
+              ],
+              thumbnail: {
+                url: publicUrl
               }
-            ],
-            thumbnail: {
-              url: publicUrl
             }
           }
+        });
+
+        if (notificationError) {
+          console.error('Discord notification error:', notificationError);
         }
-      })
-      
-      if (notificationError) {
-        console.error('Discord notification failed:', notificationError)
+      } catch (error) {
+        console.error('Failed to send Discord notification:', error);
+        // Don't throw here - upload was successful, notification failure shouldn't break the flow
       }
-    } catch (notificationError) {
-      console.error('Failed to send Discord notification:', notificationError)
     }
 
     return { url: publicUrl, upload: data }

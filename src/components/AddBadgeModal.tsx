@@ -78,27 +78,27 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
       
       // For non-approved users, just upload the image for approval
       if (!canAddBadges) {
-        // Regular user - upload for approval only
+        // Regular user - upload for approval only (with notification)
         if (imageFile) {
-          await uploadBadgeImage(imageFile);
+          await uploadBadgeImage(imageFile, true);
         } else if (prefillData?.imageFile) {
-          await uploadBadgeImage(prefillData.imageFile);
+          await uploadBadgeImage(prefillData.imageFile, true);
         }
       } else {
         // Admin or approved maker - handle image upload and create badge
         // Check if prefillData has a blob URL that needs to be uploaded
         if (prefillData?.image_url && prefillData.image_url.startsWith('blob:')) {
-          // Convert blob URL to file and upload
+          // Convert blob URL to file and upload (no notification - badge creation will notify)
           if (prefillData.imageFile) {
-            const { url } = await uploadBadgeImage(prefillData.imageFile);
+            const { url } = await uploadBadgeImage(prefillData.imageFile, false);
             imageUrl = url;
           }
         } else if (prefillData?.image_url && !prefillData.image_url.startsWith('blob:')) {
           // Use the existing valid URL
           imageUrl = prefillData.image_url;
         } else if (imageFile) {
-          // Upload new image file
-          const { url } = await uploadBadgeImage(imageFile);
+          // Upload new image file (no notification - badge creation will notify)
+          const { url } = await uploadBadgeImage(imageFile, false);
           imageUrl = url;
         }
 
