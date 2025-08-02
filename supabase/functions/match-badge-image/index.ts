@@ -27,58 +27,124 @@ serve(async (req) => {
 
     console.log('Processing image for badge matching...')
 
-    // For now, return empty matches since image-to-text embedding comparison doesn't work well
-    // This will force the system to suggest adding as new badge when confidence is low
-    console.log('Image matching temporarily disabled - will suggest adding as new badge')
+    // Use OpenAI vision model to compare uploaded image with stored badge images
+    console.log('Analyzing uploaded image and comparing with database badges...')
     
-    const embedding = [] // Empty array will cause all matches to have 0 similarity
+    if (!openaiKey) {
+      throw new Error('OPENAI_API_KEY not configured')
+    }
+    
+    // Convert base64 to proper data URL if needed
+    let uploadedImageData = imageBase64;
+    if (!uploadedImageData.startsWith('data:')) {
+      uploadedImageData = `data:image/jpeg;base64,${imageBase64}`;
+    }
 
-    console.log('Searching database for matches...')
-    console.log('Note: Image matching is simplified - will mostly suggest new badge creation')
-
-    // Search for similar embeddings in the database
-    const { data: badgeEmbeddings, error: searchError } = await supabase
-      .from('badge_embeddings')
+    // Get all badges with images from database
+    const { data: badgeData, error: searchError } = await supabase
+      .from('badges')
       .select(`
-        *,
-        badges (
-          id,
-          name,
-          maker_id,
-          image_url,
-          description,
-          year,
-          category,
-          profiles (display_name)
-        )
+        id,
+        name,
+        maker_id,
+        image_url,
+        description,
+        year,
+        category,
+        profiles (display_name)
       `)
+      .not('image_url', 'is', null)
 
     if (searchError) {
       throw new Error(`Database search error: ${searchError.message}`)
     }
 
-    // Calculate cosine similarity
-    const cosineSimilarity = (a: number[], b: number[]) => {
-      const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0)
-      const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0))
-      const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0))
-      return dotProduct / (magnitudeA * magnitudeB)
+    console.log(`Found ${badgeData?.length || 0} badges with images to compare`)
+
+    // Compare uploaded image with each badge image using AI vision
+    const allMatches = []
+      
+    
+    for (let i = 0; i < Math.min(badgeData.length, 5); i++) {
+      const badge = badgeData[i]
+      console.log(`Comparing with badge: "${badge.name}"`)
+      
+      try {
+        // Use OpenAI vision to compare the two images
+        const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Compare these two badge images. The first is an uploaded image, the second is from our database (${badge.name}). Rate the similarity from 0-100% based on:
+                    1. Visual design similarity
+                    2. Shape and layout
+                    3. Colors and graphics
+                    4. Text content
+                    5. Overall appearance
+                    
+                    Respond with only a number (0-100) representing the similarity percentage.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: uploadedImageData }
+                  },
+                  {
+                    type: 'image_url', 
+                    image_url: { url: badge.image_url }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 10
+          })
+        })
+
+        if (comparison.ok) {
+          const result = await comparison.json()
+          const similarityText = result.choices[0]?.message?.content?.trim()
+          const similarity = parseInt(similarityText) || 0
+          
+          console.log(`Similarity for "${badge.name}": ${similarity}%`)
+          
+          allMatches.push({
+            badge: badge,
+            similarity: similarity / 100,
+            confidence: similarity
+          })
+        } else {
+          console.log(`Failed to compare with ${badge.name}`)
+          allMatches.push({
+            badge: badge,
+            similarity: 0,
+            confidence: 0
+          })
+        }
+        
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+      } catch (error) {
+        console.error(`Error comparing with ${badge.name}:`, error)
+        allMatches.push({
+          badge: badge,
+          similarity: 0,
+          confidence: 0
+        })
+      }
     }
 
-    const allMatches = badgeEmbeddings.map(item => {
-      console.log(`Processing badge "${item.badges?.name}", embedding type:`, typeof item.embedding, 'Length:', Array.isArray(item.embedding) ? item.embedding.length : 'not array')
-      
-      // Since we're using empty embedding, all similarities will be 0
-      // This ensures the system suggests creating a new badge
-      const similarity = 0
-      console.log(`Similarity for "${item.badges?.name}": 0% (image matching disabled)`)
-      
-      return {
-        badge: item.badges,
-        similarity,
-        confidence: Math.round(similarity * 100)
-      }
-    }).sort((a, b) => b.similarity - a.similarity)
+    // Sort by similarity
+    allMatches.sort((a, b) => b.similarity - a.similarity)
 
     // Log all similarities for debugging
     console.log('All badge similarities:', allMatches.slice(0, 10).map(m => 
@@ -89,7 +155,7 @@ serve(async (req) => {
       .filter(match => match.similarity >= 0.25)  // Use 25% threshold as requested
       .slice(0, 5)
 
-    console.log(`Found ${matches.length} matches above 25% threshold (out of ${badgeEmbeddings?.length || 0} total badges)`)
+    console.log(`Found ${matches.length} matches above 25% threshold (out of ${badgeData?.length || 0} total badges)`)
 
     return new Response(
       JSON.stringify({ matches }),
