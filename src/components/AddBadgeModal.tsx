@@ -56,14 +56,16 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
 
   const canAddBadges = profile?.role === 'admin' || 
     (profile?.role === 'maker' && profile?.maker_approved);
+  
+  const canUploadForApproval = !!profile; // Any logged-in user can upload for approval
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!canAddBadges) {
+    if (!canUploadForApproval) {
       toast({
-        title: "Permission Denied",
-        description: "You need to be an approved maker to add badges.",
+        title: "Authentication Required",
+        description: "You need to be logged in to upload badges.",
         variant: "destructive",
       });
       return;
@@ -90,33 +92,46 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
         imageUrl = url;
       }
 
-      await createBadge({
-        name: formData.name,
-        year: formData.year ? parseInt(formData.year) : undefined,
-        description: formData.description || undefined,
-        external_link: formData.external_link || undefined,
-        image_url: imageUrl || undefined,
-        team_name: formData.team_name || undefined,
-      });
+      // For non-approved users, upload to pending approval instead of creating badge directly
+      if (canAddBadges) {
+        // Admin or approved maker - create badge directly
+        await createBadge({
+          name: formData.name,
+          year: formData.year ? parseInt(formData.year) : undefined,
+          description: formData.description || undefined,
+          external_link: formData.external_link || undefined,
+          image_url: imageUrl || undefined,
+          team_name: formData.team_name || undefined,
+        });
+      } else {
+        // Regular user - upload for approval
+        await uploadBadgeImage(imageFile || new File([], ""));
+      }
 
       // Send Discord notification
       try {
-        await notifyBadgeSubmitted({
-          name: formData.name,
-          team_name: formData.team_name || undefined,
-          category: undefined, // No category selection in this modal
-          year: formData.year ? parseInt(formData.year) : undefined,
-          maker_name: profile?.display_name || undefined,
-          image_url: imageUrl || undefined,
-        });
+        if (canAddBadges) {
+          await notifyBadgeSubmitted({
+            name: formData.name,
+            team_name: formData.team_name || undefined,
+            category: undefined,
+            year: formData.year ? parseInt(formData.year) : undefined,
+            maker_name: profile?.display_name || undefined,
+            image_url: imageUrl || undefined,
+          });
+        }
       } catch (error) {
         console.error('Failed to send Discord notification:', error);
         // Don't fail the badge creation if notification fails
       }
 
+      const successMessage = canAddBadges 
+        ? `${formData.name} has been added to the database.`
+        : `${formData.name} has been submitted for approval.`;
+        
       toast({
-        title: "Badge Added!",
-        description: `${formData.name} has been added to the database.`,
+        title: canAddBadges ? "Badge Added!" : "Badge Submitted!",
+        description: successMessage,
       });
 
       // Reset form
@@ -125,9 +140,10 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
       onClose();
     } catch (error) {
       console.error('Error adding badge:', error);
+      const errorMessage = canAddBadges ? "Failed to add badge. Please try again." : "Failed to submit badge. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to add badge. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -142,33 +158,26 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     }
   };
 
-  if (!canAddBadges) {
+  if (!canUploadForApproval) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-lg font-mono">PERMISSION REQUIRED</CardTitle>
+            <CardTitle className="text-lg font-mono">LOGIN REQUIRED</CardTitle>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              You need to be an approved badge maker to add new badges.
+              You need to be logged in to upload badges.
             </p>
             <Button 
               variant="matrix" 
               className="w-full"
-              onClick={() => {
-                // This would trigger maker request in real implementation
-                toast({
-                  title: "Maker Request Sent",
-                  description: "An admin will review your request soon.",
-                });
-                onClose();
-              }}
+              onClick={onClose}
             >
-              REQUEST MAKER STATUS
+              LOGIN TO UPLOAD
             </Button>
           </CardContent>
         </Card>
@@ -180,7 +189,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-lg font-mono">ADD NEW BADGE</CardTitle>
+          <CardTitle className="text-lg font-mono">{canAddBadges ? "ADD NEW BADGE" : "SUBMIT BADGE FOR APPROVAL"}</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -325,7 +334,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 disabled={uploading || !formData.name}
               >
                 <Plus className="h-4 w-4" />
-                {uploading ? "UPLOADING..." : "ADD BADGE"}
+                {uploading ? "UPLOADING..." : (canAddBadges ? "ADD BADGE" : "SUBMIT FOR APPROVAL")}
               </Button>
             </div>
           </form>
