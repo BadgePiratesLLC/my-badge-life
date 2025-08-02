@@ -12,16 +12,23 @@ export function useAuth() {
   const { notifyMakerRequest } = useDiscordNotifications()
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Set a maximum loading time to prevent infinite loading
     const maxLoadTime = setTimeout(() => {
-      console.log('Auth initialization timeout - setting loading to false')
-      setLoading(false)
+      if (isMounted) {
+        console.log('Auth initialization timeout - setting loading to false')
+        setLoading(false)
+        setInitialized(true)
+      }
     }, 5000) // 5 seconds max
 
     // Listen for auth changes FIRST to catch all events
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      
       console.log('Auth state change:', event, session?.user?.id || 'no user')
       
       // Update user state immediately
@@ -30,7 +37,12 @@ export function useAuth() {
       if (session?.user) {
         // Only fetch profile if we haven't initialized or user changed
         if (!initialized || user?.id !== session.user.id) {
-          await fetchProfile(session.user.id)
+          // Use setTimeout to prevent deadlock with onAuthStateChange
+          setTimeout(() => {
+            if (isMounted) {
+              fetchProfile(session.user.id)
+            }
+          }, 0)
         }
         setLoading(false)
         clearTimeout(maxLoadTime)
@@ -47,6 +59,8 @@ export function useAuth() {
 
     // THEN get initial session (this may trigger the listener above)
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!isMounted) return;
+      
       if (error) {
         console.error('Error getting initial session:', error)
         setLoading(false)
@@ -57,6 +71,7 @@ export function useAuth() {
     })
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe()
       clearTimeout(maxLoadTime)
     }
@@ -87,11 +102,19 @@ export function useAuth() {
     }
   }
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (keepLoggedIn: boolean = false) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: window.location.origin,
+        ...(keepLoggedIn && {
+          // Set session to persist for 5 days (432000 seconds)
+          persistSession: true,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
+        })
       }
     })
     
@@ -99,9 +122,19 @@ export function useAuth() {
       console.error('Error signing in with Google:', error)
       throw error
     }
+    
+    // If keep logged in is selected, store the preference
+    if (keepLoggedIn) {
+      localStorage.setItem('keepLoggedIn', 'true')
+    } else {
+      localStorage.removeItem('keepLoggedIn')
+    }
   }
 
   const signOut = async () => {
+    // Clear the keep logged in preference
+    localStorage.removeItem('keepLoggedIn')
+    
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error('Error signing out:', error)

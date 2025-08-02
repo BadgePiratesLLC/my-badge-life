@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { X, LogIn, UserCheck, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { getDisplayRole } = useRoleDisplay();
   const { toast } = useToast();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
   console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
 
@@ -24,7 +26,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(keepLoggedIn);
       toast({
         title: "Welcome to MyBadgeLife!",
         description: "You can now track badges and connect with makers.",
@@ -89,15 +91,31 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 </div>
               </div>
               
-              <Button
-                variant="matrix"
-                size="lg"
-                onClick={handleGoogleSignIn}
-                className="w-full"
-              >
-                <LogIn className="h-4 w-4" />
-                SIGN IN WITH GOOGLE
-              </Button>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="keep-logged-in" 
+                    checked={keepLoggedIn}
+                    onCheckedChange={(checked) => setKeepLoggedIn(checked === true)}
+                  />
+                  <label 
+                    htmlFor="keep-logged-in" 
+                    className="text-xs text-muted-foreground cursor-pointer"
+                  >
+                    Keep me logged in for 5 days
+                  </label>
+                </div>
+                
+                <Button
+                  variant="matrix"
+                  size="lg"
+                  onClick={handleGoogleSignIn}
+                  className="w-full"
+                >
+                  <LogIn className="h-4 w-4" />
+                  SIGN IN WITH GOOGLE
+                </Button>
+              </div>
               
               <p className="text-xs text-muted-foreground text-center">
                 Secure authentication powered by Supabase
