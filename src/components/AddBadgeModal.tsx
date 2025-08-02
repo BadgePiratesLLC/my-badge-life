@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBadges } from "@/hooks/useBadges";
 import { useToast } from "@/hooks/use-toast";
 import { useDiscordNotifications } from "@/hooks/useDiscordNotifications";
+import { useTeams } from "@/hooks/useTeams";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AddBadgeModalProps {
   isOpen: boolean;
@@ -22,6 +24,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     year: prefillData?.year?.toString() || "",
     description: prefillData?.description || "",
     external_link: prefillData?.external_link || "",
+    team_name: prefillData?.team_name || "",
   });
   
   // Update form when prefillData changes
@@ -32,6 +35,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
         year: prefillData?.year?.toString() || "",
         description: prefillData?.description || "",
         external_link: prefillData?.external_link || "",
+        team_name: prefillData?.team_name || "",
       });
       // If prefillData has an image_url, we don't need file upload
       if (prefillData?.image_url) {
@@ -46,6 +50,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
   const { createBadge, uploadBadgeImage } = useBadges();
   const { toast } = useToast();
   const { notifyBadgeSubmitted } = useDiscordNotifications();
+  const { teams } = useTeams();
 
   if (!isOpen) return null;
 
@@ -91,13 +96,14 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
         description: formData.description || undefined,
         external_link: formData.external_link || undefined,
         image_url: imageUrl || undefined,
+        team_name: formData.team_name || undefined,
       });
 
       // Send Discord notification
       try {
         await notifyBadgeSubmitted({
           name: formData.name,
-          team_name: undefined, // No team selection in this modal
+          team_name: formData.team_name || undefined,
           category: undefined, // No category selection in this modal
           year: formData.year ? parseInt(formData.year) : undefined,
           maker_name: profile?.display_name || undefined,
@@ -114,7 +120,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
       });
 
       // Reset form
-      setFormData({ name: "", year: "", description: "", external_link: "" });
+      setFormData({ name: "", year: "", description: "", external_link: "", team_name: "" });
       setImageFile(null);
       onClose();
     } catch (error) {
@@ -216,6 +222,22 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 className="font-mono text-sm"
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="team_name" className="font-mono text-xs">TEAM</Label>
+              <Select value={formData.team_name} onValueChange={(value) => setFormData(prev => ({ ...prev, team_name: value }))}>
+                <SelectTrigger className="font-mono">
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.name}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useBadges } from '@/hooks/useBadges'
+import { useTeams } from '@/hooks/useTeams'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ export default function BadgeRegister() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const { createBadge } = useBadges()
+  const { teams } = useTeams()
   
   // Get image URL and upload ID from query params if coming from admin
   const prefilledImageUrl = searchParams.get('image_url') || ''
@@ -150,13 +152,19 @@ export default function BadgeRegister() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="team_name">Badge Maker Team Name</Label>
-                  <Input
-                    id="team_name"
-                    value={formData.team_name}
-                    onChange={(e) => handleInputChange('team_name', e.target.value)}
-                    placeholder="e.g., DEF CON Goons, AndnXor, etc."
-                  />
+                  <Label htmlFor="team_name">Team</Label>
+                  <Select value={formData.team_name} onValueChange={(value) => handleInputChange('team_name', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map((team) => (
+                        <SelectItem key={team.id} value={team.name}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
