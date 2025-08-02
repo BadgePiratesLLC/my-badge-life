@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, LogIn, UserCheck, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleDisplay } from "@/hooks/useRoleDisplay";
+import { MakerRequestModal } from "./MakerRequestModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,9 +13,10 @@ interface AuthModalProps {
 }
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
-  const { user, profile, signInWithGoogle, signOut, requestMakerStatus } = useAuth();
+  const { user, profile, signInWithGoogle, signOut } = useAuth();
   const { getDisplayRole } = useRoleDisplay();
   const { toast } = useToast();
+  const [showMakerRequest, setShowMakerRequest] = useState(false);
 
   console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
 
@@ -53,20 +56,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     }
   };
 
-  const handleRequestMaker = async () => {
-    try {
-      await requestMakerStatus();
-      toast({
-        title: "Maker Request Sent",
-        description: "An admin will review your request to become a badge maker.",
-      });
-    } catch (error) {
-      toast({
-        title: "Request Failed",
-        description: "Failed to send maker request. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleRequestMaker = () => {
+    setShowMakerRequest(true);
   };
 
   return (
@@ -177,6 +168,11 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           )}
         </CardContent>
       </Card>
+      
+      <MakerRequestModal 
+        isOpen={showMakerRequest}
+        onClose={() => setShowMakerRequest(false)}
+      />
     </div>
   );
 };
