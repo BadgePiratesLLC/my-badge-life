@@ -7,6 +7,7 @@ export interface Team {
   id: string
   name: string
   description: string | null
+  website_url: string | null
   created_at: string
   updated_at: string
 }
@@ -121,13 +122,14 @@ export function useTeams() {
     }
   }
 
-  const createTeam = async (name: string, description?: string) => {
+  const createTeam = async (name: string, description?: string, websiteUrl?: string) => {
     try {
       const { data, error } = await supabase
         .from('teams')
         .insert({
           name,
-          description: description || null
+          description: description || null,
+          website_url: websiteUrl || null
         })
         .select()
         .single()
@@ -152,7 +154,7 @@ export function useTeams() {
     }
   }
 
-  const updateTeam = async (teamId: string, updates: { name?: string; description?: string }) => {
+  const updateTeam = async (teamId: string, updates: { name?: string; description?: string; website_url?: string }) => {
     try {
       const { data, error } = await supabase
         .from('teams')

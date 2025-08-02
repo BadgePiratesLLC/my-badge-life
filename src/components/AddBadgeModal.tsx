@@ -240,7 +240,18 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
 
             <div className="space-y-2">
               <Label htmlFor="team_name" className="font-mono text-xs">TEAM</Label>
-              <Select value={formData.team_name} onValueChange={(value) => setFormData(prev => ({ ...prev, team_name: value }))}>
+              <Select 
+                value={formData.team_name} 
+                onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, team_name: value }));
+                  
+                  // Auto-populate external URL with team's website URL if available
+                  const selectedTeam = teams.find(team => team.name === value);
+                  if (selectedTeam?.website_url && !formData.external_link) {
+                    setFormData(prev => ({ ...prev, external_link: selectedTeam.website_url }));
+                  }
+                }}
+              >
                 <SelectTrigger className="font-mono">
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
