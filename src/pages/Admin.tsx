@@ -95,7 +95,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
   const [editingTeam, setEditingTeam] = useState<string | null>(null)
-  const [teamForm, setTeamForm] = useState<{ name: string; description: string }>({ name: '', description: '' })
+  const [teamForm, setTeamForm] = useState<{ name: string; description: string; website_url: string }>({ name: '', description: '', website_url: '' })
   const [showCreateTeam, setShowCreateTeam] = useState(false)
   const [allUsers, setAllUsers] = useState<{id: string, display_name: string | null, email: string | null}[]>([])
 
@@ -897,12 +897,22 @@ export default function Admin() {
                             rows={2}
                           />
                         </div>
+                        <div>
+                          <Label htmlFor="teamWebsiteUrl">Website URL (optional)</Label>
+                          <Input
+                            id="teamWebsiteUrl"
+                            type="url"
+                            value={teamForm.website_url}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, website_url: e.target.value }))}
+                            placeholder="https://example.com"
+                          />
+                        </div>
                         <div className="flex gap-2">
                           <Button
                             onClick={async () => {
                               if (teamForm.name.trim()) {
-                                await createTeam(teamForm.name.trim(), teamForm.description.trim() || undefined)
-                                setTeamForm({ name: '', description: '' })
+                                await createTeam(teamForm.name.trim(), teamForm.description.trim() || undefined, teamForm.website_url.trim() || undefined)
+                                setTeamForm({ name: '', description: '', website_url: '' })
                                 setShowCreateTeam(false)
                               }
                             }}
@@ -914,7 +924,7 @@ export default function Admin() {
                             variant="outline"
                             onClick={() => {
                               setShowCreateTeam(false)
-                              setTeamForm({ name: '', description: '' })
+                              setTeamForm({ name: '', description: '', website_url: '' })
                             }}
                           >
                             Cancel
@@ -954,15 +964,26 @@ export default function Admin() {
                                   rows={2}
                                 />
                               </div>
+                              <div>
+                                <Label htmlFor="editTeamWebsiteUrl">Website URL</Label>
+                                <Input
+                                  id="editTeamWebsiteUrl"
+                                  type="url"
+                                  value={teamForm.website_url}
+                                  onChange={(e) => setTeamForm(prev => ({ ...prev, website_url: e.target.value }))}
+                                  placeholder="https://example.com"
+                                />
+                              </div>
                               <div className="flex gap-2">
                                 <Button
                                   onClick={async () => {
                                     await updateTeam(team.id, {
                                       name: teamForm.name.trim(),
-                                      description: teamForm.description.trim() || undefined
+                                      description: teamForm.description.trim() || undefined,
+                                      website_url: teamForm.website_url.trim() || undefined
                                     })
                                     setEditingTeam(null)
-                                    setTeamForm({ name: '', description: '' })
+                                    setTeamForm({ name: '', description: '', website_url: '' })
                                   }}
                                   disabled={!teamForm.name.trim()}
                                   className="flex items-center gap-2"
@@ -974,7 +995,7 @@ export default function Admin() {
                                   variant="outline"
                                   onClick={() => {
                                     setEditingTeam(null)
-                                    setTeamForm({ name: '', description: '' })
+                                    setTeamForm({ name: '', description: '', website_url: '' })
                                   }}
                                   className="flex items-center gap-2"
                                 >
@@ -1001,7 +1022,8 @@ export default function Admin() {
                                       setEditingTeam(team.id)
                                       setTeamForm({
                                         name: team.name,
-                                        description: team.description || ''
+                                        description: team.description || '',
+                                        website_url: team.website_url || ''
                                       })
                                     }}
                                     className="flex items-center gap-2"
