@@ -63,7 +63,6 @@ export const BadgeAnalysisResults = ({
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const { submitFeedback, isSubmitting: feedbackSubmitting } = useAIFeedback();
-  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [webSearchResults, setWebSearchResults] = useState<any>(null);
   const [isAddingToDatabase, setIsAddingToDatabase] = useState(false);
   
@@ -80,43 +79,7 @@ export const BadgeAnalysisResults = ({
 
   if (!isOpen) return null;
 
-  const handleSearchWeb = async () => {
-    if (!originalImageBase64) {
-      toast({
-        title: "Cannot search web",
-        description: "Original image data not available",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSearchingWeb(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
-        body: { 
-          imageBase64: originalImageBase64,
-          forceWebSearch: true // Force web search
-        }
-      });
-
-      if (error) throw error;
-      
-      setWebSearchResults(data.analysis);
-      toast({
-        title: "Web search completed",
-        description: "Found additional information from the internet"
-      });
-    } catch (error) {
-      console.error('Web search error:', error);
-      toast({
-        title: "Web search failed", 
-        description: "Could not search for badge information online",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearchingWeb(false);
-    }
-  };
+  // Web search functionality removed as per requirements
 
   const handleAddToDatabase = async () => {
     if (!analysis || !canAddToDatabase) return;
@@ -193,74 +156,7 @@ export const BadgeAnalysisResults = ({
     await submitFeedback(searchQuery, aiResult, feedbackType, sourceUrl);
   };
 
-  const handleForceAISearch = async () => {
-    if (!originalImageBase64) {
-      toast({
-        title: "Cannot search",
-        description: "Original image data not available",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSearchingWeb(true);
-    try {
-      // Step 1: Try Google search first
-      toast({
-        title: "Searching...",
-        description: "Starting Google search for badge information"
-      });
-      
-      const { data: googleData, error: googleError } = await supabase.functions.invoke('google-badge-search', {
-        body: { imageBase64: originalImageBase64 }
-      });
-
-      if (googleError) throw googleError;
-      
-      // If Google search found any results, use them
-      if (googleData?.analysis) {
-        setHideDatabaseMatches(true);
-        setWebSearchResults(googleData.analysis);
-        
-        toast({
-          title: "Google search completed",
-          description: `Found: ${googleData.analysis.name} (${googleData.analysis.confidence || 'Unknown'}% confidence)`
-        });
-        return;
-      }
-      
-      // Step 2: If Google search didn't find good results, try AI analysis
-      toast({
-        title: "Trying AI analysis...",
-        description: "Google search insufficient, running AI analysis as fallback"
-      });
-      
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('ai-badge-analysis', {
-        body: { imageBase64: originalImageBase64 }
-      });
-
-      if (aiError) throw aiError;
-      
-      // Hide database results and show AI results
-      setHideDatabaseMatches(true);
-      setWebSearchResults(aiData.analysis);
-      
-      toast({
-        title: "AI analysis completed",
-        description: `AI identified: ${aiData.analysis.name} (${aiData.analysis.confidence}% confidence)`
-      });
-      
-    } catch (error) {
-      console.error('Search error:', error);
-      toast({
-        title: "Search failed", 
-        description: "Could not search for badge information",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearchingWeb(false);
-    }
-  };
+  // AI search functionality removed as per requirements
 
   const handleRetrySearch = () => {
     if (onRetrySearch) {
@@ -286,13 +182,10 @@ export const BadgeAnalysisResults = ({
     setWebSearchResults(null);
     setHideDatabaseMatches(false);
     
-    setIsSearchingWeb(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
         body: { 
-          imageBase64: originalImageBase64,
-          forceWebSearch: true,
-          retryCount: Math.floor(Math.random() * 3) + 1 // Add some randomness to retry
+          imageBase64: originalImageBase64
         }
       });
 
@@ -310,8 +203,6 @@ export const BadgeAnalysisResults = ({
         description: "Could not find alternative badge information",
         variant: "destructive"
       });
-    } finally {
-      setIsSearchingWeb(false);
     }
   };
 
@@ -467,11 +358,10 @@ export const BadgeAnalysisResults = ({
                              size="sm" 
                              variant="destructive"
                              onClick={handleRetrySearch}
-                             disabled={isSearchingWeb}
                              className="gap-2"
                            >
                              <Search className="h-4 w-4" />
-                             {isSearchingWeb ? "Searching..." : "This is completely wrong - Try again"}
+                             This is completely wrong - Try again
                            </Button>
                         </div>
                       </div>
@@ -560,15 +450,14 @@ export const BadgeAnalysisResults = ({
                                ✓ YES, THIS IS IT
                              </Button>
                              
-                             <Button
-                               onClick={handleForceAISearch}
-                               variant="destructive"
-                               size="sm"
-                               className="w-full"
-                               disabled={isSearchingWeb}
-                             >
-                               {isSearchingWeb ? "Searching..." : "✗ NO, NOT IT - Search AI"}
-                             </Button>
+                              <Button
+                                onClick={handleCreateNew}
+                                variant="destructive"
+                                size="sm"
+                                className="w-full"
+                              >
+                                ✗ NO, NOT IT - Add New Badge
+                              </Button>
                            </div>
                          )}
                       </div>
@@ -587,17 +476,7 @@ export const BadgeAnalysisResults = ({
                       Add as New Badge
                     </Button>
                     {/* Remove the selected match confirmation button since it's now on each card */}
-                    {originalImageBase64 && (
-                      <Button 
-                        variant="secondary"
-                        onClick={handleSearchWeb}
-                        disabled={isSearchingWeb}
-                        className="gap-2"
-                      >
-                        <Search className="h-4 w-4" />
-                        {isSearchingWeb ? "Searching..." : "Search Web"}
-                      </Button>
-                    )}
+                     {/* Web search functionality removed */}
                     {canAddToDatabase && analysis?.search_source && analysis.search_source !== 'none' && (
                       <Button 
                         variant="default"
