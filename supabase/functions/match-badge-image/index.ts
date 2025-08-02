@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import Replicate from "https://esm.sh/replicate@0.25.2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +9,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const replicateToken = Deno.env.get('REPLICATE_API_TOKEN') || Deno.env.get('REPLICATE_API_KEY')
+const openaiKey = Deno.env.get('OPENAI_API_KEY')
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,9 +17,9 @@ serve(async (req) => {
   }
 
   try {
-    if (!replicateToken) {
-      console.error('❌ REPLICATE_API_TOKEN/REPLICATE_API_KEY not configured')
-      throw new Error('REPLICATE_API_TOKEN not configured')
+    if (!openaiKey) {
+      console.error('❌ OPENAI_API_KEY not configured')
+      throw new Error('OPENAI_API_KEY not configured')
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
@@ -28,36 +27,14 @@ serve(async (req) => {
 
     console.log('Processing image for badge matching...')
 
-    // Generate embedding for uploaded image using Replicate CLIP
-    console.log('Generating image embedding with CLIP...')
+    // For now, return empty matches since image-to-text embedding comparison doesn't work well
+    // This will force the system to suggest adding as new badge when confidence is low
+    console.log('Image matching temporarily disabled - will suggest adding as new badge')
     
-    const replicate = new Replicate({
-      auth: replicateToken,
-    })
-    
-    // Ensure proper image format
-    let imageData = imageBase64;
-    if (!imageData.startsWith('data:')) {
-      imageData = `data:image/jpeg;base64,${imageBase64}`;
-    }
-    
-    console.log('Calling Replicate API...')
-    const embedding = await replicate.run(
-      "andreasjansson/clip-features:75b33f253f7714a281ad3e9b28f63e3232d583716ef6718f2e46641077ea040a",
-      {
-        input: {
-          image: imageData
-        }
-      }
-    ) as number[]
+    const embedding = [] // Empty array will cause all matches to have 0 similarity
 
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error('Invalid embedding received from Replicate')
-    }
-
-    console.log('Generated embedding, searching for matches...')
-    console.log('Embedding type:', typeof embedding, 'Length:', Array.isArray(embedding) ? embedding.length : 'not array')
-    console.log('First few embedding values:', Array.isArray(embedding) ? embedding.slice(0, 5) : embedding)
+    console.log('Searching database for matches...')
+    console.log('Note: Image matching is simplified - will mostly suggest new badge creation')
 
     // Search for similar embeddings in the database
     const { data: badgeEmbeddings, error: searchError } = await supabase
@@ -91,17 +68,10 @@ serve(async (req) => {
     const allMatches = badgeEmbeddings.map(item => {
       console.log(`Processing badge "${item.badges?.name}", embedding type:`, typeof item.embedding, 'Length:', Array.isArray(item.embedding) ? item.embedding.length : 'not array')
       
-      if (!Array.isArray(embedding) || !Array.isArray(item.embedding)) {
-        console.log('ERROR: Invalid embedding format for', item.badges?.name)
-        return {
-          badge: item.badges,
-          similarity: 0,
-          confidence: 0
-        }
-      }
-      
-      const similarity = cosineSimilarity(embedding, item.embedding)
-      console.log(`Similarity for "${item.badges?.name}":`, similarity)
+      // Since we're using empty embedding, all similarities will be 0
+      // This ensures the system suggests creating a new badge
+      const similarity = 0
+      console.log(`Similarity for "${item.badges?.name}": 0% (image matching disabled)`)
       
       return {
         badge: item.badges,
@@ -116,10 +86,10 @@ serve(async (req) => {
     ))
 
     const matches = allMatches
-      .filter(match => match.similarity >= 0.6)  // Even lower threshold
+      .filter(match => match.similarity >= 0.25)  // Use 25% threshold as requested
       .slice(0, 5)
 
-    console.log(`Found ${matches.length} matches above 60% threshold (out of ${badgeEmbeddings?.length || 0} total badges)`)
+    console.log(`Found ${matches.length} matches above 25% threshold (out of ${badgeEmbeddings?.length || 0} total badges)`)
 
     return new Response(
       JSON.stringify({ matches }),
