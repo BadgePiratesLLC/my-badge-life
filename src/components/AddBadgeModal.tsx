@@ -76,25 +76,33 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     try {
       let imageUrl = "";
       
-      // Check if prefillData has a blob URL that needs to be uploaded
-      if (prefillData?.image_url && prefillData.image_url.startsWith('blob:')) {
-        // Convert blob URL to file and upload
-        if (prefillData.imageFile) {
-          const { url } = await uploadBadgeImage(prefillData.imageFile);
+      // For non-approved users, just upload the image for approval
+      if (!canAddBadges) {
+        // Regular user - upload for approval only
+        if (imageFile) {
+          await uploadBadgeImage(imageFile);
+        } else if (prefillData?.imageFile) {
+          await uploadBadgeImage(prefillData.imageFile);
+        }
+      } else {
+        // Admin or approved maker - handle image upload and create badge
+        // Check if prefillData has a blob URL that needs to be uploaded
+        if (prefillData?.image_url && prefillData.image_url.startsWith('blob:')) {
+          // Convert blob URL to file and upload
+          if (prefillData.imageFile) {
+            const { url } = await uploadBadgeImage(prefillData.imageFile);
+            imageUrl = url;
+          }
+        } else if (prefillData?.image_url && !prefillData.image_url.startsWith('blob:')) {
+          // Use the existing valid URL
+          imageUrl = prefillData.image_url;
+        } else if (imageFile) {
+          // Upload new image file
+          const { url } = await uploadBadgeImage(imageFile);
           imageUrl = url;
         }
-      } else if (prefillData?.image_url && !prefillData.image_url.startsWith('blob:')) {
-        // Use the existing valid URL
-        imageUrl = prefillData.image_url;
-      } else if (imageFile) {
-        // Upload new image file
-        const { url } = await uploadBadgeImage(imageFile);
-        imageUrl = url;
-      }
 
-      // For non-approved users, upload to pending approval instead of creating badge directly
-      if (canAddBadges) {
-        // Admin or approved maker - create badge directly
+        // Create badge directly
         await createBadge({
           name: formData.name,
           year: formData.year ? parseInt(formData.year) : undefined,
@@ -103,9 +111,6 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
           image_url: imageUrl || undefined,
           team_name: formData.team_name || undefined,
         });
-      } else {
-        // Regular user - upload for approval
-        await uploadBadgeImage(imageFile || new File([], ""));
       }
 
       // Send Discord notification
