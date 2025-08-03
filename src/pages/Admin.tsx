@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug, Key, ExternalLink, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
@@ -626,16 +626,16 @@ export default function Admin() {
               {canAccessAdmin() && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <TabsTrigger value="search" className="flex items-center gap-2">
-                      <Brain className="h-4 w-4" />
-                      {!isMobile && "Web Search"}
+                     <TabsTrigger value="search" className="flex items-center gap-2">
+                       <Settings className="h-4 w-4" />
+                       {!isMobile && "Settings"}
                     </TabsTrigger>
                   </TooltipTrigger>
-                  {isMobile && (
-                    <TooltipContent>
-                      <p>Web Search</p>
-                    </TooltipContent>
-                  )}
+                   {isMobile && (
+                     <TooltipContent>
+                       <p>Settings</p>
+                     </TooltipContent>
+                   )}
                 </Tooltip>
               )}
               {canAccessAdmin() && (
@@ -1240,15 +1240,141 @@ export default function Admin() {
           </TabsContent>
           )}
 
-          {/* Web Search Settings Tab */}
+          {/* Settings Tab */}
           {isAdmin() && (
             <TabsContent value="search" className="space-y-6">
+              {/* API Keys Management Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    API KEYS MANAGEMENT
+                  </CardTitle>
+                  <div className="bg-muted/50 border rounded-lg p-3 mt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>These API keys are stored for future integration and are currently hard-coded in the system.</span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* OpenAI API Key */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">OpenAI API Key</Label>
+                        <p className="text-xs text-muted-foreground">Used for AI badge analysis, image matching, and embeddings processing</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="sk-...abc123" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* SerpAPI Key */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">SerpAPI Key</Label>
+                        <p className="text-xs text-muted-foreground">Used for Google search integration and badge information lookup</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="***...xyz789" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://serpapi.com/dashboard" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Replicate API Token */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Replicate API Token</Label>
+                        <p className="text-xs text-muted-foreground">Used for advanced AI image processing and model inference</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="r8_...def456" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Perplexity API Key */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Perplexity API Key</Label>
+                        <p className="text-xs text-muted-foreground">Used for web search and research capabilities for badge identification</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="pplx-...ghi789" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Web Search Sources Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Brain className="h-5 w-5" />
-                      WEB SEARCH SETTINGS
+                      WEB SEARCH SOURCES
                     </div>
                     <Button onClick={createSearchSource} className="flex items-center gap-2">
                       <Plus className="h-4 w-4" />
