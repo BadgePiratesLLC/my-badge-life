@@ -167,19 +167,11 @@ export function useBadgeStats(badgeId: string) {
         console.log('[useBadgeStats] Upsert successful');
       }
 
-      // Update local state immediately for better UX
-      console.log('[useBadgeStats] Updating local state...');
+      // Update local user ownership state immediately for better UX
+      console.log('[useBadgeStats] Updating local user state...');
       setUserOwnership(prev => ({
         ...prev,
         [type === 'own' ? 'isOwned' : 'isWanted']: !hasExisting
-      }))
-
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        [type === 'own' ? 'ownersCount' : 'wantsCount']: hasExisting 
-          ? prev[type === 'own' ? 'ownersCount' : 'wantsCount'] - 1
-          : prev[type === 'own' ? 'ownersCount' : 'wantsCount'] + 1
       }))
 
       console.log('[useBadgeStats] Local state updated, dispatching ownership-changed event...');
@@ -189,8 +181,8 @@ export function useBadgeStats(badgeId: string) {
         detail: { badgeId, type, user_id: user.id, added: !hasExisting }
       }))
 
-      // Refresh to get accurate ranking after a short delay
-      setTimeout(fetchBadgeStats, 300)
+      // Refresh to get accurate counts from database immediately
+      fetchBadgeStats()
     } catch (error) {
       console.error('[useBadgeStats] Error toggling ownership:', error)
       console.error('[useBadgeStats] Error details:', {
