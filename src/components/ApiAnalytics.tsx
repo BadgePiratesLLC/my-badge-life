@@ -34,7 +34,8 @@ const API_COLORS = {
   openai: '#10B981',
   serpapi: '#3B82F6', 
   replicate: '#8B5CF6',
-  perplexity: '#F59E0B'
+  perplexity: '#F59E0B',
+  resend: '#E11D48'
 }
 
 export function ApiAnalytics() {

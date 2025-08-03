@@ -1446,6 +1446,33 @@ export default function Admin() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Resend API Key */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Resend API Key</Label>
+                        <p className="text-xs text-muted-foreground">Email service provider for notification system</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="re_SpRDm4tc_BLmfUiJpMr6HdJqNdFE7GU8q" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
