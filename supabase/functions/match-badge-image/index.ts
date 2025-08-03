@@ -2,6 +2,80 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
+// API logging utilities
+interface ApiLogData {
+  user_id?: string | null
+  session_id?: string | null
+  api_provider: 'openai' | 'serpapi' | 'replicate' | 'perplexity'
+  endpoint: string
+  method: string
+  request_data?: any
+  response_status?: number
+  response_time_ms?: number
+  tokens_used?: number
+  estimated_cost_usd?: number
+  success: boolean
+  error_message?: string
+}
+
+async function logApiCall(logData: ApiLogData) {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.warn('Supabase credentials not available for API logging')
+      return
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Sanitize request data (remove API keys)
+    const sanitizedRequestData = logData.request_data ? 
+      JSON.parse(JSON.stringify(logData.request_data).replace(/"[^"]*api[_-]?key[^"]*":\s*"[^"]*"/gi, '"api_key":"[REDACTED]"')) :
+      null
+
+    const { error } = await supabase
+      .from('api_call_logs')
+      .insert({
+        user_id: logData.user_id,
+        session_id: logData.session_id,
+        api_provider: logData.api_provider,
+        endpoint: logData.endpoint,
+        method: logData.method,
+        request_data: sanitizedRequestData,
+        response_status: logData.response_status,
+        response_time_ms: logData.response_time_ms,
+        tokens_used: logData.tokens_used,
+        estimated_cost_usd: logData.estimated_cost_usd,
+        success: logData.success,
+        error_message: logData.error_message
+      })
+
+    if (error) {
+      console.error('Failed to log API call:', error)
+    }
+  } catch (error) {
+    console.error('Error logging API call:', error)
+  }
+}
+
+function estimateOpenAICost(model: string, inputTokens: number, outputTokens: number = 0): number {
+  const costs = {
+    'gpt-4o-mini': { input: 0.00015 / 1000, output: 0.0006 / 1000 },
+    'gpt-4o': { input: 0.0025 / 1000, output: 0.01 / 1000 }
+  }
+  
+  const modelCosts = costs[model as keyof typeof costs]
+  if (!modelCosts) return 0.001 // Default small cost
+  
+  return (modelCosts.input * inputTokens) + (modelCosts.output * outputTokens)
+}
+
+function countTokensApprox(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -67,44 +141,71 @@ serve(async (req) => {
     
     const comparePromises = badgesToCompare.map(async (badge) => {
       try {
+        const startTime = Date.now()
+        
         // Use OpenAI vision to compare the two images
+        const requestBody = {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
+                },
+                {
+                  type: 'image_url',
+                  image_url: { url: uploadedImageData }
+                },
+                {
+                  type: 'image_url', 
+                  image_url: { url: badge.image_url }
+                }
+              ]
+            }
+          ],
+          max_tokens: 10
+        }
+        
         const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${openaiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: uploadedImageData }
-                  },
-                  {
-                    type: 'image_url', 
-                    image_url: { url: badge.image_url }
-                  }
-                ]
-              }
-            ],
-            max_tokens: 10
-          })
+          body: JSON.stringify(requestBody)
         })
 
-        if (comparison.ok) {
+        const responseTime = Date.now() - startTime
+        const success = comparison.ok
+        let similarity = 0
+        let errorMessage = null
+
+        if (success) {
           const result = await comparison.json()
           const similarityText = result.choices[0]?.message?.content?.trim()
-          const similarity = parseInt(similarityText) || 0
+          similarity = parseInt(similarityText) || 0
           
           console.log(`Similarity for "${badge.name}": ${similarity}%`)
+          
+          // Log the API call
+          const promptText = `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
+          const inputTokens = countTokensApprox(promptText)
+          const outputTokens = countTokensApprox(similarityText || '0')
+          const estimatedCost = estimateOpenAICost('gpt-4o-mini', inputTokens, outputTokens)
+          
+          await logApiCall({
+            api_provider: 'openai',
+            endpoint: '/chat/completions',
+            method: 'POST',
+            request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
+            response_status: comparison.status,
+            response_time_ms: responseTime,
+            tokens_used: inputTokens + outputTokens,
+            estimated_cost_usd: estimatedCost,
+            success: true
+          })
           
           return {
             badge: badge,
@@ -112,7 +213,21 @@ serve(async (req) => {
             confidence: similarity
           }
         } else {
-          console.log(`Failed to compare with ${badge.name}`)
+          errorMessage = `API call failed with status ${comparison.status}`
+          console.log(`Failed to compare with ${badge.name}: ${errorMessage}`)
+          
+          // Log the failed API call
+          await logApiCall({
+            api_provider: 'openai',
+            endpoint: '/chat/completions',
+            method: 'POST',
+            request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
+            response_status: comparison.status,
+            response_time_ms: responseTime,
+            success: false,
+            error_message: errorMessage
+          })
+          
           return {
             badge: badge,
             similarity: 0,
