@@ -262,7 +262,15 @@ export function useBadges() {
     return data
   }
 
-  const uploadBadgeImage = async (file: File, sendNotification: boolean = true) => {
+  const uploadBadgeImage = async (file: File, sendNotification: boolean = true, badgeMetadata?: {
+    name?: string;
+    description?: string;
+    year?: number;
+    maker?: string;
+    category?: string;
+    external_link?: string;
+    analysis?: any;
+  }) => {
     // Create unique filename - allow anonymous uploads for testing
     const fileExt = file.name.split('.').pop()
     const fileName = user 
@@ -284,12 +292,19 @@ export function useBadges() {
       .from('badge-images')
       .getPublicUrl(uploadData.path)
 
-    // Record upload in database (allow anonymous uploads)
+    // Record upload in database with metadata (allow anonymous uploads)
     const { data, error } = await supabase
       .from('uploads')
       .insert({
         user_id: user?.id || null,
-        image_url: publicUrl
+        image_url: publicUrl,
+        badge_name: badgeMetadata?.name || null,
+        badge_description: badgeMetadata?.description || null,
+        badge_year: badgeMetadata?.year || null,
+        badge_maker: badgeMetadata?.maker || null,
+        badge_category: badgeMetadata?.category || null,
+        badge_external_link: badgeMetadata?.external_link || null,
+        analysis_metadata: badgeMetadata?.analysis || null
       })
       .select()
       .single()

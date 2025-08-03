@@ -522,21 +522,42 @@ export type Database = {
       }
       uploads: {
         Row: {
+          analysis_metadata: Json | null
+          badge_category: string | null
+          badge_description: string | null
+          badge_external_link: string | null
           badge_guess_id: string | null
+          badge_maker: string | null
+          badge_name: string | null
+          badge_year: number | null
           created_at: string
           id: string
           image_url: string
           user_id: string | null
         }
         Insert: {
+          analysis_metadata?: Json | null
+          badge_category?: string | null
+          badge_description?: string | null
+          badge_external_link?: string | null
           badge_guess_id?: string | null
+          badge_maker?: string | null
+          badge_name?: string | null
+          badge_year?: number | null
           created_at?: string
           id?: string
           image_url: string
           user_id?: string | null
         }
         Update: {
+          analysis_metadata?: Json | null
+          badge_category?: string | null
+          badge_description?: string | null
+          badge_external_link?: string | null
           badge_guess_id?: string | null
+          badge_maker?: string | null
+          badge_name?: string | null
+          badge_year?: number | null
           created_at?: string
           id?: string
           image_url?: string

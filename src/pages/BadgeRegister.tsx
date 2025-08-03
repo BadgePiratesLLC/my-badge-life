@@ -21,18 +21,24 @@ export default function BadgeRegister() {
   const { createBadge } = useBadges()
   const { teams } = useTeams()
   
-  // Get image URL and upload ID from query params if coming from admin
+  // Get all parameters from query string if coming from admin or analysis
   const prefilledImageUrl = searchParams.get('image_url') || ''
   const uploadId = searchParams.get('upload_id')
+  const prefilledName = searchParams.get('name') || ''
+  const prefilledDescription = searchParams.get('description') || ''
+  const prefilledYear = searchParams.get('year') || ''
+  const prefilledMaker = searchParams.get('maker') || ''
+  const prefilledCategory = searchParams.get('category') || ''
+  const prefilledExternalLink = searchParams.get('external_link') || ''
   
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    year: '',
-    external_link: '',
+    name: prefilledName,
+    description: prefilledDescription,
+    year: prefilledYear,
+    external_link: prefilledExternalLink,
     image_url: prefilledImageUrl,
     team_name: '',
-    category: '' as BadgeCategory | ''
+    category: prefilledCategory as BadgeCategory | ''
   })
   
   const [loading, setLoading] = useState(false)
@@ -151,7 +157,7 @@ export default function BadgeRegister() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="e.g., DEF CON 31, BSides Vegas 2024"
+                    placeholder=""
                     required
                   />
                 </div>
@@ -162,7 +168,7 @@ export default function BadgeRegister() {
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Describe the badge, event, or significance..."
+                    placeholder=""
                     rows={4}
                   />
                 </div>
@@ -207,7 +213,7 @@ export default function BadgeRegister() {
                       type="number"
                       value={formData.year}
                       onChange={(e) => handleInputChange('year', e.target.value)}
-                      placeholder="2024"
+                      placeholder=""
                       min="1990"
                       max="2030"
                     />
@@ -220,7 +226,7 @@ export default function BadgeRegister() {
                       type="url"
                       value={formData.external_link}
                       onChange={(e) => handleInputChange('external_link', e.target.value)}
-                      placeholder="https://..."
+                      placeholder=""
                     />
                   </div>
                 </div>
@@ -232,7 +238,7 @@ export default function BadgeRegister() {
                     type="url"
                     value={formData.image_url}
                     onChange={(e) => handleInputChange('image_url', e.target.value)}
-                    placeholder="https://..."
+                    placeholder=""
                   />
                   {formData.image_url && (
                     <div className="mt-2">

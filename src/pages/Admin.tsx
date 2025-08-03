@@ -67,6 +67,13 @@ interface Upload {
   user_id: string | null
   image_url: string
   created_at: string
+  badge_name?: string | null
+  badge_description?: string | null
+  badge_year?: number | null
+  badge_maker?: string | null
+  badge_category?: string | null
+  badge_external_link?: string | null
+  analysis_metadata?: any | null
   profiles?: {
     display_name: string | null
     email: string | null
@@ -300,8 +307,21 @@ export default function Admin() {
   }
 
   const createBadgeFromUpload = (upload: Upload) => {
-    // Navigate to badge register form with the image URL and upload ID
-    navigate(`/badge/register?image_url=${encodeURIComponent(upload.image_url)}&upload_id=${upload.id}`)
+    // Build query parameters with all available information from the upload
+    const params = new URLSearchParams();
+    params.set('image_url', upload.image_url);
+    params.set('upload_id', upload.id);
+    
+    // Pass through stored badge information if available
+    if (upload.badge_name) params.set('name', upload.badge_name);
+    if (upload.badge_description) params.set('description', upload.badge_description);
+    if (upload.badge_year) params.set('year', upload.badge_year.toString());
+    if (upload.badge_maker) params.set('maker', upload.badge_maker);
+    if (upload.badge_category) params.set('category', upload.badge_category);
+    if (upload.badge_external_link) params.set('external_link', upload.badge_external_link);
+    
+    // Navigate to badge register form with all the information
+    navigate(`/badge/register?${params.toString()}`);
   }
 
   const deleteBadge = async (badge: BadgeData) => {
@@ -699,6 +719,16 @@ export default function Admin() {
                             <p className="text-sm text-muted-foreground">
                               Uploaded by: {upload.profiles?.display_name || upload.profiles?.email || 'Anonymous'}
                             </p>
+                            {upload.badge_name && (
+                              <p className="text-sm font-medium">
+                                Suggested: {upload.badge_name}
+                              </p>
+                            )}
+                            {upload.badge_description && (
+                              <p className="text-xs text-muted-foreground">
+                                {upload.badge_description}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
                               {new Date(upload.created_at).toLocaleDateString()}
                             </p>

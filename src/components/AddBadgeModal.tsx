@@ -78,11 +78,21 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
       
       // For non-approved users, just upload the image for approval
       if (!canAddBadges) {
-        // Regular user - upload for approval only (with notification)
+        // Regular user - upload for approval only (with notification and metadata)
+        const uploadMetadata = {
+          name: formData.name,
+          description: formData.description,
+          year: formData.year ? parseInt(formData.year) : undefined,
+          maker: profile?.display_name,
+          external_link: formData.external_link,
+          category: undefined, // Not captured in this form
+          analysis: prefillData?.analysis_metadata // Pass through AI analysis if available
+        };
+        
         if (imageFile) {
-          await uploadBadgeImage(imageFile, true);
+          await uploadBadgeImage(imageFile, true, uploadMetadata);
         } else if (prefillData?.imageFile) {
-          await uploadBadgeImage(prefillData.imageFile, true);
+          await uploadBadgeImage(prefillData.imageFile, true, uploadMetadata);
         }
       } else {
         // Admin or approved maker - handle image upload and create badge
@@ -206,7 +216,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="DEF CON 31 Badge"
+                placeholder=""
                 required
                 className="font-mono"
               />
@@ -219,7 +229,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 type="number"
                 value={formData.year}
                 onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value }))}
-                placeholder="2023"
+                placeholder=""
                 className="font-mono"
               />
             </div>
@@ -230,7 +240,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Interactive badge with LED matrix..."
+                placeholder=""
                 className="font-mono text-sm"
                 rows={3}
               />
@@ -270,7 +280,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
                 type="url"
                 value={formData.external_link}
                 onChange={(e) => setFormData(prev => ({ ...prev, external_link: e.target.value }))}
-                placeholder="https://defcon.org"
+                placeholder=""
                 className="font-mono"
               />
             </div>

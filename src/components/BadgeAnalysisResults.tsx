@@ -143,7 +143,9 @@ export const BadgeAnalysisResults = ({
                  ((webSearchResults?.image_url || analysis?.image_url).startsWith('http://') || 
                   (webSearchResults?.image_url || analysis?.image_url).startsWith('https://'))) 
                 ? (webSearchResults?.image_url || analysis?.image_url) 
-                : imageUrl
+                : imageUrl,
+      // Pass the analysis metadata for storage
+      analysis_metadata: webSearchResults || analysis
     };
     onCreateNew(prefillData);
   };
