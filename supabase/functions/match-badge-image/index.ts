@@ -61,14 +61,11 @@ serve(async (req) => {
 
     console.log(`Found ${badgeData?.length || 0} badges with images to compare`)
 
-    // Compare uploaded image with each badge image using AI vision
-    const allMatches = []
-      
+    // Compare uploaded image with badges in parallel for faster processing
+    const badgesToCompare = badgeData.slice(0, 10) // Increased from 5 to 10 for better matches
+    console.log(`Comparing with ${badgesToCompare.length} badges in parallel...`)
     
-    for (let i = 0; i < Math.min(badgeData.length, 5); i++) {
-      const badge = badgeData[i]
-      console.log(`Comparing with badge: "${badge.name}"`)
-      
+    const comparePromises = badgesToCompare.map(async (badge) => {
       try {
         // Use OpenAI vision to compare the two images
         const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -85,14 +82,7 @@ serve(async (req) => {
                 content: [
                   {
                     type: 'text',
-                    text: `Compare these two badge images. The first is an uploaded image, the second is from our database (${badge.name}). Rate the similarity from 0-100% based on:
-                    1. Visual design similarity
-                    2. Shape and layout
-                    3. Colors and graphics
-                    4. Text content
-                    5. Overall appearance
-                    
-                    Respond with only a number (0-100) representing the similarity percentage.`
+                    text: `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
                   },
                   {
                     type: 'image_url',
@@ -116,32 +106,30 @@ serve(async (req) => {
           
           console.log(`Similarity for "${badge.name}": ${similarity}%`)
           
-          allMatches.push({
+          return {
             badge: badge,
             similarity: similarity / 100,
             confidence: similarity
-          })
+          }
         } else {
           console.log(`Failed to compare with ${badge.name}`)
-          allMatches.push({
+          return {
             badge: badge,
             similarity: 0,
             confidence: 0
-          })
+          }
         }
-        
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
       } catch (error) {
         console.error(`Error comparing with ${badge.name}:`, error)
-        allMatches.push({
+        return {
           badge: badge,
           similarity: 0,
           confidence: 0
-        })
+        }
       }
-    }
+    })
+
+    const allMatches = await Promise.all(comparePromises)
 
     // Sort by similarity
     allMatches.sort((a, b) => b.similarity - a.similarity)
