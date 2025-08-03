@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Camera, Menu, User, Shield } from "lucide-react";
+import { Camera, Menu, User, Shield, Bug } from "lucide-react";
 import { Link } from "react-router-dom";
 import mybadgelifeLogo from "@/assets/mybadgelife-logo.jpg";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
@@ -54,6 +54,17 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
               </Button>
             </Link>
           )}
+          
+          {/* Bug Report Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open('https://github.com/your-username/your-repo/issues/new?template=bug_report.md', '_blank')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Bug className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Report Bug</span>
+          </Button>
           
           <Button
             variant={isAuthenticated ? "ghost" : "outline"}
