@@ -353,6 +353,42 @@ export type Database = {
           },
         ]
       }
+      email_preferences: {
+        Row: {
+          badge_approval_notifications: boolean
+          badge_rejection_notifications: boolean
+          badge_submission_notifications: boolean
+          created_at: string
+          id: string
+          system_announcements: boolean
+          updated_at: string
+          user_id: string
+          weekly_digest_emails: boolean
+        }
+        Insert: {
+          badge_approval_notifications?: boolean
+          badge_rejection_notifications?: boolean
+          badge_submission_notifications?: boolean
+          created_at?: string
+          id?: string
+          system_announcements?: boolean
+          updated_at?: string
+          user_id: string
+          weekly_digest_emails?: boolean
+        }
+        Update: {
+          badge_approval_notifications?: boolean
+          badge_rejection_notifications?: boolean
+          badge_submission_notifications?: boolean
+          created_at?: string
+          id?: string
+          system_announcements?: boolean
+          updated_at?: string
+          user_id?: string
+          weekly_digest_emails?: boolean
+        }
+        Relationships: []
+      }
       ownership: {
         Row: {
           badge_id: string
