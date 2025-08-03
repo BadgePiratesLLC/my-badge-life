@@ -59,7 +59,7 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => window.open('https://github.com/your-username/your-repo/issues/new?template=bug_report.md', '_blank')}
+            onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
             className="text-muted-foreground hover:text-foreground"
           >
             <Bug className="h-4 w-4" />
