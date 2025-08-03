@@ -208,8 +208,10 @@ export function useBadgeStats(badgeId: string) {
   useEffect(() => {
     if (!badgeId) return
 
+    console.log('[useBadgeStats] Setting up real-time subscription for badge:', badgeId)
+    
     const channel = supabase
-      .channel('badge-ownership-changes')
+      .channel(`badge-ownership-${badgeId}`)
       .on(
         'postgres_changes',
         {
@@ -218,14 +220,18 @@ export function useBadgeStats(badgeId: string) {
           table: 'ownership',
           filter: `badge_id=eq.${badgeId}`
         },
-        () => {
+        (payload) => {
+          console.log('[useBadgeStats] Real-time ownership change detected:', payload)
           // Refresh stats when any ownership changes for this badge
           fetchBadgeStats()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[useBadgeStats] Real-time subscription status:', status)
+      })
 
     return () => {
+      console.log('[useBadgeStats] Cleaning up real-time subscription for badge:', badgeId)
       supabase.removeChannel(channel)
     }
   }, [badgeId])
