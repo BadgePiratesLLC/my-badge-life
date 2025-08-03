@@ -29,39 +29,23 @@ export function useBadgeStats(badgeId: string) {
   const fetchBadgeStats = async () => {
     console.log(`[useBadgeStats] fetchBadgeStats called for badge ${badgeId}`);
     try {
-      // Get ownership counts
-      console.log(`[useBadgeStats] Fetching owners for badge ${badgeId}`);
-      const { data: ownersData, error: ownersError } = await supabase
-        .from('ownership')
-        .select('id')
-        .eq('badge_id', badgeId)
-        .eq('status', 'own')
+      // Use the database function to get accurate public counts (bypasses RLS)
+      console.log(`[useBadgeStats] Fetching public stats using get_badge_stats function for badge ${badgeId}`);
+      const { data: statsData, error: statsError } = await supabase
+        .rpc('get_badge_stats', { badge_uuid: badgeId })
+        .single()
 
-      if (ownersError) {
-        console.error('[useBadgeStats] Error fetching owners:', ownersError);
-        throw ownersError;
+      if (statsError) {
+        console.error('[useBadgeStats] Error fetching public stats:', statsError);
+        throw statsError;
       }
 
-      console.log(`[useBadgeStats] Owners data:`, ownersData);
-
-      // Get wants counts  
-      console.log(`[useBadgeStats] Fetching wants for badge ${badgeId}`);
-      const { data: wantsData, error: wantsError } = await supabase
-        .from('ownership')
-        .select('id')
-        .eq('badge_id', badgeId)
-        .eq('status', 'want')
-
-      if (wantsError) {
-        console.error('[useBadgeStats] Error fetching wants:', wantsError);
-        throw wantsError;
-      }
-
-      console.log(`[useBadgeStats] Wants data:`, wantsData);
+      console.log(`[useBadgeStats] Public stats data:`, statsData);
 
       // Get ranking by counting badges with more owners
-      const ownersCount = ownersData?.length || 0
-      console.log(`[useBadgeStats] Calculated owners count: ${ownersCount}`);
+      const ownersCount = Number(statsData?.owners_count || 0)
+      const wantsCount = Number(statsData?.wants_count || 0)
+      console.log(`[useBadgeStats] Calculated counts - owners: ${ownersCount}, wants: ${wantsCount}`);
       let ownershipRank = null
 
       if (ownersCount > 0) {
@@ -88,13 +72,13 @@ export function useBadgeStats(badgeId: string) {
 
       setStats({
         ownersCount,
-        wantsCount: wantsData?.length || 0,
+        wantsCount,
         ownershipRank
       })
 
       console.log(`[useBadgeStats] Stats updated for badge ${badgeId}:`, {
         ownersCount,
-        wantsCount: wantsData?.length || 0,
+        wantsCount,
         ownershipRank
       });
 
