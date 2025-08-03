@@ -34,6 +34,7 @@ MyBadgeLife is a production-ready digital badge management platform that helps u
 - **Usage Analytics**: Track platform engagement and user behavior
 - **Admin Dashboard**: Comprehensive management tools for administrators
 - **Performance Monitoring**: Real-time system health and metrics
+- **Badge Statistics**: Accurate public badge ownership/want counts with secure database functions
 
 ### 🔒 Security & Authentication
 - **Secure Authentication**: Powered by Supabase Auth

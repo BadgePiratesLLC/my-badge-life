@@ -132,9 +132,20 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
           </p>
 
           {/* Footer */}
-          <div className="pt-8 border-t border-border">
+          <div className="pt-8 border-t border-border space-y-2">
             <p className="text-xs text-muted-foreground font-mono">
               Built by hackers, for hackers
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Developed by{" "}
+              <a 
+                href="https://badgepirates.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors underline"
+              >
+                Badge Pirates Labs
+              </a>
             </p>
           </div>
         </div>
