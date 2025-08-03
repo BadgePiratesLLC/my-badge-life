@@ -1392,6 +1392,60 @@ export default function Admin() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Supabase URL */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Supabase Project URL</Label>
+                        <p className="text-xs text-muted-foreground">Base URL for Supabase database and storage operations</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="https://zdegwavcldwlgzzandae.supabase.co" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://supabase.com/dashboard/project/zdegwavcldwlgzzandae/settings/api" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Supabase Anon Key */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Supabase Anon Key</Label>
+                        <p className="text-xs text-muted-foreground">Public API key for client-side database access</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-xs text-green-600">Configured</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="password" 
+                        value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...abc123" 
+                        disabled 
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" asChild>
+                        <a href="https://supabase.com/dashboard/project/zdegwavcldwlgzzandae/settings/api" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
