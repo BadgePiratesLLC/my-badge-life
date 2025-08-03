@@ -27,27 +27,41 @@ export function useBadgeStats(badgeId: string) {
   const { user } = useAuth()
 
   const fetchBadgeStats = async () => {
+    console.log(`[useBadgeStats] fetchBadgeStats called for badge ${badgeId}`);
     try {
       // Get ownership counts
+      console.log(`[useBadgeStats] Fetching owners for badge ${badgeId}`);
       const { data: ownersData, error: ownersError } = await supabase
         .from('ownership')
         .select('id')
         .eq('badge_id', badgeId)
         .eq('status', 'own')
 
-      if (ownersError) throw ownersError
+      if (ownersError) {
+        console.error('[useBadgeStats] Error fetching owners:', ownersError);
+        throw ownersError;
+      }
+
+      console.log(`[useBadgeStats] Owners data:`, ownersData);
 
       // Get wants counts  
+      console.log(`[useBadgeStats] Fetching wants for badge ${badgeId}`);
       const { data: wantsData, error: wantsError } = await supabase
         .from('ownership')
         .select('id')
         .eq('badge_id', badgeId)
         .eq('status', 'want')
 
-      if (wantsError) throw wantsError
+      if (wantsError) {
+        console.error('[useBadgeStats] Error fetching wants:', wantsError);
+        throw wantsError;
+      }
+
+      console.log(`[useBadgeStats] Wants data:`, wantsData);
 
       // Get ranking by counting badges with more owners
       const ownersCount = ownersData?.length || 0
+      console.log(`[useBadgeStats] Calculated owners count: ${ownersCount}`);
       let ownershipRank = null
 
       if (ownersCount > 0) {
