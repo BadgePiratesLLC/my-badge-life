@@ -300,6 +300,47 @@ export type Database = {
           },
         ]
       }
+      badge_images: {
+        Row: {
+          badge_id: string
+          caption: string | null
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string
+          is_primary: boolean
+          updated_at: string
+        }
+        Insert: {
+          badge_id: string
+          caption?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url: string
+          is_primary?: boolean
+          updated_at?: string
+        }
+        Update: {
+          badge_id?: string
+          caption?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string
+          is_primary?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badge_images_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: Database["public"]["Enums"]["badge_category"] | null
