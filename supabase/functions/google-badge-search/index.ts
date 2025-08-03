@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { logApiCall, estimateApiCost } from '../_shared/api-logger.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,8 +96,22 @@ serve(async (req) => {
       })
       
       console.log('Making reverse image search request...')
+      const startTime = Date.now()
       const googleResponse = await fetch(`https://serpapi.com/search?${searchParams.toString()}`, {
         method: 'GET'
+      })
+      const responseTime = Date.now() - startTime
+
+      // Log SerpAPI call
+      logApiCall({
+        api_provider: 'serpapi',
+        endpoint: '/search',
+        method: 'GET',
+        request_data: { engine: 'google_reverse_image', image_url: '[redacted]' },
+        response_status: googleResponse.status,
+        response_time_ms: responseTime,
+        estimated_cost_usd: estimateApiCost('serpapi'),
+        success: googleResponse.ok
       })
       
       // Clean up the temporary file

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
+import { ApiAnalytics } from './ApiAnalytics'
 import { 
   BarChart, 
   PieChart, 
@@ -15,7 +16,8 @@ import {
   Smartphone, 
   Clock,
   TrendingUp,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react'
 
 interface AnalyticsData {
@@ -302,12 +304,20 @@ export function AdminAnalytics() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="apis" className="flex items-center gap-2">
+            <Zap className="h-3 w-3" />
+            API Usage
+          </TabsTrigger>
           <TabsTrigger value="sources">Search Sources</TabsTrigger>
           <TabsTrigger value="platforms">Platforms</TabsTrigger>
           <TabsTrigger value="sessions">User Sessions</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="apis" className="space-y-4">
+          <ApiAnalytics />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           {/* Search Results Breakdown */}

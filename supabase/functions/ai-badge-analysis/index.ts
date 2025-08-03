@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { logApiCall, estimateOpenAICost, countTokensApprox } from '../_shared/api-logger.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,19 +41,12 @@ serve(async (req) => {
     
     try {
       statusUpdates.push({ stage: 'ai_analysis', status: 'processing', message: 'Analyzing badge features with AI...' })
-      
-      const aiAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert in electronic conference badges, SAO badges, and hacker badges. Analyze this image and provide detailed information.
+      const openaiRequestData = {
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert in electronic conference badges, SAO badges, and hacker badges. Analyze this image and provide detailed information.
 
 Return JSON: {
   "name": "specific badge name",
@@ -61,24 +55,55 @@ Return JSON: {
   "category": "badge category",
   "confidence": 70
 }`
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Analyze this electronic badge image in detail. What specific badge is this?`
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: imageBase64 }
-                }
-              ]
-            }
-          ],
-          max_tokens: 300,
-          temperature: 0.3
-        })
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze this electronic badge image in detail. What specific badge is this?`
+              },
+              {
+                type: 'image_url',
+                image_url: { url: imageBase64 }
+              }
+            ]
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.3
+      }
+
+      const startTime = Date.now()
+      const aiAnalysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(openaiRequestData)
+      })
+
+      const responseTime = Date.now() - startTime
+      const responseStatus = aiAnalysisResponse.status
+      
+      // Log API call
+      const systemPrompt = openaiRequestData.messages[0].content
+      const userPrompt = openaiRequestData.messages[1].content[0].text
+      const inputTokens = countTokensApprox(systemPrompt + userPrompt)
+      const outputTokens = Math.ceil(300 * 0.7) // Estimate based on max_tokens
+      const estimatedCost = estimateOpenAICost('gpt-4o', inputTokens, outputTokens)
+      
+      logApiCall({
+        api_provider: 'openai',
+        endpoint: '/v1/chat/completions',
+        method: 'POST',
+        request_data: openaiRequestData,
+        response_status: responseStatus,
+        response_time_ms: responseTime,
+        tokens_used: inputTokens + outputTokens,
+        estimated_cost_usd: estimatedCost,
+        success: aiAnalysisResponse.ok
       })
 
       analytics.ai_analysis_duration_ms = Date.now() - searchStartTime

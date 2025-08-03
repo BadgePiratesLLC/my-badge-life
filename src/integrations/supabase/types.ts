@@ -184,6 +184,60 @@ export type Database = {
         }
         Relationships: []
       }
+      api_call_logs: {
+        Row: {
+          api_provider: string
+          created_at: string
+          endpoint: string
+          error_message: string | null
+          estimated_cost_usd: number | null
+          id: string
+          method: string
+          request_data: Json | null
+          response_status: number | null
+          response_time_ms: number | null
+          session_id: string | null
+          success: boolean
+          tokens_used: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          api_provider: string
+          created_at?: string
+          endpoint: string
+          error_message?: string | null
+          estimated_cost_usd?: number | null
+          id?: string
+          method: string
+          request_data?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          success?: boolean
+          tokens_used?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          api_provider?: string
+          created_at?: string
+          endpoint?: string
+          error_message?: string | null
+          estimated_cost_usd?: number | null
+          id?: string
+          method?: string
+          request_data?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          success?: boolean
+          tokens_used?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       badge_confirmations: {
         Row: {
           badge_id: string
