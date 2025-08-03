@@ -189,7 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email via Resend
     console.log('Sending email via Resend...');
     const emailResponse = await resend.emails.send({
-      from: `${fromName} <noreply@mybadgelife.app>`,
+      from: `${fromName} <onboarding@resend.dev>`,
       to: [to],
       subject,
       html,
