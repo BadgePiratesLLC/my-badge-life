@@ -28,12 +28,11 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
           {/* Bug Report Button */}
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
             className="text-muted-foreground hover:text-foreground"
           >
             <Bug className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">Report Bug</span>
           </Button>
           
           <Button
