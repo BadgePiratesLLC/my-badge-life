@@ -36,10 +36,10 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
           </Button>
           
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={onLogin}
-            className="relative"
+            className="relative text-muted-foreground hover:text-foreground"
           >
             <User className="h-4 w-4" />
           </Button>

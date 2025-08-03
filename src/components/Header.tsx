@@ -66,10 +66,10 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
           </Button>
           
           <Button
-            variant={isAuthenticated ? "ghost" : "outline"}
+            variant="ghost"
             size="icon"
             onClick={onAuthClick}
-            className="relative"
+            className="relative text-muted-foreground hover:text-foreground"
           >
             <User className="h-4 w-4" />
             {isAuthenticated && (
