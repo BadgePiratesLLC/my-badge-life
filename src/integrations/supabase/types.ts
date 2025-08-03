@@ -680,6 +680,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_badge_stats: {
+        Args: { badge_uuid: string }
+        Returns: {
+          owners_count: number
+          wants_count: number
+        }[]
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
