@@ -113,14 +113,29 @@ export function useBadgeStats(badgeId: string) {
 
     try {
       const status = type === 'own' ? 'own' : 'want'
-      const currentStatus = type === 'own' ? userOwnership.isOwned : userOwnership.isWanted
+      
+      // Always check current database state before making changes
+      console.log(`[useBadgeStats] Checking current database state for badge ${badgeId}, user ${user.id}, status ${status}`);
+      const { data: existingData, error: checkError } = await supabase
+        .from('ownership')
+        .select('id')
+        .eq('badge_id', badgeId)
+        .eq('user_id', user.id)
+        .eq('status', status)
+        .maybeSingle()
 
-      console.log(`[useBadgeStats] Current status for ${type}: ${currentStatus}, will ${currentStatus ? 'remove' : 'add'}`);
+      if (checkError) {
+        console.error('[useBadgeStats] Error checking existing ownership:', checkError);
+        throw checkError;
+      }
 
-      if (currentStatus) {
+      const hasExisting = !!existingData
+      console.log(`[useBadgeStats] Database check: ${hasExisting ? 'has existing' : 'no existing'} ownership`);
+
+      if (hasExisting) {
         // Remove ownership/want
         console.log(`[useBadgeStats] Removing ownership: badge_id=${badgeId}, user_id=${user.id}, status=${status}`);
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('ownership')
           .delete()
           .eq('badge_id', badgeId)
@@ -131,43 +146,51 @@ export function useBadgeStats(badgeId: string) {
           console.error('[useBadgeStats] Delete error:', error);
           throw error;
         }
-        console.log('[useBadgeStats] Delete successful:', data);
+        console.log('[useBadgeStats] Delete successful');
       } else {
-        // Add ownership/want
+        // Add ownership/want - use upsert to handle potential race conditions
         console.log(`[useBadgeStats] Adding ownership: badge_id=${badgeId}, user_id=${user.id}, status=${status}`);
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('ownership')
-          .insert({
+          .upsert({
             badge_id: badgeId,
             user_id: user.id,
             status
+          }, {
+            onConflict: 'user_id,badge_id,status'
           })
 
         if (error) {
-          console.error('[useBadgeStats] Insert error:', error);
+          console.error('[useBadgeStats] Upsert error:', error);
           throw error;
         }
-        console.log('[useBadgeStats] Insert successful:', data);
+        console.log('[useBadgeStats] Upsert successful');
       }
 
       // Update local state immediately for better UX
       console.log('[useBadgeStats] Updating local state...');
       setUserOwnership(prev => ({
         ...prev,
-        [type === 'own' ? 'isOwned' : 'isWanted']: !currentStatus
+        [type === 'own' ? 'isOwned' : 'isWanted']: !hasExisting
       }))
 
       // Update stats
       setStats(prev => ({
         ...prev,
-        [type === 'own' ? 'ownersCount' : 'wantsCount']: currentStatus 
+        [type === 'own' ? 'ownersCount' : 'wantsCount']: hasExisting 
           ? prev[type === 'own' ? 'ownersCount' : 'wantsCount'] - 1
           : prev[type === 'own' ? 'ownersCount' : 'wantsCount'] + 1
       }))
 
-      console.log('[useBadgeStats] Local state updated, scheduling refresh...');
-      // Refresh to get accurate ranking
-      setTimeout(fetchBadgeStats, 500)
+      console.log('[useBadgeStats] Local state updated, dispatching ownership-changed event...');
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('ownership-changed', {
+        detail: { badgeId, type, user_id: user.id, added: !hasExisting }
+      }))
+
+      // Refresh to get accurate ranking after a short delay
+      setTimeout(fetchBadgeStats, 300)
     } catch (error) {
       console.error('[useBadgeStats] Error toggling ownership:', error)
       console.error('[useBadgeStats] Error details:', {
@@ -176,7 +199,7 @@ export function useBadgeStats(badgeId: string) {
         hint: error.hint,
         code: error.code
       });
-      // Revert optimistic update on error
+      // Revert optimistic update on error by refreshing from database
       fetchBadgeStats()
       // Re-throw the error so the UI can handle it
       throw error;
