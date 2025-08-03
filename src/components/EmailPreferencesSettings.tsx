@@ -150,10 +150,10 @@ export function EmailPreferencesSettings() {
           <div className="flex items-start space-x-3">
             <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium">Important Note</p>
+              <p className="text-sm font-medium">Opt-In Email System</p>
               <p className="text-xs text-muted-foreground">
-                Welcome emails and critical security notifications will always be sent regardless of these settings. 
-                You can update these preferences at any time.
+                All email notifications are <strong>disabled by default</strong>. Enable the notifications you want to receive above. 
+                Welcome emails and critical security notifications will always be sent regardless of these settings.
               </p>
             </div>
           </div>

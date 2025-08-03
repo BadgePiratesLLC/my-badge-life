@@ -21,14 +21,14 @@ export function useEmailPreferences() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Default preferences for new users
+  // Default preferences for new users (opt-in system - all disabled by default)
   const defaultPreferences: Omit<EmailPreferences, 'id' | 'created_at' | 'updated_at'> = {
     user_id: user?.id || '',
-    badge_submission_notifications: true,
-    badge_approval_notifications: true,
-    badge_rejection_notifications: true,
-    weekly_digest_emails: true,
-    system_announcements: true,
+    badge_submission_notifications: false,
+    badge_approval_notifications: false,
+    badge_rejection_notifications: false,
+    weekly_digest_emails: false,
+    system_announcements: false,
   }
 
   useEffect(() => {
