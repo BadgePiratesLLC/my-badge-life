@@ -204,7 +204,33 @@ export function useBadgeStats(badgeId: string) {
     }
   }, [badgeId, user])
 
-  // Listen for ownership changes from other components
+  // Listen for real-time ownership changes
+  useEffect(() => {
+    if (!badgeId) return
+
+    const channel = supabase
+      .channel('badge-ownership-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ownership',
+          filter: `badge_id=eq.${badgeId}`
+        },
+        () => {
+          // Refresh stats when any ownership changes for this badge
+          fetchBadgeStats()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [badgeId])
+
+  // Listen for ownership changes from other components (fallback)
   useEffect(() => {
     const handleOwnershipChange = (event: CustomEvent) => {
       if (event.detail.badgeId === badgeId) {
