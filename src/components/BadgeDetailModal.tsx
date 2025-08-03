@@ -6,6 +6,8 @@ import { Badge as BadgeComponent } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
+import { useBadgeStats } from "@/hooks/useBadgeStats";
+import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 
 interface BadgeData {
@@ -28,7 +30,6 @@ interface BadgeDetailModalProps {
   badge: BadgeData | null;
   isOpen: boolean;
   onClose: () => void;
-  onOwnershipToggle?: (badgeId: string, type: 'own' | 'want') => void;
   isAuthenticated?: boolean;
 }
 
@@ -36,10 +37,11 @@ export const BadgeDetailModal = ({
   badge, 
   isOpen, 
   onClose, 
-  onOwnershipToggle, 
   isAuthenticated = false 
 }: BadgeDetailModalProps) => {
   const { trackBadgeInteraction } = useAnalyticsTracking();
+  const { userOwnership, toggleOwnership } = useBadgeStats(badge?.id || '');
+  const { toast } = useToast();
 
   // Track detail view when modal opens
   useEffect(() => {
@@ -164,24 +166,46 @@ export const BadgeDetailModal = ({
               </Button>
             )}
 
-            {isAuthenticated && onOwnershipToggle && (
+            {isAuthenticated && (
               <>
                 <Button
-                  variant={badge.isOwned ? "default" : "outline"}
+                  variant={userOwnership.isOwned ? "default" : "outline"}
                   className="flex-1"
-                  onClick={() => onOwnershipToggle(badge.id, 'own')}
+                  onClick={async () => {
+                    try {
+                      await toggleOwnership('own');
+                      trackBadgeInteraction(badge.id, 'ownership_toggle');
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Failed to update ownership status",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                 >
-                  <Star className={`h-4 w-4 mr-2 ${badge.isOwned ? 'fill-current' : ''}`} />
-                  {badge.isOwned ? 'Owned' : 'Mark as Owned'}
+                  <Star className={`h-4 w-4 mr-2 ${userOwnership.isOwned ? 'fill-current' : ''}`} />
+                  {userOwnership.isOwned ? 'Own' : 'Mark as Own'}
                 </Button>
                 
                 <Button
-                  variant={badge.isWanted ? "default" : "outline"}
+                  variant={userOwnership.isWanted ? "default" : "outline"}
                   className="flex-1"
-                  onClick={() => onOwnershipToggle(badge.id, 'want')}
+                  onClick={async () => {
+                    try {
+                      await toggleOwnership('want');
+                      trackBadgeInteraction(badge.id, 'ownership_toggle');
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Failed to update wishlist status",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                 >
-                  <Heart className={`h-4 w-4 mr-2 ${badge.isWanted ? 'fill-current' : ''}`} />
-                  {badge.isWanted ? 'Wanted' : 'Add to Wishlist'}
+                  <Heart className={`h-4 w-4 mr-2 ${userOwnership.isWanted ? 'fill-current' : ''}`} />
+                  {userOwnership.isWanted ? 'Want' : 'Add to Wishlist'}
                 </Button>
               </>
             )}

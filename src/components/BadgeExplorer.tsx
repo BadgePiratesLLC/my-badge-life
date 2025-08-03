@@ -146,7 +146,6 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
           setIsDetailModalOpen(false);
           setSelectedBadge(null);
         }}
-        onOwnershipToggle={handleOwnershipToggle}
         isAuthenticated={false}
       />
     </div>

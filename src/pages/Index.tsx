@@ -500,7 +500,6 @@ const Index = () => {
           setIsDetailModalOpen(false);
           setSelectedBadge(null);
         }}
-        onOwnershipToggle={handleOwnershipToggle}
         isAuthenticated={isAuthenticated}
       />
     </div>
