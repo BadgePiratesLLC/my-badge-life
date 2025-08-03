@@ -213,24 +213,24 @@ export const BadgeAnalysisResults = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Badge Analysis Results</CardTitle>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-4xl h-full sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 flex-shrink-0">
+          <CardTitle className="text-lg sm:text-xl">Badge Analysis Results</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <CardContent className="overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CardContent className="flex-1 overflow-y-auto p-3 sm:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Left Side - Image and AI Analysis */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4 order-2 lg:order-1">
               <div>
-                <h3 className="text-lg font-semibold mb-2">Uploaded Image</h3>
+                <h3 className="text-base sm:text-lg font-semibold mb-2">Uploaded Image</h3>
                 <img
                   src={imageUrl}
                   alt="Uploaded badge"
-                  className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                  className="w-full max-w-sm sm:max-w-md mx-auto rounded-lg shadow-md"
                 />
               </div>
 
@@ -372,22 +372,25 @@ export const BadgeAnalysisResults = ({
             </div>
 
             {/* Right Side - Database Matches */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Database Matches</h3>
+            <div className="space-y-3 sm:space-y-4 order-1 lg:order-2">
+              <h3 className="text-base sm:text-lg font-semibold">Database Matches</h3>
               
               {(filteredMatches.length === 0 || hideDatabaseMatches) ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">
+                <div className="text-center py-4 sm:py-8">
+                  <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base">
                     No matches found in our database.
                   </p>
-                  <Button onClick={handleCreateNew} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add New Badge
-                  </Button>
+                  {/* Mobile-first action button */}
+                  <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm p-3 sm:p-0 sm:bg-transparent sm:static border-t sm:border-t-0 -mx-3 sm:mx-0">
+                    <Button onClick={handleCreateNew} className="gap-2 w-full sm:w-auto" size="lg">
+                      <Plus className="h-4 w-4" />
+                      Add New Badge
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
+                <div className="space-y-3 sm:space-y-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {filteredMatches.length === 1 
                       ? `Found best match:` 
                       : `Found ${filteredMatches.length} matches with same confidence:`
@@ -431,7 +434,7 @@ export const BadgeAnalysisResults = ({
                             </Badge>
                           </div>
                         )}
-                        
+                         
                          {/* Show confirmation button for each match */}
                          {onConfirmMatch && (
                            <div className="space-y-2">
@@ -464,30 +467,35 @@ export const BadgeAnalysisResults = ({
                     </div>
                   ))}
                   
-                  <Separator />
+                  <Separator className="my-4" />
                   
-                  <div className="flex gap-2 flex-wrap">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleCreateNew}
-                      className="gap-2 flex-1"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add as New Badge
-                    </Button>
-                    {/* Remove the selected match confirmation button since it's now on each card */}
-                     {/* Web search functionality removed */}
-                    {canAddToDatabase && analysis?.search_source && analysis.search_source !== 'none' && (
+                  {/* Mobile-friendly sticky action buttons */}
+                  <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm p-3 sm:p-0 sm:bg-transparent sm:static border-t sm:border-t-0 -mx-3 sm:mx-0 -mb-3 sm:mb-0">
+                    <div className="flex gap-2 flex-col sm:flex-row">
                       <Button 
-                        variant="default"
-                        onClick={handleAddToDatabase}
-                        disabled={isAddingToDatabase}
-                        className="gap-2"
+                        variant="outline" 
+                        onClick={handleCreateNew}
+                        className="gap-2 flex-1 w-full sm:w-auto"
+                        size="lg"
                       >
                         <Plus className="h-4 w-4" />
-                        {isAddingToDatabase ? "Adding..." : `Add from ${analysis.search_source}`}
+                        Add as New Badge
                       </Button>
-                    )}
+                      {/* Remove the selected match confirmation button since it's now on each card */}
+                       {/* Web search functionality removed */}
+                      {canAddToDatabase && analysis?.search_source && analysis.search_source !== 'none' && (
+                        <Button 
+                          variant="default"
+                          onClick={handleAddToDatabase}
+                          disabled={isAddingToDatabase}
+                          className="gap-2 w-full sm:w-auto"
+                          size="lg"
+                        >
+                          <Plus className="h-4 w-4" />
+                          {isAddingToDatabase ? "Adding..." : `Add from ${analysis.search_source}`}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
