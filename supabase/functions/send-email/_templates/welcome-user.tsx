@@ -58,6 +58,17 @@ export const WelcomeUserEmail = ({
           </Text>
         </Section>
 
+        <Section style={emailNoticeSection}>
+          <Text style={emailNoticeTitle}>📧 Email Notifications</Text>
+          <Text style={emailNoticeText}>
+            <strong>Good news!</strong> We respect your inbox. All email notifications are <strong>disabled by default</strong>. 
+            You can choose which emails you'd like to receive in your account settings.
+          </Text>
+          <Button style={settingsButton} href={`${profileUrl}#settings`}>
+            Manage Email Preferences
+          </Button>
+        </Section>
+
         <Section style={buttonSection}>
           <Button style={button} href={exploreUrl}>
             Start Exploring Badges
@@ -86,7 +97,8 @@ export const WelcomeUserEmail = ({
             • Use the camera feature to instantly identify badges you find<br />
             • Follow your favorite badge makers for updates<br />
             • Join the community to share your collection and discoveries<br />
-            • Submit badges you've created to help grow our database
+            • Submit badges you've created to help grow our database<br />
+            • <strong>Enable email notifications</strong> in settings to stay updated on your badge activity
           </Text>
         </Section>
 
@@ -103,7 +115,8 @@ export const WelcomeUserEmail = ({
         )}
 
         <Text style={welcomeText}>
-          Thank you for joining MyBadgeLife. We can't wait to see what badges you discover!
+          Thank you for joining MyBadgeLife. We can't wait to see what badges you discover! 
+          Remember to enable email notifications in your settings if you'd like to stay updated.
         </Text>
 
         <Text style={footer}>
@@ -213,6 +226,41 @@ const smallButton = {
   display: 'inline-block',
   padding: '10px 16px',
   margin: '4px',
+}
+
+const emailNoticeSection = {
+  backgroundColor: '#f0fdf4',
+  border: '1px solid #bbf7d0',
+  borderRadius: '8px',
+  padding: '20px',
+  margin: '24px 0',
+  textAlign: 'center' as const,
+}
+
+const emailNoticeTitle = {
+  fontSize: '16px',
+  fontWeight: 'bold',
+  color: '#16a34a',
+  margin: '0 0 8px 0',
+}
+
+const emailNoticeText = {
+  fontSize: '14px',
+  color: '#333',
+  margin: '0 0 16px 0',
+  lineHeight: '22px',
+}
+
+const settingsButton = {
+  backgroundColor: '#16a34a',
+  borderRadius: '6px',
+  color: '#fff',
+  fontSize: '14px',
+  fontWeight: 'bold',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '10px 20px',
 }
 
 const tipsSection = {

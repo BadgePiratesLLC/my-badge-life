@@ -49,6 +49,11 @@ async function logApiCall(logData: ApiLogData) {
 
 async function checkEmailPreferences(userId: string, emailType: string): Promise<boolean> {
   try {
+    // Always send welcome emails and critical notifications regardless of preferences
+    if (['welcome_user', 'password_reset', 'security_alert'].includes(emailType)) {
+      return true;
+    }
+
     const { data, error } = await supabase
       .from('email_preferences')
       .select('*')
@@ -56,8 +61,8 @@ async function checkEmailPreferences(userId: string, emailType: string): Promise
       .single();
 
     if (error || !data) {
-      // If no preferences found, default to sending emails
-      return true;
+      // If no preferences found, default to NOT sending emails (opt-in system)
+      return false;
     }
 
     switch (emailType) {
@@ -66,16 +71,14 @@ async function checkEmailPreferences(userId: string, emailType: string): Promise
       case 'badge_approved':
       case 'badge_rejected':
         return data.badge_approval_notifications;
-      case 'welcome_user':
-        return true; // Always send welcome emails
       case 'maker_request':
         return data.system_announcements;
       default:
-        return true;
+        return false; // Default to not sending for unknown types
     }
   } catch (error) {
     console.error('Error checking email preferences:', error);
-    return true; // Default to sending if there's an error
+    return false; // Default to not sending if there's an error
   }
 }
 
@@ -91,8 +94,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Processing email request: ${type} to ${to}`);
 
-    // Check email preferences for user-specific emails
-    if (data.userId && ['badge_approved', 'badge_rejected'].includes(type)) {
+    // Check email preferences for user-specific emails (except welcome emails which are always sent)
+    if (data.userId && !['welcome_user', 'password_reset', 'security_alert'].includes(type)) {
       const shouldSend = await checkEmailPreferences(data.userId, type);
       if (!shouldSend) {
         console.log(`Email skipped due to user preferences: ${type} for ${data.userId}`);
