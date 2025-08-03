@@ -142,6 +142,14 @@ const Index = () => {
         title: `Badge ${action} ${type === 'own' ? 'collection' : 'wishlist'}!`,
         description: `Successfully updated your badge tracking.`,
       });
+      
+      // Force refresh of all badge stats by causing a re-render
+      // This ensures the main app and individual badge components stay in sync
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('ownership-changed', { 
+          detail: { badgeId, type } 
+        }));
+      }, 100);
     } catch (error) {
       toast({
         title: "Error",
@@ -420,7 +428,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Stats Bar */}
+        {/* Stats Bar - Clickable */}
         {badgesLoading ? (
           <div className="grid grid-cols-3 gap-3">
             {[...Array(3)].map((_, i) => (
@@ -432,24 +440,39 @@ const Index = () => {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-card border border-border rounded p-3 text-center">
+            <button
+              onClick={() => setSelectedFilter('owned')}
+              className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
+                selectedFilter === 'owned' ? 'ring-2 ring-primary' : ''
+              }`}
+            >
               <div className="text-lg font-bold font-mono text-primary">
                 {stats.owned}
               </div>
               <div className="text-xs text-muted-foreground font-mono">OWNED</div>
-            </div>
-            <div className="bg-card border border-border rounded p-3 text-center">
+            </button>
+            <button
+              onClick={() => setSelectedFilter('wanted')}
+              className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
+                selectedFilter === 'wanted' ? 'ring-2 ring-primary' : ''
+              }`}
+            >
               <div className="text-lg font-bold font-mono text-accent">
                 {stats.wanted}
               </div>
               <div className="text-xs text-muted-foreground font-mono">WANTED</div>
-            </div>
-            <div className="bg-card border border-border rounded p-3 text-center">
+            </button>
+            <button
+              onClick={() => setSelectedFilter('all')}
+              className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
+                selectedFilter === 'all' ? 'ring-2 ring-primary' : ''
+              }`}
+            >
               <div className="text-lg font-bold font-mono text-foreground">
                 {stats.total}
               </div>
               <div className="text-xs text-muted-foreground font-mono">TOTAL</div>
-            </div>
+            </button>
           </div>
         )}
 

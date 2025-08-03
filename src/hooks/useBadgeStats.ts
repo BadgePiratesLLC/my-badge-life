@@ -158,6 +158,20 @@ export function useBadgeStats(badgeId: string) {
     }
   }, [badgeId, user])
 
+  // Listen for ownership changes from other components
+  useEffect(() => {
+    const handleOwnershipChange = (event: CustomEvent) => {
+      if (event.detail.badgeId === badgeId) {
+        fetchBadgeStats()
+      }
+    }
+
+    window.addEventListener('ownership-changed', handleOwnershipChange as EventListener)
+    return () => {
+      window.removeEventListener('ownership-changed', handleOwnershipChange as EventListener)
+    }
+  }, [badgeId])
+
   return {
     stats,
     userOwnership,
