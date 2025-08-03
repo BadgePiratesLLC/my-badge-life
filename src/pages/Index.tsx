@@ -130,13 +130,19 @@ const Index = () => {
   };
 
   const handleOwnershipToggle = async (badgeId: string, type: 'own' | 'want') => {
+    console.log(`[Index] handleOwnershipToggle called: badgeId=${badgeId}, type=${type}, isAuthenticated=${isAuthenticated}`);
+    
     if (!isAuthenticated) {
+      console.log('[Index] User not authenticated, showing auth modal');
       setShowAuth(true);
       return;
     }
     
     try {
+      console.log('[Index] Calling toggleOwnership...');
       await toggleOwnership(badgeId, type);
+      
+      console.log('[Index] toggleOwnership successful');
       const action = isOwned(badgeId) || isWanted(badgeId) ? 'removed from' : 'added to';
       toast({
         title: `Badge ${action} ${type === 'own' ? 'collection' : 'wishlist'}!`,
@@ -151,9 +157,10 @@ const Index = () => {
         }));
       }, 100);
     } catch (error) {
+      console.error('[Index] Error in handleOwnershipToggle:', error);
       toast({
         title: "Error",
-        description: "Failed to update badge ownership. Please try again.",
+        description: error?.message || "Failed to update badge ownership. Please try again.",
         variant: "destructive",
       });
     }

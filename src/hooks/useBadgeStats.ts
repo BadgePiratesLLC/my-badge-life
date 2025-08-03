@@ -104,32 +104,54 @@ export function useBadgeStats(badgeId: string) {
   }
 
   const toggleOwnership = async (type: 'own' | 'want') => {
-    if (!user) return
+    console.log(`[useBadgeStats] toggleOwnership called for badge ${badgeId}, type: ${type}, user: ${user?.id}`);
+    
+    if (!user) {
+      console.error('[useBadgeStats] No user found for ownership toggle');
+      throw new Error('User not authenticated');
+    }
 
     try {
       const status = type === 'own' ? 'own' : 'want'
       const currentStatus = type === 'own' ? userOwnership.isOwned : userOwnership.isWanted
 
+      console.log(`[useBadgeStats] Current status for ${type}: ${currentStatus}, will ${currentStatus ? 'remove' : 'add'}`);
+
       if (currentStatus) {
         // Remove ownership/want
-        await supabase
+        console.log(`[useBadgeStats] Removing ownership: badge_id=${badgeId}, user_id=${user.id}, status=${status}`);
+        const { data, error } = await supabase
           .from('ownership')
           .delete()
           .eq('badge_id', badgeId)
           .eq('user_id', user.id)
           .eq('status', status)
+
+        if (error) {
+          console.error('[useBadgeStats] Delete error:', error);
+          throw error;
+        }
+        console.log('[useBadgeStats] Delete successful:', data);
       } else {
         // Add ownership/want
-        await supabase
+        console.log(`[useBadgeStats] Adding ownership: badge_id=${badgeId}, user_id=${user.id}, status=${status}`);
+        const { data, error } = await supabase
           .from('ownership')
           .insert({
             badge_id: badgeId,
             user_id: user.id,
             status
           })
+
+        if (error) {
+          console.error('[useBadgeStats] Insert error:', error);
+          throw error;
+        }
+        console.log('[useBadgeStats] Insert successful:', data);
       }
 
       // Update local state immediately for better UX
+      console.log('[useBadgeStats] Updating local state...');
       setUserOwnership(prev => ({
         ...prev,
         [type === 'own' ? 'isOwned' : 'isWanted']: !currentStatus
@@ -143,12 +165,21 @@ export function useBadgeStats(badgeId: string) {
           : prev[type === 'own' ? 'ownersCount' : 'wantsCount'] + 1
       }))
 
+      console.log('[useBadgeStats] Local state updated, scheduling refresh...');
       // Refresh to get accurate ranking
       setTimeout(fetchBadgeStats, 500)
     } catch (error) {
-      console.error('Error toggling ownership:', error)
+      console.error('[useBadgeStats] Error toggling ownership:', error)
+      console.error('[useBadgeStats] Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       // Revert optimistic update on error
       fetchBadgeStats()
+      // Re-throw the error so the UI can handle it
+      throw error;
     }
   }
 
