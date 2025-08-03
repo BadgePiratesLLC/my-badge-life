@@ -41,8 +41,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate badge URL if badge_id is provided
     let badgeUrl = data.url;
     if (!badgeUrl && data.badge_id) {
-      // Construct direct badge link - using the app's domain
-      badgeUrl = `https://my-badge-life.lovable.app/?badge=${data.badge_id}`;
+      // Construct direct badge link - using the correct production domain
+      badgeUrl = `https://mybadgelife.com/?badge=${data.badge_id}`;
     }
     
     // Set default colors for different notification types
