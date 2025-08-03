@@ -109,19 +109,25 @@ export const BadgeCard = ({
       </CardHeader>
 
       <CardContent className="p-3 pt-0">
-        {badge.imageUrl ? (
-          <div className="aspect-square w-full h-20 rounded border border-border overflow-hidden bg-muted">
-            <img 
-              src={badge.imageUrl} 
-              alt={badge.name}
-              className="w-full h-full object-contain hover:scale-105 transition-smooth"
-            />
-          </div>
-        ) : (
-          <div className="aspect-square w-full h-20 rounded border border-border bg-muted flex items-center justify-center">
-            <Badge className="h-4 w-4 text-muted-foreground" />
-          </div>
-        )}
+        {(() => {
+          // Find primary image or use the first image or fallback to legacy image_url
+          const primaryImage = (badge as any).badge_images?.find((img: any) => img.is_primary)
+          const imageUrl = primaryImage?.image_url || (badge as any).badge_images?.[0]?.image_url || badge.imageUrl
+          
+          return imageUrl ? (
+            <div className="aspect-square w-full h-20 rounded border border-border overflow-hidden bg-muted">
+              <img 
+                src={imageUrl} 
+                alt={badge.name}
+                className="w-full h-full object-contain hover:scale-105 transition-smooth"
+              />
+            </div>
+          ) : (
+            <div className="aspect-square w-full h-20 rounded border border-border bg-muted flex items-center justify-center">
+              <Badge className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )
+        })()}
         
         {badge.maker && (
           <div className="flex items-center space-x-1 mt-2">

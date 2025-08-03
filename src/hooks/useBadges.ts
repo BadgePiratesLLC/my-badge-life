@@ -70,7 +70,16 @@ export function useBadges() {
       
       const queryPromise = supabase
         .from('badges')
-        .select('*')
+        .select(`
+          *,
+          badge_images!left(
+            id,
+            image_url,
+            is_primary,
+            display_order,
+            caption
+          )
+        `)
         .order('created_at', { ascending: false })
 
       console.log('About to execute query with timeout...')
@@ -95,15 +104,15 @@ export function useBadges() {
     } catch (error) {
       console.error('Error in fetchBadges:', error)
       
-      // Fallback: Try to use a direct REST call
-      console.log('Trying fallback method...')
-      try {
-        const response = await fetch(`https://zdegwavcldwlgzzandae.supabase.co/rest/v1/badges?select=*&order=created_at.desc`, {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs'
-          }
-        })
+        // Fallback: Try to use a direct REST call with all images
+        console.log('Trying fallback method...')
+        try {
+          const response = await fetch(`https://zdegwavcldwlgzzandae.supabase.co/rest/v1/badges?select=*,badge_images!left(id,image_url,is_primary,display_order,caption)&order=created_at.desc`, {
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs',
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs'
+            }
+          })
         
         if (response.ok) {
           const fallbackData = await response.json()

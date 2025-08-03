@@ -17,6 +17,7 @@ import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Setting
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
+import { BadgeImageManager } from '@/components/BadgeImageManager'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
 import { AdminAnalytics } from '@/components/AdminAnalytics'
@@ -322,6 +323,26 @@ export default function Admin() {
     
     // Navigate to badge register form with all the information
     navigate(`/badge/register?${params.toString()}`);
+  }
+
+  const associateImageWithBadge = async (imageUrl: string, badgeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('badge_images')
+        .insert({
+          badge_id: badgeId,
+          image_url: imageUrl,
+          display_order: 0, // Will be adjusted by triggers if needed
+        })
+
+      if (error) throw error
+
+      toast.success('Image associated with badge successfully!')
+      fetchUploads() // Refresh uploads
+    } catch (error) {
+      console.error('Error associating image with badge:', error)
+      toast.error('Failed to associate image with badge')
+    }
   }
 
   const deleteBadge = async (badge: BadgeData) => {
@@ -732,22 +753,34 @@ export default function Admin() {
                             <p className="text-xs text-muted-foreground">
                               {new Date(upload.created_at).toLocaleDateString()}
                             </p>
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => createBadgeFromUpload(upload)}
-                                className="flex-1"
-                                variant="matrix"
-                              >
-                                Create Badge
-                              </Button>
-                              <Button
-                                onClick={() => deleteUpload(upload)}
-                                size="icon"
-                                variant="destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                             <div className="flex gap-2">
+                               <Button
+                                 onClick={() => createBadgeFromUpload(upload)}
+                                 className="flex-1"
+                                 variant="matrix"
+                               >
+                                 Create Badge
+                               </Button>
+                               <Select onValueChange={(badgeId) => associateImageWithBadge(upload.image_url, badgeId)}>
+                                 <SelectTrigger className="flex-1">
+                                   <SelectValue placeholder="Associate with badge..." />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                   {badges.map((badge) => (
+                                     <SelectItem key={badge.id} value={badge.id}>
+                                       {badge.name}
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <Button
+                                 onClick={() => deleteUpload(upload)}
+                                 size="icon"
+                                 variant="destructive"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -956,8 +989,13 @@ export default function Admin() {
                                    )}
                                  </div>
                                  
-                                 {/* Badge Stats */}
-                                 <BadgeStatsDisplay badgeId={badge.id} />
+                                  {/* Badge Stats */}
+                                  <BadgeStatsDisplay badgeId={badge.id} />
+                                  
+                                  {/* Badge Images */}
+                                  <div className="mt-4">
+                                    <BadgeImageManager badgeId={badge.id} canEdit={canEditBadge(badge.team_name)} />
+                                  </div>
                                 
                                 {badge.external_link && (
                                   <div className="text-sm">

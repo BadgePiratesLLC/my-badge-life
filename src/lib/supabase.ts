@@ -53,6 +53,18 @@ export interface Badge {
   created_at: string
   updated_at: string
   profiles?: Profile | null // For maker info
+  badge_images?: BadgeImage[] | null // For multiple images
+}
+
+export interface BadgeImage {
+  id: string
+  badge_id: string
+  image_url: string
+  is_primary: boolean
+  display_order: number
+  caption?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Ownership {
