@@ -156,47 +156,7 @@ export function useBadges() {
     }
   }
 
-  const toggleOwnership = async (badgeId: string, status: 'own' | 'want') => {
-    if (!user) throw new Error('Must be logged in')
-
-    // Check if ownership already exists
-    const existingOwnership = ownership.find(
-      o => o.badge_id === badgeId && o.status === status
-    )
-
-    if (existingOwnership) {
-      // Remove ownership
-      const { error } = await supabase
-        .from('ownership')
-        .delete()
-        .eq('id', existingOwnership.id)
-
-      if (error) {
-        console.error('Error removing ownership:', error)
-        throw error
-      }
-
-      setOwnership(prev => prev.filter(o => o.id !== existingOwnership.id))
-    } else {
-      // Add ownership
-      const { data, error } = await supabase
-        .from('ownership')
-        .insert({
-          user_id: user.id,
-          badge_id: badgeId,
-          status
-        })
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error adding ownership:', error)
-        throw error
-      }
-
-      setOwnership(prev => [...prev, data as unknown as Ownership])
-    }
-  }
+  // Note: toggleOwnership is now handled by useBadgeStats hook to prevent conflicts
 
   const createBadge = async (badgeData: {
     name: string
@@ -382,7 +342,6 @@ export function useBadges() {
     badges,
     ownership,
     loading,
-    toggleOwnership,
     createBadge,
     uploadBadgeImage,
     isOwned,

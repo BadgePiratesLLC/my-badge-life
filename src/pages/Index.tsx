@@ -38,7 +38,6 @@ const Index = () => {
   const { 
     badges, 
     loading: badgesLoading, 
-    toggleOwnership, 
     isOwned, 
     isWanted, 
     getOwnershipStats,
@@ -130,40 +129,13 @@ const Index = () => {
   };
 
   const handleOwnershipToggle = async (badgeId: string, type: 'own' | 'want') => {
-    console.log(`[Index] handleOwnershipToggle called: badgeId=${badgeId}, type=${type}, isAuthenticated=${isAuthenticated}`);
-    
     if (!isAuthenticated) {
-      console.log('[Index] User not authenticated, showing auth modal');
       setShowAuth(true);
       return;
     }
     
-    try {
-      console.log('[Index] Calling toggleOwnership...');
-      await toggleOwnership(badgeId, type);
-      
-      console.log('[Index] toggleOwnership successful');
-      const action = isOwned(badgeId) || isWanted(badgeId) ? 'removed from' : 'added to';
-      toast({
-        title: `Badge ${action} ${type === 'own' ? 'collection' : 'wishlist'}!`,
-        description: `Successfully updated your badge tracking.`,
-      });
-      
-      // Force refresh of all badge stats by causing a re-render
-      // This ensures the main app and individual badge components stay in sync
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('ownership-changed', { 
-          detail: { badgeId, type } 
-        }));
-      }, 100);
-    } catch (error) {
-      console.error('[Index] Error in handleOwnershipToggle:', error);
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to update badge ownership. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Note: Ownership toggle is now handled by the individual badge components using useBadgeStats
+    // This handler is kept for backward compatibility but will not be called
   };
 
   const handleAuthClick = () => {
