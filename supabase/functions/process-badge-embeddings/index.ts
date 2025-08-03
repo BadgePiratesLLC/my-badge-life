@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { logApiCall, estimateOpenAICost, countTokensApprox } from '../_shared/api-logger.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,30 +153,63 @@ serve(async (req) => {
         console.log('Creating text-based embedding using OpenAI...')
         const textToEmbed = `Badge: ${badge.name}. Description: ${badge.description || 'Electronic conference badge'}. Image URL: ${badge.image_url}`
         
+        const startTime = Date.now()
+        const requestData = {
+          input: textToEmbed,
+          model: 'text-embedding-3-small'
+        }
+        
         const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            input: textToEmbed,
-            model: 'text-embedding-3-small'
-          })
+          body: JSON.stringify(requestData)
         })
 
+        const responseTime = Date.now() - startTime
         console.log('OpenAI embedding response status:', embeddingResponse.status)
 
         if (!embeddingResponse.ok) {
           const errorText = await embeddingResponse.text()
           const error = `OpenAI API error: ${embeddingResponse.status} ${embeddingResponse.statusText} - ${errorText}`
           console.error(error)
+          
+          // Log failed API call
+          await logApiCall({
+            api_provider: 'openai',
+            endpoint: '/v1/embeddings',
+            method: 'POST',
+            request_data: requestData,
+            response_status: embeddingResponse.status,
+            response_time_ms: responseTime,
+            success: false,
+            error_message: error
+          })
+          
           results.push({ badge_id: badge.id, success: false, error })
           continue
         }
 
         const embeddingData = await embeddingResponse.json()
         const embedding = embeddingData.data[0].embedding
+        
+        // Log successful API call
+        const inputTokens = countTokensApprox(textToEmbed)
+        const estimatedCost = estimateOpenAICost('text-embedding-3-small', inputTokens, 0)
+        
+        await logApiCall({
+          api_provider: 'openai',
+          endpoint: '/v1/embeddings',
+          method: 'POST',
+          request_data: requestData,
+          response_status: embeddingResponse.status,
+          response_time_ms: responseTime,
+          tokens_used: inputTokens,
+          estimated_cost_usd: estimatedCost,
+          success: true
+        })
         
         console.log('Embedding generated successfully! Length:', embedding?.length)
 
