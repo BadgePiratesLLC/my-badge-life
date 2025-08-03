@@ -114,19 +114,21 @@ export default function BadgeListMockup() {
   const filteredBadges = mockBadges.filter(badge => {
     const matchesSearch = badge.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          badge.maker?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    switch (selectedFilter) {
-      case 'owned':
-        return matchesSearch && badge.isOwned;
-      case 'wanted':
-        return matchesSearch && badge.isWanted;
-      case 'available':
-        return matchesSearch && !badge.retired;
-      case 'retired':
-        return matchesSearch && badge.retired;
-      default:
-        return matchesSearch;
-    }
+      
+      switch (selectedFilter) {
+        case 'all':
+          return matchesSearch;
+        case 'own':
+          return matchesSearch && badge.isOwned;
+        case 'want':
+          return matchesSearch && badge.isWanted;
+        case 'available':
+          return matchesSearch && !badge.isOwned && !badge.isWanted;
+        case 'retired':
+          return matchesSearch && badge.retired;
+        default:
+          return matchesSearch;
+      }
   });
 
   const ownedCount = mockBadges.filter(b => b.isOwned).length;
@@ -168,8 +170,8 @@ export default function BadgeListMockup() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Badges ({mockBadges.length})</SelectItem>
-                  <SelectItem value="owned">Owned ({ownedCount})</SelectItem>
-                  <SelectItem value="wanted">Wishlist ({wantedCount})</SelectItem>
+                  <SelectItem value="own">Own ({ownedCount})</SelectItem>
+                  <SelectItem value="want">Want ({wantedCount})</SelectItem>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="retired">Retired</SelectItem>
                 </SelectContent>
@@ -209,13 +211,13 @@ export default function BadgeListMockup() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold font-mono text-green-500">{ownedCount}</div>
-              <div className="text-sm text-muted-foreground">Owned</div>
+              <div className="text-sm text-muted-foreground">Own</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold font-mono text-blue-500">{wantedCount}</div>
-              <div className="text-sm text-muted-foreground">Wishlist</div>
+              <div className="text-sm text-muted-foreground">Want</div>
             </CardContent>
           </Card>
           <Card>

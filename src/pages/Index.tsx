@@ -167,12 +167,14 @@ const Index = () => {
 
       // Then apply ownership filter based on selectedFilter
       switch (selectedFilter) {
-        case 'owned':
+        case 'all':
+          return true;
+        case 'own':
           return isOwned(badge.id);
-        case 'wanted':
+        case 'want':
           return isWanted(badge.id);
         case 'available':
-          return !badge.retired;
+          return !isOwned(badge.id) && !isWanted(badge.id);
         case 'retired':
           return badge.retired;
         default:
@@ -366,8 +368,8 @@ const Index = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Badges ({badges.length})</SelectItem>
-                <SelectItem value="owned">Owned ({ownedCount})</SelectItem>
-                <SelectItem value="wanted">Wishlist ({wantedCount})</SelectItem>
+                <SelectItem value="own">Own ({ownedCount})</SelectItem>
+                <SelectItem value="want">Want ({wantedCount})</SelectItem>
                 <SelectItem value="available">Available</SelectItem>
                 <SelectItem value="retired">Retired</SelectItem>
               </SelectContent>
@@ -420,26 +422,26 @@ const Index = () => {
         ) : (
           <div className="grid grid-cols-3 gap-3">
             <button
-              onClick={() => setSelectedFilter('owned')}
+              onClick={() => setSelectedFilter('own')}
               className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
-                selectedFilter === 'owned' ? 'ring-2 ring-primary' : ''
+                selectedFilter === 'own' ? 'ring-2 ring-primary' : ''
               }`}
             >
               <div className="text-lg font-bold font-mono text-primary">
                 {stats.owned}
               </div>
-              <div className="text-xs text-muted-foreground font-mono">OWNED</div>
+              <div className="text-xs text-muted-foreground font-mono">OWN</div>
             </button>
             <button
-              onClick={() => setSelectedFilter('wanted')}
+              onClick={() => setSelectedFilter('want')}
               className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
-                selectedFilter === 'wanted' ? 'ring-2 ring-primary' : ''
+                selectedFilter === 'want' ? 'ring-2 ring-primary' : ''
               }`}
             >
               <div className="text-lg font-bold font-mono text-accent">
                 {stats.wanted}
               </div>
-              <div className="text-xs text-muted-foreground font-mono">WANTED</div>
+              <div className="text-xs text-muted-foreground font-mono">WANT</div>
             </button>
             <button
               onClick={() => setSelectedFilter('all')}
