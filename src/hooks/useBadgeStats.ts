@@ -92,6 +92,12 @@ export function useBadgeStats(badgeId: string) {
         ownershipRank
       })
 
+      console.log(`[useBadgeStats] Stats updated for badge ${badgeId}:`, {
+        ownersCount,
+        wantsCount: wantsData?.length || 0,
+        ownershipRank
+      });
+
       // Get user's ownership status if authenticated
       if (user) {
         const { data: userOwnershipData, error: userError } = await supabase
