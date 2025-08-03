@@ -1,8 +1,9 @@
-import { Badge, Heart, Star, ExternalLink, User } from "lucide-react";
+import { Badge, Heart, Star, ExternalLink, User, Users, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge as BadgeComponent } from "@/components/ui/badge";
 import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
+import { useBadgeStats } from "@/hooks/useBadgeStats";
 
 interface BadgeData {
   id: string;
@@ -31,6 +32,7 @@ export const BadgeCard = ({
   isAuthenticated = false 
 }: BadgeCardProps) => {
   const { trackBadgeInteraction } = useAnalyticsTracking();
+  const { stats, userOwnership, loading, toggleOwnership } = useBadgeStats(badge.id);
 
   const handleBadgeClick = async () => {
     await trackBadgeInteraction(badge.id, 'view');
@@ -39,7 +41,14 @@ export const BadgeCard = ({
 
   const handleOwnershipToggle = async (type: 'own' | 'want') => {
     await trackBadgeInteraction(badge.id, 'ownership_toggle');
+    await toggleOwnership(type);
     onOwnershipToggle?.(badge.id, type);
+  };
+
+  const formatRank = (rank: number | null) => {
+    if (!rank) return '';
+    const suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
+    return `#${rank}${suffix}`;
   };
 
   return (
@@ -70,6 +79,33 @@ export const BadgeCard = ({
             </Button>
           )}
         </div>
+        
+        {/* Stats Row */}
+        {!loading && (stats.ownersCount > 0 || stats.wantsCount > 0) && (
+          <div className="flex items-center gap-3 mt-2">
+            {stats.ownersCount > 0 && (
+              <div className="flex items-center gap-1">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-mono">
+                  {stats.ownersCount} owner{stats.ownersCount !== 1 ? 's' : ''}
+                  {stats.ownershipRank && (
+                    <span className="text-primary ml-1">
+                      ({formatRank(stats.ownershipRank)})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            {stats.wantsCount > 0 && (
+              <div className="flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-mono">
+                  {stats.wantsCount} want{stats.wantsCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-3 pt-0">
@@ -109,31 +145,33 @@ export const BadgeCard = ({
         )}
       </CardContent>
 
-      {isAuthenticated && onOwnershipToggle && (
+      {isAuthenticated && (
         <CardFooter className="p-3 pt-0 flex space-x-2">
           <Button
-            variant={badge.isOwned ? "default" : "outline"}
+            variant={userOwnership.isOwned ? "default" : "outline"}
             size="sm"
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
               handleOwnershipToggle('own');
             }}
+            disabled={loading}
           >
-            <Star className={`h-3 w-3 ${badge.isOwned ? 'fill-current' : ''}`} />
+            <Star className={`h-3 w-3 ${userOwnership.isOwned ? 'fill-current' : ''}`} />
             <span className="text-xs">OWN</span>
           </Button>
           
           <Button
-            variant={badge.isWanted ? "default" : "outline"}
+            variant={userOwnership.isWanted ? "default" : "outline"}
             size="sm"
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
               handleOwnershipToggle('want');
             }}
+            disabled={loading}
           >
-            <Heart className={`h-3 w-3 ${badge.isWanted ? 'fill-current' : ''}`} />
+            <Heart className={`h-3 w-3 ${userOwnership.isWanted ? 'fill-current' : ''}`} />
             <span className="text-xs">WANT</span>
           </Button>
         </CardFooter>
