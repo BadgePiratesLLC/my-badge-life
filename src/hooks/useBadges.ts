@@ -7,12 +7,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import type { Badge, Ownership } from '@/lib/supabase'
 import { useAuth } from './useAuth'
+import { useToast } from '@/hooks/use-toast'
+import { useDiscordNotifications } from './useDiscordNotifications'
 
 export function useBadges() {
   const [badges, setBadges] = useState<Badge[]>(badgesCache)
   const [ownership, setOwnership] = useState<Ownership[]>([])
   const [loading, setLoading] = useState(badgesCache.length === 0)
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const { toast } = useToast()
+  const { notifyBadgeSubmitted } = useDiscordNotifications()
 
   useEffect(() => {
     // Only fetch badges if user is authenticated
@@ -214,6 +218,47 @@ export function useBadges() {
     const newBadge = data as unknown as Badge
     setBadges(prev => [newBadge, ...prev])
     badgesCache = [newBadge, ...badgesCache]
+
+    // Send notifications for badge submission
+    try {
+      // Send Discord notification
+      await notifyBadgeSubmitted({
+        id: data.id,
+        name: data.name,
+        team_name: data.team_name,
+        category: data.category,
+        year: data.year,
+        maker_name: profile?.display_name,
+        image_url: data.image_url
+      })
+
+      // Send email notification to admins
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'badge_submitted',
+          to: 'admin@mybadgelife.app', // This could be made configurable
+          data: {
+            badgeName: data.name,
+            makerName: profile?.display_name || user.email,
+            makerEmail: user.email,
+            teamName: data.team_name,
+            category: data.category,
+            description: data.description,
+            imageUrl: data.image_url,
+            adminUrl: `${window.location.origin}/admin`,
+            userId: user.id
+          }
+        }
+      })
+    } catch (notificationError) {
+      console.error('Failed to send notifications:', notificationError)
+      // Don't throw error as badge was successfully created
+      toast({
+        title: "Badge Created",
+        description: "Badge created successfully, but notifications may not have been sent.",
+      })
+    }
+    
     return data
   }
 
