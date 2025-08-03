@@ -1,4 +1,4 @@
-import { Camera, Search, Users, Shield, User } from "lucide-react";
+import { Camera, Search, Users, Shield, User, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import mybadgelifeLogo from "@/assets/mybadgelife-logo.jpg";
@@ -24,14 +24,27 @@ export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: Wel
           </div>
           <span className="font-mono text-sm text-foreground">My Badge Life</span>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onLogin}
-          className="relative"
-        >
-          <User className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center space-x-2">
+          {/* Bug Report Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Bug className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Report Bug</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onLogin}
+            className="relative"
+          >
+            <User className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Main Content */}

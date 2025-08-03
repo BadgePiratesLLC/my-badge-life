@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3 } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
@@ -511,12 +511,41 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Admin Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center space-x-3">
+            <Link to="/">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold font-mono">
+                {isAdmin() ? 'ADMIN PANEL' : 'BADGE MAKER PANEL'}
+              </h1>
+              <span className="text-xs text-muted-foreground">Badge Management System</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Bug Report Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Bug className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Report Bug</span>
+            </Button>
+          </div>
+        </div>
+      </header>
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold font-mono">
-              {isAdmin() ? 'ADMIN PANEL' : 'BADGE MAKER PANEL'}
-            </h1>
             <p className="text-muted-foreground">
               {isAdmin() ? 'Manage badges and users' : 'Manage badges for your team'}
             </p>
