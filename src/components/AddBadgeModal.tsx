@@ -103,7 +103,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
         }
 
         // Create badge directly
-        await createBadge({
+        const createdBadge = await createBadge({
           name: formData.name,
           year: formData.year ? parseInt(formData.year) : undefined,
           description: formData.description || undefined,
@@ -111,12 +111,11 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
           image_url: imageUrl || undefined,
           team_name: formData.team_name || undefined,
         });
-      }
-
-      // Send Discord notification
-      try {
-        if (canAddBadges) {
+        
+        // Send Discord notification with badge ID
+        try {
           await notifyBadgeSubmitted({
+            id: createdBadge.id,
             name: formData.name,
             team_name: formData.team_name || undefined,
             category: undefined,
@@ -124,10 +123,9 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
             maker_name: profile?.display_name || undefined,
             image_url: imageUrl || undefined,
           });
+        } catch (error) {
+          console.error('Error sending Discord notification:', error);
         }
-      } catch (error) {
-        console.error('Failed to send Discord notification:', error);
-        // Don't fail the badge creation if notification fails
       }
 
       const successMessage = canAddBadges 

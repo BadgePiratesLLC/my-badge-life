@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useDiscordNotifications } from '@/hooks/useDiscordNotifications';
+import { useBadges } from '@/hooks/useBadges';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Play, Loader2, Eye, AlertCircle } from 'lucide-react';
+import { Search, Play, Loader2, Eye, AlertCircle, MessageSquare, Link } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SearchResult {
@@ -22,12 +24,15 @@ interface SearchResult {
 
 export const WebSearchTester = () => {
   const { toast } = useToast();
+  const { notifyBadgeSubmitted, notifyBadgeApproved } = useDiscordNotifications();
+  const { badges } = useBadges();
   const [searchQuery, setSearchQuery] = useState('');
   const [isTestingAll, setIsTestingAll] = useState(false);
   const [testResults, setTestResults] = useState<SearchResult[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [searchSources, setSearchSources] = useState<any[]>([]);
   const [showRawResponse, setShowRawResponse] = useState<string>('');
+  const [testingDiscord, setTestingDiscord] = useState(false);
 
   // Load search sources
   React.useEffect(() => {
@@ -354,6 +359,61 @@ export const WebSearchTester = () => {
             </div>
           </div>
         )}
+
+        {/* Discord Notification Tester */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              DISCORD NOTIFICATION TESTER
+            </CardTitle>
+            <p className="text-muted-foreground">
+              Test Discord notifications with badge links.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={async () => {
+                  setTestingDiscord(true);
+                  try {
+                    const testBadge = badges[0];
+                    if (testBadge) {
+                      await notifyBadgeApproved({
+                        id: testBadge.id,
+                        name: testBadge.name,
+                        team_name: testBadge.team_name || undefined,
+                        category: testBadge.category || undefined,
+                        image_url: testBadge.image_url || undefined,
+                      });
+                      toast({
+                        title: "Discord Test Sent!",
+                        description: "Check your Discord channel for the notification with badge link.",
+                      });
+                    }
+                  } catch (error) {
+                    toast({
+                      title: "Test Failed",
+                      description: "Failed to send Discord notification",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setTestingDiscord(false);
+                  }
+                }}
+                disabled={testingDiscord || badges.length === 0}
+                className="flex items-center gap-2"
+              >
+                {testingDiscord ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Link className="h-4 w-4" />
+                )}
+                Test Badge Link Notification
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </CardContent>
     </Card>
   );

@@ -14,6 +14,8 @@ interface NotificationData {
   thumbnail?: {
     url: string;
   };
+  url?: string; // Direct link to the badge or relevant page
+  badge_id?: string; // Badge ID for generating direct links
 }
 
 export const useDiscordNotifications = () => {
@@ -40,6 +42,7 @@ export const useDiscordNotifications = () => {
   };
 
   const notifyBadgeSubmitted = async (badge: {
+    id?: string;
     name: string;
     team_name?: string;
     category?: string;
@@ -58,6 +61,7 @@ export const useDiscordNotifications = () => {
       title: '🏆 New Badge Submitted',
       description: `A new badge **${badge.name}** has been submitted and is awaiting approval.`,
       fields,
+      badge_id: badge.id,
       ...(badge.image_url ? { thumbnail: { url: badge.image_url } } : {}),
     });
   };
@@ -89,6 +93,7 @@ export const useDiscordNotifications = () => {
   };
 
   const notifyBadgeApproved = async (badge: {
+    id?: string;
     name: string;
     team_name?: string;
     category?: string;
@@ -101,11 +106,13 @@ export const useDiscordNotifications = () => {
         ...(badge.team_name ? [{ name: 'Team', value: badge.team_name, inline: true }] : []),
         ...(badge.category ? [{ name: 'Category', value: badge.category, inline: true }] : []),
       ],
+      badge_id: badge.id,
       ...(badge.image_url ? { thumbnail: { url: badge.image_url } } : {}),
     });
   };
 
   const notifyBadgeRejected = async (badge: {
+    id?: string;
     name: string;
     team_name?: string;
     reason?: string;
@@ -117,6 +124,7 @@ export const useDiscordNotifications = () => {
         ...(badge.team_name ? [{ name: 'Team', value: badge.team_name, inline: true }] : []),
         ...(badge.reason ? [{ name: 'Reason', value: badge.reason, inline: false }] : []),
       ],
+      badge_id: badge.id,
     });
   };
 

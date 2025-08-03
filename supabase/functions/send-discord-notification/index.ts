@@ -19,6 +19,8 @@ interface DiscordNotificationRequest {
     thumbnail?: {
       url: string;
     };
+    url?: string; // Direct link to the badge or relevant page
+    badge_id?: string; // Badge ID for generating direct links
   };
 }
 
@@ -35,6 +37,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { type, data }: DiscordNotificationRequest = await req.json();
+    
+    // Generate badge URL if badge_id is provided
+    let badgeUrl = data.url;
+    if (!badgeUrl && data.badge_id) {
+      // Construct direct badge link - using the app's domain
+      badgeUrl = `https://my-badge-life.lovable.app/?badge=${data.badge_id}`;
+    }
     
     // Set default colors for different notification types
     const typeColors = {
@@ -54,6 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
       footer: {
         text: 'MyBadgeLife Notifications',
       },
+      ...(badgeUrl ? { url: badgeUrl } : {}), // Add clickable link to embed title
     };
 
     // Only add thumbnail if it's a valid HTTP/HTTPS URL (not blob URLs)
@@ -61,8 +71,20 @@ const handler = async (req: Request): Promise<Response> => {
       embed.thumbnail = data.thumbnail;
     }
 
+    // Add "View Badge" button if we have a badge URL
+    const components = badgeUrl ? [{
+      type: 1, // Action Row
+      components: [{
+        type: 2, // Button
+        style: 5, // Link style
+        label: type.includes('badge') ? '🔗 View Badge' : '🔗 View App',
+        url: badgeUrl
+      }]
+    }] : [];
+
     const discordPayload = {
       embeds: [embed],
+      ...(components.length > 0 ? { components } : {}),
     };
 
     console.log('Sending Discord notification:', { type, embed });

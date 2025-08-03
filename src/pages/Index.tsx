@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { CameraCapture } from "@/components/CameraCapture";
@@ -16,6 +17,7 @@ import { useBadges } from "@/hooks/useBadges";
 import { useRoles } from "@/hooks/useRoles";
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showCamera, setShowCamera] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showAddBadge, setShowAddBadge] = useState(false);
@@ -51,6 +53,48 @@ const Index = () => {
 
     return () => clearTimeout(timeout);
   }, [authLoading]);
+
+  // Handle Discord badge links - check URL parameters for badge ID
+  useEffect(() => {
+    const badgeIdFromUrl = searchParams.get('badge');
+    if (badgeIdFromUrl && badges.length > 0 && !selectedBadge) {
+      const targetBadge = badges.find(badge => badge.id === badgeIdFromUrl);
+      if (targetBadge) {
+        console.log('Opening badge from Discord link:', targetBadge.name);
+        setSelectedBadge({
+          id: targetBadge.id,
+          name: targetBadge.name,
+          year: targetBadge.year || undefined,
+          maker: targetBadge.profiles?.display_name || undefined,
+          description: targetBadge.description || undefined,
+          imageUrl: targetBadge.image_url || undefined,
+          externalLink: targetBadge.external_link || undefined,
+          isOwned: isOwned(targetBadge.id),
+          isWanted: isWanted(targetBadge.id),
+          retired: targetBadge.retired,
+          category: targetBadge.category,
+          teamName: targetBadge.team_name,
+          profiles: targetBadge.profiles ? [targetBadge.profiles] : undefined,
+        });
+        setIsDetailModalOpen(true);
+        // Clear the URL parameter after opening the modal
+        setSearchParams({});
+        
+        toast({
+          title: "Badge Opened from Discord",
+          description: `Viewing ${targetBadge.name} from Discord notification.`,
+        });
+      } else {
+        // Badge not found
+        toast({
+          title: "Badge Not Found",
+          description: "The requested badge could not be found.",
+          variant: "destructive",
+        });
+        setSearchParams({});
+      }
+    }
+  }, [badges, searchParams, setSearchParams, selectedBadge, isOwned, isWanted, toast]);
 
   // Show minimal loading only for initial auth check, but not if user is clearly unauthenticated
   const showLoading = authLoading && user === undefined;
