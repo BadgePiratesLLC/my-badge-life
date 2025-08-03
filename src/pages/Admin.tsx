@@ -20,6 +20,8 @@ import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
 import { AdminAnalytics } from '@/components/AdminAnalytics'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 interface BadgeData {
@@ -78,6 +80,7 @@ interface User {
 }
 
 export default function Admin() {
+  const isMobile = useIsMobile()
   const { isAdmin, loading: rolesLoading } = useRoles()
   const { user, profile, loading: authLoading } = useAuth()
   const { canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAdminAccess()
@@ -557,45 +560,100 @@ export default function Admin() {
           </Link>
         </div>
 
-        <Tabs defaultValue="badges" className="w-full">
-          <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-6' : 'grid-cols-4'}`}>
-            {canAccessAdmin() && (
-              <TabsTrigger value="uploads" className="flex items-center gap-2">
-                <Image className="h-4 w-4" />
-                Uploaded Images
-              </TabsTrigger>
-            )}
-            {canManageBadges() && (
-              <TabsTrigger value="badges" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Badge Management
-              </TabsTrigger>
-            )}
-            {canManageTeams() && (
-              <TabsTrigger value="teams" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Team Management
-              </TabsTrigger>
-            )}
-            {canManageUsers() && (
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                User Management
-              </TabsTrigger>
-            )}
-            {canAccessAdmin() && (
-              <TabsTrigger value="search" className="flex items-center gap-2">
-                <Brain className="h-4 w-4" />
-                Web Search
-              </TabsTrigger>
-            )}
-            {canAccessAdmin() && (
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Analytics
-              </TabsTrigger>
-            )}
-          </TabsList>
+        <TooltipProvider>
+          <Tabs defaultValue="badges" className="w-full">
+            <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-6' : 'grid-cols-4'}`}>
+              {canAccessAdmin() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="uploads" className="flex items-center gap-2">
+                      <Image className="h-4 w-4" />
+                      {!isMobile && "Uploaded Images"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Uploaded Images</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {canManageBadges() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="badges" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      {!isMobile && "Badge Management"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Badge Management</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {canManageTeams() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="teams" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      {!isMobile && "Team Management"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Team Management</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {canManageUsers() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="users" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      {!isMobile && "User Management"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>User Management</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {canAccessAdmin() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="search" className="flex items-center gap-2">
+                      <Brain className="h-4 w-4" />
+                      {!isMobile && "Web Search"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Web Search</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {canAccessAdmin() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="analytics" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      {!isMobile && "Analytics"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Analytics</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+            </TabsList>
 
           <TabsContent value="uploads" className="space-y-4">
             <Card>
@@ -1326,6 +1384,7 @@ export default function Admin() {
             </TabsContent>
           )}
         </Tabs>
+        </TooltipProvider>
       </div>
     </div>
   )
