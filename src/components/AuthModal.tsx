@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, LogIn, UserCheck, Crown } from "lucide-react";
+import { X, LogIn, UserCheck, Crown, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleDisplay } from "@/hooks/useRoleDisplay";
 import { MakerRequestModal } from "./MakerRequestModal";
+import { UserSettingsModal } from "./UserSettingsModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { getDisplayRole } = useRoleDisplay();
   const { toast } = useToast();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
   console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
@@ -175,6 +177,15 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 )}
                 
                 <Button
+                  variant="outline"
+                  onClick={() => setShowSettings(true)}
+                  className="w-full"
+                >
+                  <Settings className="h-4 w-4" />
+                  SETTINGS
+                </Button>
+                
+                <Button
                   variant="destructive"
                   onClick={handleSignOut}
                   className="w-full"
@@ -190,6 +201,11 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       <MakerRequestModal 
         isOpen={showMakerRequest}
         onClose={() => setShowMakerRequest(false)}
+      />
+      
+      <UserSettingsModal 
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </div>
   );
