@@ -164,14 +164,33 @@ export function useAuth() {
   const requestMakerStatus = async () => {
     const result = await updateProfile({ wants_to_be_maker: true })
     
-    // Send Discord notification for maker request
+    // Send notifications for maker request
     try {
+      // Send Discord notification
       await notifyMakerRequest({
         display_name: profile?.display_name,
         email: profile?.email,
       });
+
+      // Send email notification to admins
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'maker_request',
+          to: 'admin@mybadgelife.app', // This should be configurable
+          data: {
+            userName: profile?.display_name || user?.email,
+            userEmail: user?.email,
+            requestMessage: `User ${profile?.display_name || user?.email} has requested maker status.`,
+            userProfileUrl: `${window.location.origin}/admin#users`,
+            adminUrl: `${window.location.origin}/admin`,
+            registrationDate: profile?.created_at,
+            userId: user?.id
+          }
+        }
+      })
     } catch (error) {
-      console.error('Failed to send maker request notification:', error);
+      console.error('Failed to send notifications:', error);
+      // Don't throw error as request was successfully submitted
     }
     
     return result
