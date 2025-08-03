@@ -13,13 +13,14 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug, Key, ExternalLink, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug, Key, ExternalLink, CheckCircle, XCircle, AlertTriangle, Mail } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
 import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
 import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
 import { AdminAnalytics } from '@/components/AdminAnalytics'
+import { EmailTriggerTester } from '@/components/EmailTriggerTester'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -562,7 +563,7 @@ export default function Admin() {
 
         <TooltipProvider>
           <Tabs defaultValue="badges" className="w-full">
-            <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-6' : 'grid-cols-4'}`}>
+            <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-7' : 'grid-cols-5'}`}>
               {canAccessAdmin() && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -636,6 +637,21 @@ export default function Admin() {
                        <p>Settings</p>
                      </TooltipContent>
                    )}
+                </Tooltip>
+              )}
+              {canAccessAdmin() && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="emails" className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      {!isMobile && "Email Testing"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Email Testing</p>
+                    </TooltipContent>
+                  )}
                 </Tooltip>
               )}
               {canAccessAdmin() && (
@@ -1608,6 +1624,23 @@ export default function Admin() {
               </Card>
               
               <WebSearchTester />
+            </TabsContent>
+          )}
+
+          {/* Email Testing Tab - Admin Only */}
+          {canAccessAdmin() && (
+            <TabsContent value="emails" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 font-mono">
+                    <Mail className="h-5 w-5" />
+                    EMAIL TESTING
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EmailTriggerTester />
+                </CardContent>
+              </Card>
             </TabsContent>
           )}
 
