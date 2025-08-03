@@ -33,7 +33,7 @@ export function useBadgeStats(badgeId: string) {
         .from('ownership')
         .select('id')
         .eq('badge_id', badgeId)
-        .eq('status', 'owned')
+        .eq('status', 'own')
 
       if (ownersError) throw ownersError
 
@@ -54,7 +54,7 @@ export function useBadgeStats(badgeId: string) {
         const { data: rankData, error: rankError } = await supabase
           .from('ownership')
           .select('badge_id')
-          .eq('status', 'owned')
+          .eq('status', 'own')
 
         if (!rankError && rankData) {
           // Count owners per badge
@@ -87,7 +87,7 @@ export function useBadgeStats(badgeId: string) {
           .eq('user_id', user.id)
 
         if (!userError && userOwnershipData) {
-          const ownedRecord = userOwnershipData.find(record => record.status === 'owned')
+          const ownedRecord = userOwnershipData.find(record => record.status === 'own')
           const wantedRecord = userOwnershipData.find(record => record.status === 'want')
           
           setUserOwnership({
@@ -107,7 +107,7 @@ export function useBadgeStats(badgeId: string) {
     if (!user) return
 
     try {
-      const status = type === 'own' ? 'owned' : 'want'
+      const status = type === 'own' ? 'own' : 'want'
       const currentStatus = type === 'own' ? userOwnership.isOwned : userOwnership.isWanted
 
       if (currentStatus) {
