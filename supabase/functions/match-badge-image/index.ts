@@ -229,7 +229,11 @@ serve(async (req) => {
             confidence: similarity
           }
         } else {
-          errorMessage = `API call failed with status ${comparison.status}`
+          const isRateLimited = comparison.status === 429
+          errorMessage = isRateLimited 
+            ? `Rate limit exceeded (status ${comparison.status})`
+            : `API call failed with status ${comparison.status}`
+          
           console.log(`Failed to compare with ${badge.name}: ${errorMessage}`)
           
           // Log the failed API call
@@ -247,7 +251,8 @@ serve(async (req) => {
           return {
             badge: badge,
             similarity: 0,
-            confidence: 0
+            confidence: 0,
+            rateLimited: isRateLimited
           }
         }
       } catch (error) {
@@ -261,6 +266,15 @@ serve(async (req) => {
     })
 
     const allMatches = await Promise.all(comparePromises)
+
+    // Check for rate limiting issues
+    const rateLimitedCount = allMatches.filter(match => match.rateLimited).length
+    const totalCompared = allMatches.filter(match => match.similarity > 0 || match.rateLimited).length
+    
+    if (rateLimitedCount > badgesToCompare.length * 0.8) {
+      // If more than 80% of requests were rate limited, return an error
+      throw new Error(`OpenAI API rate limit exceeded. ${rateLimitedCount} out of ${badgesToCompare.length} comparisons failed due to rate limiting. Please try again in a few minutes or consider upgrading your OpenAI plan for higher rate limits.`)
+    }
 
     // Sort by similarity
     allMatches.sort((a, b) => b.similarity - a.similarity)
@@ -277,7 +291,8 @@ serve(async (req) => {
       .filter(match => match.similarity >= THRESHOLD)
       .slice(0, TOP_N)
 
-    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${badgesToCompare.length} total images compared)`) 
+    const successfulComparisons = allMatches.filter(match => !match.rateLimited).length
+    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${successfulComparisons} successful comparisons, ${rateLimitedCount} rate limited)`)
 
     const responsePayload: any = { matches }
     if (debug) {
