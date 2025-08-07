@@ -131,8 +131,11 @@ export function useAnalyticsTracking() {
 
   const trackSearch = async (analytics: SearchAnalytics) => {
     try {
+      // Ensure we have a valid session ID
+      const currentSessionId = sessionId || generateSessionId()
+      
       const searchData = {
-        session_id: sessionId,
+        session_id: currentSessionId,
         user_id: user?.id || null,
         search_type: analytics.searchType,
         search_duration_ms: analytics.searchDuration,
@@ -150,17 +153,21 @@ export function useAnalyticsTracking() {
         created_at: new Date().toISOString()
       }
 
+      console.log('Tracking search with session ID:', currentSessionId)
+
       const { error } = await supabase
         .from('analytics_searches')
         .insert([searchData])
 
       if (error) {
         console.error('Failed to track search analytics:', error)
+        // Don't throw - analytics shouldn't break the main flow
       } else {
         console.log('Search analytics tracked successfully')
       }
     } catch (error) {
       console.error('Error tracking search analytics:', error)
+      // Don't throw - analytics shouldn't break the main flow
     }
   }
 

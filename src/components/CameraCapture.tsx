@@ -111,20 +111,24 @@ export const CameraCapture = ({
           const endTime = Date.now();
           const totalDuration = endTime - startTime;
 
-          // Track search analytics
-          const matchCount = data.matches?.length || 0;
-          const bestConfidence = matchCount > 0 ? Math.max(...data.matches.map((m: any) => m.confidence || 0)) : 0;
-          
-          await trackSearch({
-            searchType: 'image_upload',
-            totalDuration,
-            resultsFound: matchCount,
-            bestConfidenceScore: bestConfidence,
-            searchSourceUsed: data.analysis?.search_source || 'local_database',
-            foundInDatabase: matchCount > 0,
-            foundViaWebSearch: data.analysis?.search_source?.includes('Google'),
-            foundViaImageMatching: data.analysis?.search_source === 'image_matching'
-          });
+          // Track search analytics (with error handling)
+          try {
+            const matchCount = data.matches?.length || 0;
+            const bestConfidence = matchCount > 0 ? Math.max(...data.matches.map((m: any) => m.confidence || 0)) : 0;
+            
+            await trackSearch({
+              searchType: 'image_upload',
+              totalDuration,
+              resultsFound: matchCount,
+              bestConfidenceScore: bestConfidence,
+              searchSourceUsed: data.analysis?.search_source || 'local_database',
+              foundInDatabase: matchCount > 0,
+              foundViaWebSearch: data.analysis?.search_source?.includes('Google'),
+              foundViaImageMatching: data.analysis?.search_source === 'image_matching'
+            });
+          } catch (trackingError) {
+            console.warn('Analytics tracking failed, continuing anyway:', trackingError);
+          }
 
           setAnalysisResults({...data, originalImageBase64: base64, originalFile: file});
           setShowAnalysis(true);
@@ -132,17 +136,21 @@ export const CameraCapture = ({
         } catch (analysisError) {
           console.error('Error analyzing badge:', analysisError);
           
-          // Track failed search
-          const endTime = Date.now();
-          const totalDuration = endTime - startTime;
-          await trackSearch({
-            searchType: 'image_upload',
-            totalDuration,
-            resultsFound: 0,
-            foundInDatabase: false,
-            foundViaWebSearch: false,
-            foundViaImageMatching: false
-          });
+          // Track failed search (with error handling)
+          try {
+            const endTime = Date.now();
+            const totalDuration = endTime - startTime;
+            await trackSearch({
+              searchType: 'image_upload',
+              totalDuration,
+              resultsFound: 0,
+              foundInDatabase: false,
+              foundViaWebSearch: false,
+              foundViaImageMatching: false
+            });
+          } catch (trackingError) {
+            console.warn('Analytics tracking failed:', trackingError);
+          }
           
           toast({
             title: "Analysis Failed",
@@ -160,17 +168,21 @@ export const CameraCapture = ({
       console.error('Error processing image:', error);
       setIsAnalyzing(false);
       
-      // Track failed search
-      const endTime = Date.now();
-      const totalDuration = endTime - startTime;
-      await trackSearch({
-        searchType: 'image_upload',
-        totalDuration,
-        resultsFound: 0,
-        foundInDatabase: false,
-        foundViaWebSearch: false,
-        foundViaImageMatching: false
-      });
+      // Track failed search (with error handling)
+      try {
+        const endTime = Date.now();
+        const totalDuration = endTime - startTime;
+        await trackSearch({
+          searchType: 'image_upload',
+          totalDuration,
+          resultsFound: 0,
+          foundInDatabase: false,
+          foundViaWebSearch: false,
+          foundViaImageMatching: false
+        });
+      } catch (trackingError) {
+        console.warn('Analytics tracking failed:', trackingError);
+      }
       
       toast({
         title: "Error",
