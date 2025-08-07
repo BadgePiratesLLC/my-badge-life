@@ -145,7 +145,7 @@ export const BadgeListItem = ({
           <Button
             variant={userOwnership.isOwned ? "default" : "outline"}
             size="sm"
-            className="h-7 px-3"
+            className="h-7 px-3 border-2"
             onClick={(e) => {
               e.stopPropagation();
               handleOwnershipToggle('own');
