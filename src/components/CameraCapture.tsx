@@ -31,7 +31,8 @@ export const CameraCapture = ({
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { confirmMatch } = useBadgeConfirmations();
   const { trackSearch } = useAnalyticsTracking();
@@ -196,8 +197,11 @@ export const CameraCapture = ({
     setUploadedImageUrl('');
     setIsAnalyzing(false);
     // Reset file input to allow re-scanning
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (uploadInputRef.current) {
+      uploadInputRef.current.value = '';
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
     }
   };
 
@@ -219,8 +223,12 @@ export const CameraCapture = ({
     await handleImageAnalysis(analysisResults.originalFile);
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const triggerUploadInput = () => {
+    uploadInputRef.current?.click();
+  };
+
+  const triggerCameraInput = () => {
+    cameraInputRef.current?.click();
   };
 
   return (
@@ -244,7 +252,7 @@ export const CameraCapture = ({
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            onClick={triggerFileInput}
+            onClick={triggerUploadInput}
           >
             <div className="flex flex-col items-center space-y-3">
               <div className="p-3 rounded-full bg-primary/10">
@@ -261,7 +269,14 @@ export const CameraCapture = ({
             </div>
             
             <input
-              ref={fileInputRef}
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+            <input
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
@@ -274,7 +289,7 @@ export const CameraCapture = ({
             <Button
               variant="outline"
               className="flex-1"
-              onClick={triggerFileInput}
+               onClick={triggerUploadInput}
               disabled={isAnalyzing}
             >
               <Upload className="h-4 w-4" />
@@ -284,7 +299,7 @@ export const CameraCapture = ({
             <Button
               variant="matrix"
               className="flex-1"
-              onClick={triggerFileInput}
+               onClick={triggerCameraInput}
               disabled={isAnalyzing}
             >
               <Camera className="h-4 w-4" />
@@ -297,7 +312,7 @@ export const CameraCapture = ({
               <Button
                 variant="secondary"
                 className="flex-1"
-                onClick={triggerFileInput}
+                onClick={triggerUploadInput}
                 disabled={isAnalyzing}
               >
                 <Search className="h-4 w-4" />
