@@ -17,7 +17,7 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-    const { imageBase64 } = await req.json()
+    const { imageBase64, debug } = await req.json()
 
     console.log('Starting simple badge analysis - local database only...')
 
@@ -31,7 +31,7 @@ serve(async (req) => {
     try {
       // Try image-based matching
       const { data: matchResult, error: matchError } = await supabase.functions.invoke('match-badge-image', {
-        body: { imageBase64 }
+        body: { imageBase64, debug }
       })
       
       if (!matchError && matchResult?.matches && matchResult.matches.length > 0) {
@@ -61,16 +61,16 @@ serve(async (req) => {
         total_duration_ms: totalDuration,
         results_found: localMatches.length,
         best_confidence_score: bestLocalConfidence,
-        found_in_database: bestLocalConfidence >= 25,
+        found_in_database: bestLocalConfidence >= 50,
         found_via_web_search: false,
-        found_via_image_matching: bestLocalConfidence >= 25
+        found_via_image_matching: bestLocalConfidence >= 50
       })
     } catch (error) {
       console.error('Analytics tracking error:', error)
     }
 
     // Check if we found a match above 25% threshold
-    if (bestLocalConfidence >= 25) {
+    if (bestLocalConfidence >= 50) {
       console.log(`✅ Local match found: ${bestLocalConfidence}% confidence`)
       
       return new Response(
@@ -83,7 +83,8 @@ serve(async (req) => {
             found_locally: true
           },
           matches: localMatches,
-          canAddToDatabase: false
+          canAddToDatabase: false,
+          debug: matchResult?.debug
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -98,7 +99,8 @@ serve(async (req) => {
         matches: localMatches,
         canAddToDatabase: true,
         message: 'Badge not found in database. Would you like to add it for review?',
-        suggest_new_badge: true
+        suggest_new_badge: true,
+        debug: matchResult?.debug
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

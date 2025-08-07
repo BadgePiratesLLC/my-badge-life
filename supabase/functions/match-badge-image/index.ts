@@ -97,7 +97,7 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-    const { imageBase64 } = await req.json()
+    const { imageBase64, debug } = await req.json()
 
     console.log('Processing image for badge matching...')
 
@@ -260,14 +260,32 @@ serve(async (req) => {
       `${m.badge?.name || 'Unknown'}: ${(m.similarity * 100).toFixed(1)}%`
     ))
 
+    // Apply threshold and limit
+    const THRESHOLD = 0.5
+    const TOP_N = 3
     const matches = allMatches
-      .filter(match => match.similarity >= 0.25)  // Use 25% threshold as requested
-      .slice(0, 5)
+      .filter(match => match.similarity >= THRESHOLD)
+      .slice(0, TOP_N)
 
-    console.log(`Found ${matches.length} matches above 25% threshold (out of ${imageRows?.length || 0} primary images)`)
+    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${imageRows?.length || 0} primary images)`) 
+
+    const responsePayload: any = { matches }
+    if (debug) {
+      responsePayload.debug = {
+        model: 'gpt-4o-mini',
+        threshold: THRESHOLD,
+        topN: TOP_N,
+        candidatesCompared: badgesToCompare.length,
+        totalPrimaryImages: imageRows?.length || 0,
+        topSimilarities: allMatches.slice(0, 10).map(m => ({
+          name: m.badge?.name || 'Unknown',
+          similarityPercent: Math.round((m.similarity || 0) * 100)
+        }))
+      }
+    }
 
     return new Response(
-      JSON.stringify({ matches }),
+      JSON.stringify(responsePayload),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

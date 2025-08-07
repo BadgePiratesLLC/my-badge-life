@@ -45,6 +45,7 @@ interface BadgeAnalysisResultsProps {
   onConfirmMatch?: (badgeId: string, similarity: number, confidence: number) => void;
   onAuthRequired?: () => void; // Callback to show auth modal
   onRetrySearch?: () => void; // Callback to trigger a complete retry from parent
+  debugInfo?: any;
 }
 
 export const BadgeAnalysisResults = ({
@@ -58,7 +59,8 @@ export const BadgeAnalysisResults = ({
   canAddToDatabase,
   onConfirmMatch,
   onAuthRequired,
-  onRetrySearch
+  onRetrySearch,
+  debugInfo
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
