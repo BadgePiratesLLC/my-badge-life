@@ -97,12 +97,19 @@ export const CameraCapture = ({
         const base64 = e.target?.result as string;
         
         try {
+          console.log('Starting badge matching analysis...');
+          console.log('Image size:', file.size, 'bytes');
+          console.log('Base64 length:', base64?.length);
+          
           // Step 1: Badge matching search
           const { data, error } = await supabase.functions.invoke('match-badge-image', {
             body: { imageBase64: base64, debug: debugMode }
           });
 
+          console.log('Function response:', { data, error });
+
           if (error) {
+            console.error('Function invocation error:', error);
             throw error;
           }
 
@@ -135,6 +142,11 @@ export const CameraCapture = ({
           setIsAnalyzing(false);
         } catch (analysisError) {
           console.error('Error analyzing badge:', analysisError);
+          console.error('Error details:', {
+            message: analysisError.message,
+            name: analysisError.name,
+            stack: analysisError.stack
+          });
           
           // Track failed search (with error handling)
           try {
