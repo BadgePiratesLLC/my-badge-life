@@ -27,15 +27,18 @@ serve(async (req) => {
     const localSearchStart = Date.now()
     let localMatches = []
     let bestLocalConfidence = 0
+    let matchResult = null
     
     try {
       // Try image-based matching
-      const { data: matchResult, error: matchError } = await supabase.functions.invoke('match-badge-image', {
+      const { data: matchData, error: matchError } = await supabase.functions.invoke('match-badge-image', {
         body: { imageBase64, debug }
       })
       
-      if (!matchError && matchResult?.matches && matchResult.matches.length > 0) {
-        localMatches = matchResult.matches.map(match => ({
+      matchResult = matchData // Store for debug info
+      
+      if (!matchError && matchData?.matches && matchData.matches.length > 0) {
+        localMatches = matchData.matches.map(match => ({
           badge: match.badge,
           similarity: match.similarity,
           confidence: Math.round(match.similarity * 100)
