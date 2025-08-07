@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BadgeAnalysisResults } from "./BadgeAnalysisResults";
 import { useBadgeConfirmations } from "@/hooks/useBadgeConfirmations";
 import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
-import { Switch } from "@/components/ui/switch";
+
 
 interface CameraCaptureProps {
   onImageCapture: (file: File) => void;
@@ -36,7 +36,7 @@ export const CameraCapture = ({
   const { toast } = useToast();
   const { confirmMatch } = useBadgeConfirmations();
   const { trackSearch } = useAnalyticsTracking();
-  const [debugMode, setDebugMode] = useState(false);
+  
 
   if (!isOpen) return null;
 
@@ -103,7 +103,7 @@ export const CameraCapture = ({
           
           // Step 1: Badge matching search
           const { data, error } = await supabase.functions.invoke('match-badge-image', {
-            body: { imageBase64: base64, debug: debugMode }
+            body: { imageBase64: base64, debug: false }
           });
 
           console.log('Function response:', { data, error });
@@ -344,11 +344,6 @@ export const CameraCapture = ({
             </div>
           )}
           
-          {/* Debug toggle */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Debug AI matching</span>
-            <Switch checked={debugMode} onCheckedChange={setDebugMode} />
-          </div>
           
           <p className="text-xs text-muted-foreground text-center font-mono">
             {enableMatching 
