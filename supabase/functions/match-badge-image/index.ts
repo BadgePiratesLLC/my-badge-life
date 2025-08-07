@@ -143,137 +143,160 @@ serve(async (req) => {
     
     console.log(`Found ${primaryImages.length} primary and ${alternateImages.length} alternate badge images to compare`)
 
-    // Limit comparisons to control memory usage - prioritize primary images
-    const MAX_COMPARE = 50
-    const maxAlternates = Math.max(0, MAX_COMPARE - primaryImages.length)
-    
+    // Prepare all badges to compare (prioritize primary images)
     const badgesToCompare = [
       ...primaryImages,
-      ...alternateImages.slice(0, maxAlternates)
+      ...alternateImages
     ]
     
-    console.log(`Comparing with ${badgesToCompare.length} badge images (${primaryImages.length} primary, ${Math.min(maxAlternates, alternateImages.length)} alternate) in parallel...`)
+    console.log(`Will compare with ${badgesToCompare.length} badge images (${primaryImages.length} primary, ${alternateImages.length} alternate) using batch processing...`)
     
-    const comparePromises = badgesToCompare.map(async (row) => {
-      const badge = { ...row.badges, image_url: row.image_url }
-      try {
-        const startTime = Date.now()
-        
-        // Use OpenAI vision to compare the two images
-        const requestBody = {
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: uploadedImageData }
-                },
-                {
-                  type: 'image_url', 
-                  image_url: { url: badge.image_url }
-                }
-              ]
-            }
-          ],
-          max_tokens: 10
-        }
-        
-        const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openaiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody)
-        })
-
-        const responseTime = Date.now() - startTime
-        const success = comparison.ok
-        let similarity = 0
-        let errorMessage = null
-
-        if (success) {
-          const result = await comparison.json()
-          const similarityText = result.choices[0]?.message?.content?.trim()
-          similarity = parseInt(similarityText) || 0
+    // Batch processing configuration
+    const BATCH_SIZE = 12 // Conservative batch size to avoid rate limits
+    const BATCH_DELAY_MS = 2000 // 2 second delay between batches
+    
+    const allMatches = []
+    let totalRateLimited = 0
+    
+    // Process badges in batches
+    for (let i = 0; i < badgesToCompare.length; i += BATCH_SIZE) {
+      const batch = badgesToCompare.slice(i, i + BATCH_SIZE)
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(badgesToCompare.length / BATCH_SIZE)
+      
+      console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} badges)...`)
+      
+      const batchPromises = batch.map(async (row) => {
+        const badge = { ...row.badges, image_url: row.image_url }
+        try {
+          const startTime = Date.now()
           
-          console.log(`Similarity for "${badge.name}": ${similarity}%`)
-          
-          // Log the API call
-          const promptText = `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
-          const inputTokens = countTokensApprox(promptText)
-          const outputTokens = countTokensApprox(similarityText || '0')
-          const estimatedCost = estimateOpenAICost('gpt-4o-mini', inputTokens, outputTokens)
-          
-          await logApiCall({
-            api_provider: 'openai',
-            endpoint: '/chat/completions',
-            method: 'POST',
-            request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
-            response_status: comparison.status,
-            response_time_ms: responseTime,
-            tokens_used: inputTokens + outputTokens,
-            estimated_cost_usd: estimatedCost,
-            success: true
-          })
-          
-          return {
-            badge: badge,
-            similarity: similarity / 100,
-            confidence: similarity
+          // Use OpenAI vision to compare the two images
+          const requestBody = {
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: uploadedImageData }
+                  },
+                  {
+                    type: 'image_url', 
+                    image_url: { url: badge.image_url }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 10
           }
-        } else {
-          const isRateLimited = comparison.status === 429
-          errorMessage = isRateLimited 
-            ? `Rate limit exceeded (status ${comparison.status})`
-            : `API call failed with status ${comparison.status}`
           
-          console.log(`Failed to compare with ${badge.name}: ${errorMessage}`)
-          
-          // Log the failed API call
-          await logApiCall({
-            api_provider: 'openai',
-            endpoint: '/chat/completions',
+          const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
-            request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
-            response_status: comparison.status,
-            response_time_ms: responseTime,
-            success: false,
-            error_message: errorMessage
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
           })
-          
+
+          const responseTime = Date.now() - startTime
+          const success = comparison.ok
+          let similarity = 0
+          let errorMessage = null
+
+          if (success) {
+            const result = await comparison.json()
+            const similarityText = result.choices[0]?.message?.content?.trim()
+            similarity = parseInt(similarityText) || 0
+            
+            console.log(`Similarity for "${badge.name}": ${similarity}%`)
+            
+            // Log the API call
+            const promptText = `Compare these two badge images. Rate similarity 0-100% based on visual design, shape, colors, text, and overall appearance. Respond with only a number.`
+            const inputTokens = countTokensApprox(promptText)
+            const outputTokens = countTokensApprox(similarityText || '0')
+            const estimatedCost = estimateOpenAICost('gpt-4o-mini', inputTokens, outputTokens)
+            
+            await logApiCall({
+              api_provider: 'openai',
+              endpoint: '/chat/completions',
+              method: 'POST',
+              request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
+              response_status: comparison.status,
+              response_time_ms: responseTime,
+              tokens_used: inputTokens + outputTokens,
+              estimated_cost_usd: estimatedCost,
+              success: true
+            })
+            
+            return {
+              badge: badge,
+              similarity: similarity / 100,
+              confidence: similarity
+            }
+          } else {
+            const isRateLimited = comparison.status === 429
+            errorMessage = isRateLimited 
+              ? `Rate limit exceeded (status ${comparison.status})`
+              : `API call failed with status ${comparison.status}`
+            
+            console.log(`Failed to compare with ${badge.name}: ${errorMessage}`)
+            
+            // Log the failed API call
+            await logApiCall({
+              api_provider: 'openai',
+              endpoint: '/chat/completions',
+              method: 'POST',
+              request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'image_comparison' },
+              response_status: comparison.status,
+              response_time_ms: responseTime,
+              success: false,
+              error_message: errorMessage
+            })
+            
+            return {
+              badge: badge,
+              similarity: 0,
+              confidence: 0,
+              rateLimited: isRateLimited
+            }
+          }
+        } catch (error) {
+          console.error(`Error comparing with ${badge.name}:`, error)
           return {
             badge: badge,
             similarity: 0,
-            confidence: 0,
-            rateLimited: isRateLimited
+            confidence: 0
           }
         }
-      } catch (error) {
-        console.error(`Error comparing with ${badge.name}:`, error)
-        return {
-          badge: badge,
-          similarity: 0,
-          confidence: 0
-        }
+      })
+
+      const batchResults = await Promise.all(batchPromises)
+      allMatches.push(...batchResults)
+      
+      // Count rate limited requests in this batch
+      const batchRateLimited = batchResults.filter(result => result.rateLimited).length
+      totalRateLimited += batchRateLimited
+      
+      console.log(`Batch ${batchNumber} complete: ${batchResults.length} comparisons, ${batchRateLimited} rate limited`)
+      
+      // Add delay between batches (except for the last one)
+      if (i + BATCH_SIZE < badgesToCompare.length) {
+        console.log(`Waiting ${BATCH_DELAY_MS}ms before next batch...`)
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
       }
-    })
+    }
 
-    const allMatches = await Promise.all(comparePromises)
-
-    // Check for rate limiting issues
-    const rateLimitedCount = allMatches.filter(match => match.rateLimited).length
-    const totalCompared = allMatches.filter(match => match.similarity > 0 || match.rateLimited).length
-    
-    if (rateLimitedCount > badgesToCompare.length * 0.8) {
-      // If more than 80% of requests were rate limited, return an error
-      throw new Error(`OpenAI API rate limit exceeded. ${rateLimitedCount} out of ${badgesToCompare.length} comparisons failed due to rate limiting. Please try again in a few minutes or consider upgrading your OpenAI plan for higher rate limits.`)
+    // Check for excessive rate limiting
+    if (totalRateLimited > badgesToCompare.length * 0.5) {
+      // If more than 50% of requests were rate limited, return an error
+      throw new Error(`OpenAI API rate limit exceeded. ${totalRateLimited} out of ${badgesToCompare.length} comparisons failed due to rate limiting. Please try again in a few minutes or consider upgrading your OpenAI plan for higher rate limits.`)
     }
 
     // Sort by similarity
@@ -292,7 +315,7 @@ serve(async (req) => {
       .slice(0, TOP_N)
 
     const successfulComparisons = allMatches.filter(match => !match.rateLimited).length
-    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${successfulComparisons} successful comparisons, ${rateLimitedCount} rate limited)`)
+    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${successfulComparisons} successful comparisons, ${totalRateLimited} rate limited)`)
 
     const responsePayload: any = { matches }
     if (debug) {
