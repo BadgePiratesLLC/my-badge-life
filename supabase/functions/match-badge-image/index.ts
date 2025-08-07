@@ -95,9 +95,6 @@ function calculateTextSimilarity(text1: string, text2: string): number {
   return intersection.size / union.size
 }
 
-function countTokensApprox(text: string): number {
-  return Math.ceil(text.length / 4)
-}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
