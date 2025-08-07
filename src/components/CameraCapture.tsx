@@ -97,8 +97,8 @@ export const CameraCapture = ({
         const base64 = e.target?.result as string;
         
         try {
-          // Step 1: Local database search
-          const { data, error } = await supabase.functions.invoke('analyze-badge-image', {
+          // Step 1: Badge matching search
+          const { data, error } = await supabase.functions.invoke('match-badge-image', {
             body: { imageBase64: base64, debug: debugMode }
           });
 

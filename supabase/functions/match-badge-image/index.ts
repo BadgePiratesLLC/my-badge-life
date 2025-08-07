@@ -216,7 +216,7 @@ serve(async (req) => {
         const badge = { ...row.badges, image_url: row.image_url }
         try {
           const requestBody = {
-            model: 'gpt-4o-mini',
+            model: 'gpt-4.1-2025-04-14',
             messages: [
               {
                 role: 'user',
@@ -311,7 +311,7 @@ serve(async (req) => {
           
           // Stage 1: Simple, fast comparison
           const requestBody = {
-            model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
             messages: [
               {
                 role: 'user',
@@ -427,7 +427,7 @@ serve(async (req) => {
           
           // Stage 2: Detailed comparison
           const requestBody = {
-            model: 'gpt-4o-mini',
+      model: 'gpt-4.1-2025-04-14',
             messages: [
               {
                 role: 'user',
