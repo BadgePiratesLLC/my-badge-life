@@ -114,32 +114,38 @@ serve(async (req) => {
       uploadedImageData = `data:image/jpeg;base64,${imageBase64}`;
     }
 
-    // Get all badges with images from database
-    const { data: badgeData, error: searchError } = await supabase
-      .from('badges')
+    // Get primary badge images to compare (use badge_images is_primary)
+    const { data: imageRows, error: searchError } = await supabase
+      .from('badge_images')
       .select(`
-        id,
-        name,
-        maker_id,
         image_url,
-        description,
-        year,
-        category,
-        profiles (display_name)
+        badge_id,
+        badges (
+          id,
+          name,
+          maker_id,
+          description,
+          year,
+          category
+        )
       `)
+      .eq('is_primary', true)
       .not('image_url', 'is', null)
+      .order('created_at', { ascending: false })
 
     if (searchError) {
       throw new Error(`Database search error: ${searchError.message}`)
     }
 
-    console.log(`Found ${badgeData?.length || 0} badges with images to compare`)
+    console.log(`Found ${imageRows?.length || 0} primary badge images to compare`)
 
-    // Compare uploaded image with badges in parallel for faster processing
-    const badgesToCompare = badgeData.slice(0, 10) // Increased from 5 to 10 for better matches
+    // Limit comparisons to a reasonable number to control cost/latency
+    const MAX_COMPARE = 60
+    const badgesToCompare = (imageRows || []).slice(0, MAX_COMPARE)
     console.log(`Comparing with ${badgesToCompare.length} badges in parallel...`)
     
-    const comparePromises = badgesToCompare.map(async (badge) => {
+    const comparePromises = badgesToCompare.map(async (row) => {
+      const badge = { ...row.badges, image_url: row.image_url }
       try {
         const startTime = Date.now()
         
@@ -258,7 +264,7 @@ serve(async (req) => {
       .filter(match => match.similarity >= 0.25)  // Use 25% threshold as requested
       .slice(0, 5)
 
-    console.log(`Found ${matches.length} matches above 25% threshold (out of ${badgeData?.length || 0} total badges)`)
+    console.log(`Found ${matches.length} matches above 25% threshold (out of ${imageRows?.length || 0} primary images)`)
 
     return new Response(
       JSON.stringify({ matches }),

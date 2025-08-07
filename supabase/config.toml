@@ -6,5 +6,9 @@ verify_jwt = false
 [functions.analyze-badge-image]
 verify_jwt = false
 
+
+[functions.match-badge-image]
+verify_jwt = false
+
 [functions.test-replicate]
 verify_jwt = false
