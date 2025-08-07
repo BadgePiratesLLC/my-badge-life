@@ -137,6 +137,22 @@ serve(async (req) => {
       uploadedImageData = `data:image/jpeg;base64,${imageBase64}`;
     }
 
+    // Check for repeated failures and use fallback strategy
+    const recentFailures = await supabase
+      .from('api_call_logs')
+      .select('success')
+      .eq('api_provider', 'openai')
+      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    const failureRate = recentFailures.data?.filter(log => !log.success).length || 0
+    const useFallbackMode = failureRate > 7 // If >70% recent failures, use fallback
+    
+    if (useFallbackMode) {
+      console.log('⚠️ High API failure rate detected. Using minimal comparison mode...')
+    }
+
     // Get both primary and alternate badge images to compare
     const { data: imageRows, error: searchError } = await supabase
       .from('badge_images')
@@ -187,7 +203,91 @@ serve(async (req) => {
       console.log('No user text provided - skipping text pre-filtering')
     }
     
-    console.log(`Will compare with ${candidateBadges.length} badge images using two-stage matching...`)
+    console.log(`Will compare with ${candidateBadges.length} badge images using ${useFallbackMode ? 'minimal' : 'two-stage'} matching...`)
+    
+    if (useFallbackMode) {
+      // Fallback: Only compare with top 5 most likely candidates
+      const limitedCandidates = candidateBadges.slice(0, 5)
+      console.log(`Using fallback mode: comparing with only ${limitedCandidates.length} badges`)
+      
+      const fallbackMatches = []
+      
+      for (const row of limitedCandidates) {
+        const badge = { ...row.badges, image_url: row.image_url }
+        try {
+          const requestBody = {
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Rate similarity 0-100%. Respond with only a number.`
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: uploadedImageData }
+                  },
+                  {
+                    type: 'image_url', 
+                    image_url: { url: badge.image_url }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 5
+          }
+          
+          const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+          })
+
+          if (comparison.ok) {
+            const result = await comparison.json()
+            const similarityText = result.choices[0]?.message?.content?.trim()
+            const similarity = parseInt(similarityText) || 0
+            
+            console.log(`Fallback - "${badge.name}": ${similarity}%`)
+            
+            fallbackMatches.push({
+              badge,
+              similarity: similarity / 100,
+              confidence: similarity
+            })
+          } else {
+            console.log(`Fallback failed for ${badge.name}: ${comparison.status}`)
+          }
+        } catch (error) {
+          console.error(`Fallback error for ${badge.name}:`, error)
+        }
+        
+        // Add delay between individual calls in fallback mode
+        await new Promise(resolve => setTimeout(resolve, 5000)) // 5 second delay
+      }
+      
+      // Return fallback results
+      const matches = fallbackMatches
+        .filter(match => match.similarity >= 0.5)
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 3)
+      
+      console.log(`Fallback complete: ${matches.length} matches found`)
+      
+      return new Response(
+        JSON.stringify({ 
+          matches,
+          fallbackMode: true,
+          message: "Using minimal comparison due to API issues"
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     
     // Two-Stage Matching Implementation with conservative rate limiting
     console.log('=== STAGE 1: Fast Visual Screening ===')
