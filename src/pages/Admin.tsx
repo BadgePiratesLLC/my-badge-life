@@ -118,7 +118,8 @@ export default function Admin() {
       console.log('Auth loading:', authLoading, 'Roles loading:', rolesLoading)
       console.log('User:', user?.email, 'Profile role:', profile?.role)
       
-      if (!rolesLoading && !authLoading) {
+      // Wait for auth to complete and ensure we have either user profile or roles loaded
+      if (!authLoading && user && (profile || !rolesLoading)) {
         console.log('Auth checks complete, canAccessAdmin:', canAccessAdmin())
         if (canAccessAdmin()) {
           console.log('Loading admin data...')
@@ -131,11 +132,14 @@ export default function Admin() {
           fetchBadges()
         }
         setLoading(false)
+      } else if (!authLoading && !user) {
+        // No user logged in
+        setLoading(false)
       }
     }
     
     checkAuthAndLoad()
-  }, [rolesLoading, authLoading, usersFetched, user, profile]) // Added user and profile dependencies
+  }, [rolesLoading, authLoading, usersFetched, user, profile, canAccessAdmin, canManageUsers]) // Added missing dependencies
 
   const fetchAllUsers = async () => {
     try {
