@@ -252,7 +252,6 @@ export const CameraCapture = ({
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            onClick={triggerUploadInput}
           >
             <div className="flex flex-col items-center space-y-3">
               <div className="p-3 rounded-full bg-primary/10">
