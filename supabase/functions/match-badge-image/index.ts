@@ -114,12 +114,13 @@ serve(async (req) => {
       uploadedImageData = `data:image/jpeg;base64,${imageBase64}`;
     }
 
-    // Get primary badge images to compare (use badge_images is_primary)
+    // Get both primary and alternate badge images to compare
     const { data: imageRows, error: searchError } = await supabase
       .from('badge_images')
       .select(`
         image_url,
         badge_id,
+        is_primary,
         badges (
           id,
           name,
@@ -129,20 +130,29 @@ serve(async (req) => {
           category
         )
       `)
-      .eq('is_primary', true)
       .not('image_url', 'is', null)
+      .order('is_primary', { ascending: false }) // Primary images first
       .order('created_at', { ascending: false })
 
     if (searchError) {
       throw new Error(`Database search error: ${searchError.message}`)
     }
 
-    console.log(`Found ${imageRows?.length || 0} primary badge images to compare`)
+    const primaryImages = imageRows?.filter(row => row.is_primary) || []
+    const alternateImages = imageRows?.filter(row => !row.is_primary) || []
+    
+    console.log(`Found ${primaryImages.length} primary and ${alternateImages.length} alternate badge images to compare`)
 
-    // Limit comparisons to a reasonable number to control cost/latency
-    const MAX_COMPARE = 60
-    const badgesToCompare = (imageRows || []).slice(0, MAX_COMPARE)
-    console.log(`Comparing with ${badgesToCompare.length} badges in parallel...`)
+    // Limit comparisons to control memory usage - prioritize primary images
+    const MAX_COMPARE = 50
+    const maxAlternates = Math.max(0, MAX_COMPARE - primaryImages.length)
+    
+    const badgesToCompare = [
+      ...primaryImages,
+      ...alternateImages.slice(0, maxAlternates)
+    ]
+    
+    console.log(`Comparing with ${badgesToCompare.length} badge images (${primaryImages.length} primary, ${Math.min(maxAlternates, alternateImages.length)} alternate) in parallel...`)
     
     const comparePromises = badgesToCompare.map(async (row) => {
       const badge = { ...row.badges, image_url: row.image_url }
@@ -267,7 +277,7 @@ serve(async (req) => {
       .filter(match => match.similarity >= THRESHOLD)
       .slice(0, TOP_N)
 
-    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${imageRows?.length || 0} primary images)`) 
+    console.log(`Found ${matches.length} matches above ${THRESHOLD * 100}% threshold (out of ${badgesToCompare.length} total images compared)`) 
 
     const responsePayload: any = { matches }
     if (debug) {
@@ -276,7 +286,9 @@ serve(async (req) => {
         threshold: THRESHOLD,
         topN: TOP_N,
         candidatesCompared: badgesToCompare.length,
-        totalPrimaryImages: imageRows?.length || 0,
+        totalPrimaryImages: primaryImages.length,
+        totalAlternateImages: alternateImages.length,
+        totalImagesInDb: imageRows?.length || 0,
         topSimilarities: allMatches.slice(0, 10).map(m => ({
           name: m.badge?.name || 'Unknown',
           similarityPercent: Math.round((m.similarity || 0) * 100)
