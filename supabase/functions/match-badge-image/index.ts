@@ -189,13 +189,13 @@ serve(async (req) => {
     
     console.log(`Will compare with ${candidateBadges.length} badge images using two-stage matching...`)
     
-    // Two-Stage Matching Implementation
+    // Two-Stage Matching Implementation with conservative rate limiting
     console.log('=== STAGE 1: Fast Visual Screening ===')
     
     // Stage 1: Fast comparison with simplified prompt
     const stage1Results = []
-    const STAGE1_BATCH_SIZE = 15 // Larger batches for stage 1
-    const STAGE1_DELAY_MS = 1500 // Shorter delay for stage 1
+    const STAGE1_BATCH_SIZE = 8 // Smaller batches for better rate limiting
+    const STAGE1_DELAY_MS = 3000 // Longer delay: 3 seconds between batches
     
     for (let i = 0; i < candidateBadges.length; i += STAGE1_BATCH_SIZE) {
       const batch = candidateBadges.slice(i, i + STAGE1_BATCH_SIZE)
@@ -310,8 +310,8 @@ serve(async (req) => {
     console.log('=== STAGE 2: Detailed Visual Analysis ===')
     
     const stage2Results = []
-    const STAGE2_BATCH_SIZE = 8 // Smaller batches for detailed analysis
-    const STAGE2_DELAY_MS = 2000 // Longer delay for stage 2
+    const STAGE2_BATCH_SIZE = 5 // Much smaller batches for detailed analysis  
+    const STAGE2_DELAY_MS = 4000 // Longer delay: 4 seconds for stage 2
     
     for (let i = 0; i < stage2Candidates.length; i += STAGE2_BATCH_SIZE) {
       const batch = stage2Candidates.slice(i, i + STAGE2_BATCH_SIZE)
