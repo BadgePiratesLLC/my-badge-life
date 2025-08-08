@@ -17,17 +17,36 @@ export function useAuth() {
     // Initialize auth state
     const initializeAuth = async () => {
       try {
+        console.log('Starting auth initialization...')
+        
         // First get the current session
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Session error:', error)
+        }
         
         if (!isMounted) return;
         
-        console.log('Initial session check:', session?.user?.email || 'no user')
+        console.log('Session data:', session?.user?.email || 'no session found')
         
         if (session?.user) {
           setUser(session.user)
+          console.log('User found, fetching profile...')
           await fetchProfile(session.user.id)
         } else {
+          console.log('No session found, checking localStorage...')
+          
+          // Check all localStorage keys for Supabase auth
+          const keys = Object.keys(localStorage);
+          const authKeys = keys.filter(key => key.includes('supabase') || key.includes('auth'));
+          console.log('Auth-related localStorage keys:', authKeys);
+          
+          // Also check the specific Supabase auth key pattern
+          const sbAuthKey = 'sb-zdegwavcldwlgzzandae-auth-token';
+          const sbAuthValue = localStorage.getItem(sbAuthKey);
+          console.log('Supabase auth key check:', sbAuthKey, 'exists:', !!sbAuthValue);
+          
           setUser(null)
           setProfile(null)
         }
