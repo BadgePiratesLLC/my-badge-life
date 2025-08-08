@@ -20,10 +20,19 @@ export const AdminBadgeUpload = ({ isOpen, onClose }: AdminBadgeUploadProps) => 
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // Debug logging
+  console.log('AdminBadgeUpload render:', { 
+    isOpen, 
+    user: user?.email || 'none', 
+    authLoading, 
+    initialized 
+  });
+
   if (!isOpen && !showBadgeForm) return null;
 
   // Check authentication before allowing uploads - only after auth is initialized
   if (initialized && !authLoading && !user) {
+    console.log('Blocking upload - user not authenticated after initialization');
     toast.error('You must be logged in to upload badges');
     onClose();
     return null;
