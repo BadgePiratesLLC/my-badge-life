@@ -19,8 +19,6 @@ interface AddBadgeModalProps {
 }
 
 export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalProps) => {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: prefillData?.name || "",
     year: prefillData?.year?.toString() || "",
@@ -29,22 +27,24 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
     team_name: prefillData?.team_name || "",
   });
   
-  // Update form when prefillData changes - but only update fields that have values
+  // Update form when prefillData changes
   React.useEffect(() => {
     if (prefillData) {
-      setFormData(prev => ({
-        name: prefillData?.name || prev.name,
-        year: prefillData?.year?.toString() || prev.year,
-        description: prefillData?.description || prev.description,
-        external_link: prefillData?.external_link || prev.external_link,
-        team_name: prefillData?.team_name || prev.team_name,
-      }));
+      setFormData({
+        name: prefillData?.name || "",
+        year: prefillData?.year?.toString() || "",
+        description: prefillData?.description || "",
+        external_link: prefillData?.external_link || "",
+        team_name: prefillData?.team_name || "",
+      });
       // If prefillData has an image_url, we don't need file upload
       if (prefillData?.image_url) {
         setImageFile(null);
       }
     }
   }, [prefillData]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   const { profile } = useAuth();
   const { createBadge, uploadBadgeImage } = useBadges();

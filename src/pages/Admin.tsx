@@ -534,15 +534,6 @@ export default function Admin() {
     }
   }
 
-  // Add debug logging for admin access
-  console.log('Admin access check:', {
-    user: user?.email,
-    profile: profile?.role,
-    profileMakerApproved: profile?.maker_approved,
-    isAdmin: isAdmin(),
-    canAccessAdmin: canAccessAdmin()
-  });
-
   if (!canAccessAdmin()) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -558,13 +549,6 @@ export default function Admin() {
                 : 'Admin or Badge Maker access required.'
               }
             </p>
-            <div className="text-xs text-muted-foreground mb-4 font-mono bg-muted p-2 rounded">
-              <strong>Debug Info:</strong><br/>
-              User: {user?.email || 'none'}<br/>
-              Role: {profile?.role || 'none'}<br/>
-              Admin: {isAdmin() ? 'yes' : 'no'}<br/>
-              Maker Approved: {profile?.maker_approved ? 'yes' : 'no'}
-            </div>
             <Link to="/">
               <Button variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />

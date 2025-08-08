@@ -13,10 +13,6 @@ interface HeaderProps {
 
 export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
   const { canAccessAdmin } = useAdminAccess();
-  
-  // Debug logging
-  console.log('Header render - canAccessAdmin:', canAccessAdmin(), 'isAuthenticated:', isAuthenticated);
-  
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -79,6 +75,15 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
             {isAuthenticated && (
               <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
             )}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuClick}
+            className="md:hidden"
+          >
+            <Menu className="h-4 w-4" />
           </Button>
         </div>
       </div>
