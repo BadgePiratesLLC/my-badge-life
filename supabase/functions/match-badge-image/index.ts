@@ -105,6 +105,23 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const openaiKey = Deno.env.get('OPENAI_API_KEY')
 
+// Cosine similarity calculation
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (vecA.length !== vecB.length) return 0
+  
+  let dotProduct = 0
+  let normA = 0
+  let normB = 0
+  
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i]
+    normA += vecA[i] * vecA[i]
+    normB += vecB[i] * vecB[i]
+  }
+  
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -119,99 +136,215 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { imageBase64, debug, userText } = await req.json()
 
-    console.log('Processing image for badge matching with smart pre-filtering...')
+    console.log('🚀 Processing image for badge matching with smart pre-filtering...')
+    const startTime = Date.now()
 
-    // Use OpenAI vision model to compare uploaded image with stored badge images
-    console.log('Analyzing uploaded image and comparing with database badges...')
-    
-    if (!openaiKey) {
-      throw new Error('OPENAI_API_KEY not configured')
-    }
-    
     // Convert base64 to proper data URL if needed
     let uploadedImageData = imageBase64;
     if (!uploadedImageData.startsWith('data:')) {
       uploadedImageData = `data:image/jpeg;base64,${imageBase64}`;
     }
 
-    // Check for repeated failures and use fallback strategy
-    const recentFailures = await supabase
-      .from('api_call_logs')
-      .select('success')
-      .eq('api_provider', 'openai')
-      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    const failureRate = recentFailures.data?.filter(log => !log.success).length || 0
-    const useFallbackMode = failureRate > 7 // If >70% recent failures, use fallback
+    // STEP 1: Create embedding for uploaded image using smart pre-filtering
+    console.log('🧠 STEP 1: Creating embedding for uploaded image...')
+    let uploadedImageEmbedding: number[] | null = null
+    let candidateBadges: any[] = []
     
-    if (useFallbackMode) {
-      console.log('⚠️ High API failure rate detected. Using minimal comparison mode...')
+    try {
+      // First, generate a text description of the uploaded image
+      const descriptionRequest = {
+        model: 'gpt-4.1-2025-04-14',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Describe this electronic badge image in detail for embedding purposes. Include any visible text, colors, shapes, symbols, and design elements. Focus on factual visual elements that would help match it to similar badges.'
+              },
+              {
+                type: 'image_url',
+                image_url: { url: uploadedImageData }
+              }
+            ]
+          }
+        ],
+        max_tokens: 200,
+        temperature: 0.1
+      }
+
+      const descriptionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(descriptionRequest)
+      })
+
+      if (descriptionResponse.ok) {
+        const descriptionData = await descriptionResponse.json()
+        const imageDescription = descriptionData.choices[0]?.message?.content || ''
+        console.log('📝 Image description for embedding:', imageDescription.substring(0, 100) + '...')
+
+        // Create embedding from the description
+        const embeddingRequest = {
+          model: 'text-embedding-3-small',
+          input: imageDescription,
+          encoding_format: 'float'
+        }
+
+        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(embeddingRequest)
+        })
+
+        if (embeddingResponse.ok) {
+          const embeddingData = await embeddingResponse.json()
+          uploadedImageEmbedding = embeddingData.data[0].embedding
+          console.log('✅ Created embedding with', uploadedImageEmbedding.length, 'dimensions')
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Embedding creation failed, falling back to full search:', error)
     }
 
-    // Get both primary and alternate badge images to compare
-    const { data: imageRows, error: searchError } = await supabase
-      .from('badge_images')
-      .select(`
-        image_url,
-        badge_id,
-        is_primary,
-        badges (
-          id,
-          name,
-          maker_id,
-          description,
-          year,
-          category
-        )
-      `)
-      .not('image_url', 'is', null)
-      .order('is_primary', { ascending: false }) // Primary images first
-      .order('created_at', { ascending: false })
+    // STEP 2: Find similar badges using embeddings if available
+    if (uploadedImageEmbedding) {
+      console.log('🔍 STEP 2: Finding similar badges using embeddings...')
+      
+      const { data: embeddingRows, error: embeddingError } = await supabase
+        .from('badge_embeddings')
+        .select(`
+          badge_id,
+          embedding,
+          badges (
+            id,
+            name,
+            maker_id,
+            description,
+            year,
+            category
+          )
+        `)
 
-    if (searchError) {
-      throw new Error(`Database search error: ${searchError.message}`)
+      if (!embeddingError && embeddingRows) {
+        // Calculate similarities and sort
+        const similarities = embeddingRows.map(row => ({
+          badge: row.badges,
+          badge_id: row.badge_id,
+          similarity: cosineSimilarity(uploadedImageEmbedding!, row.embedding)
+        })).sort((a, b) => b.similarity - a.similarity)
+
+        // Take top 12 candidates for visual comparison
+        const topCandidates = similarities.slice(0, 12)
+        console.log(`📊 Top embedding similarities:`)
+        topCandidates.forEach((candidate, i) => {
+          console.log(`  ${i + 1}. ${candidate.badge.name}: ${(candidate.similarity * 100).toFixed(1)}%`)
+        })
+
+        // Get badge images for top candidates
+        const candidateBadgeIds = topCandidates.map(c => c.badge_id)
+        const { data: imageRows, error: imageError } = await supabase
+          .from('badge_images')
+          .select(`
+            image_url,
+            badge_id,
+            is_primary,
+            badges (
+              id,
+              name,
+              maker_id,
+              description,
+              year,
+              category
+            )
+          `)
+          .in('badge_id', candidateBadgeIds)
+          .not('image_url', 'is', null)
+          .order('is_primary', { ascending: false })
+
+        if (!imageError && imageRows) {
+          candidateBadges = imageRows.map(row => ({
+            ...row,
+            badges: { ...row.badges, image_url: row.image_url }
+          }))
+          console.log(`🎯 Pre-filtered to ${candidateBadges.length} badge images for visual comparison`)
+        }
+      }
     }
 
-    const primaryImages = imageRows?.filter(row => row.is_primary) || []
-    const alternateImages = imageRows?.filter(row => !row.is_primary) || []
-    
-    console.log(`Found ${primaryImages.length} primary and ${alternateImages.length} alternate badge images to compare`)
+    // STEP 3: Fallback to all badges if embedding pre-filtering failed
+    if (candidateBadges.length === 0) {
+      console.log('📋 STEP 3: Embedding pre-filtering failed, using all badges...')
+      
+      const { data: imageRows, error: searchError } = await supabase
+        .from('badge_images')
+        .select(`
+          image_url,
+          badge_id,
+          is_primary,
+          badges (
+            id,
+            name,
+            maker_id,
+            description,
+            year,
+            category
+          )
+        `)
+        .not('image_url', 'is', null)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: false })
 
-    // Smart Pre-filtering (Step 1): Filter candidates based on text similarity
-    let candidateBadges = [...primaryImages, ...alternateImages]
+      if (searchError) {
+        throw new Error(`Database search error: ${searchError.message}`)
+      }
+
+      const primaryImages = imageRows?.filter(row => row.is_primary) || []
+      const alternateImages = imageRows?.filter(row => !row.is_primary) || []
+      candidateBadges = [...primaryImages, ...alternateImages]
+      
+      console.log(`📋 Fallback: Found ${primaryImages.length} primary and ${alternateImages.length} alternate badge images`)
+    }
     
-    if (userText && userText.trim().length > 2) {
+    // Apply additional text filtering if user provided context
+    if (userText && userText.trim().length > 2 && candidateBadges.length > 20) {
       const textFilteredBadges = candidateBadges.filter(row => {
         const badge = row.badges
         const badgeText = `${badge.name || ''} ${badge.description || ''} ${badge.maker_id || ''}`
         const similarity = calculateTextSimilarity(userText, badgeText)
-        return similarity > 0.1 // Keep badges with >10% text similarity
+        return similarity > 0.1
       })
       
       if (textFilteredBadges.length > 0 && textFilteredBadges.length < candidateBadges.length * 0.8) {
         candidateBadges = textFilteredBadges
-        console.log(`Text pre-filtering: Narrowed from ${primaryImages.length + alternateImages.length} to ${candidateBadges.length} candidates based on text: "${userText}"`)
-      } else {
-        console.log(`Text pre-filtering: Keeping all badges (${candidateBadges.length}) - filter too restrictive or text too generic`)
+        console.log(`📝 Text filtering: Narrowed to ${candidateBadges.length} candidates based on: "${userText}"`)
       }
-    } else {
-      console.log('No user text provided - skipping text pre-filtering')
     }
     
-    console.log(`Will compare with ${candidateBadges.length} badge images using ${useFallbackMode ? 'minimal' : 'two-stage'} matching...`)
+    console.log(`🎯 STEP 4: Visual comparison with ${candidateBadges.length} candidates using optimized single-stage matching...`)
     
-    if (useFallbackMode) {
-      // Fallback: Only compare with top 5 most likely candidates
-      const limitedCandidates = candidateBadges.slice(0, 5)
-      console.log(`Using fallback mode: comparing with only ${limitedCandidates.length} badges`)
+    // Optimized Single-Stage Visual Matching
+    const visualResults = []
+    const BATCH_SIZE = 10 // Larger batches for efficiency
+    const DELAY_MS = 1000 // Reduced delay: 1 second between batches
+    
+    for (let i = 0; i < candidateBadges.length; i += BATCH_SIZE) {
+      const batch = candidateBadges.slice(i, i + BATCH_SIZE)
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(candidateBadges.length / BATCH_SIZE)
       
-      const fallbackMatches = []
+      console.log(`🔍 Processing batch ${batchNumber}/${totalBatches} (${batch.length} badges)...`)
       
-      for (const row of limitedCandidates) {
+      const batchPromises = batch.map(async (row) => {
         const badge = { ...row.badges, image_url: row.image_url }
         try {
+          // Single-stage detailed comparison
           const requestBody = {
             model: 'gpt-4.1-2025-04-14',
             messages: [
@@ -220,7 +353,7 @@ serve(async (req) => {
                 content: [
                   {
                     type: 'text',
-                    text: `Rate similarity 0-100%. Respond with only a number.`
+                    text: `Compare these badge images for visual similarity (0-100%). Look at shape, colors, text content, artwork, design elements, and overall appearance. Consider if these could be the same badge. Respond with only a number.`
                   },
                   {
                     type: 'image_url',
@@ -233,7 +366,8 @@ serve(async (req) => {
                 ]
               }
             ],
-            max_tokens: 5
+            max_tokens: 5,
+            temperature: 0
           }
           
           const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -244,338 +378,76 @@ serve(async (req) => {
             },
             body: JSON.stringify(requestBody)
           })
-
+          
           if (comparison.ok) {
             const result = await comparison.json()
             const similarityText = result.choices[0]?.message?.content?.trim()
             const similarity = parseInt(similarityText) || 0
             
-            console.log(`Fallback - "${badge.name}": ${similarity}%`)
+            console.log(`✅ "${badge.name}": ${similarity}%`)
             
-            fallbackMatches.push({
+            return {
               badge,
               similarity: similarity / 100,
               confidence: similarity
-            })
-          } else {
-            console.log(`Fallback failed for ${badge.name}: ${comparison.status}`)
-          }
-        } catch (error) {
-          console.error(`Fallback error for ${badge.name}:`, error)
-        }
-        
-        // Add delay between individual calls in fallback mode
-        await new Promise(resolve => setTimeout(resolve, 5000)) // 5 second delay
-      }
-      
-      // Return fallback results
-      const matches = fallbackMatches
-        .filter(match => match.similarity >= 0.5)
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 3)
-      
-      console.log(`Fallback complete: ${matches.length} matches found`)
-      
-      return new Response(
-        JSON.stringify({ 
-          matches,
-          fallbackMode: true,
-          message: "Using minimal comparison due to API issues"
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-    
-    // Two-Stage Matching Implementation with conservative rate limiting
-    console.log('=== STAGE 1: Fast Visual Screening ===')
-    
-    // Stage 1: Fast comparison with simplified prompt
-    const stage1Results = []
-    const STAGE1_BATCH_SIZE = 8 // Smaller batches for better rate limiting
-    const STAGE1_DELAY_MS = 3000 // Longer delay: 3 seconds between batches
-    
-    for (let i = 0; i < candidateBadges.length; i += STAGE1_BATCH_SIZE) {
-      const batch = candidateBadges.slice(i, i + STAGE1_BATCH_SIZE)
-      const batchNumber = Math.floor(i / STAGE1_BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(candidateBadges.length / STAGE1_BATCH_SIZE)
-      
-      console.log(`Stage 1 - Processing batch ${batchNumber}/${totalBatches} (${batch.length} badges)...`)
-      
-      const batchPromises = batch.map(async (row) => {
-        const badge = { ...row.badges, image_url: row.image_url }
-        try {
-          const startTime = Date.now()
-          
-          // Stage 1: Simple, fast comparison
-          const requestBody = {
-        model: 'gpt-4.1-2025-04-14',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Quick visual similarity check: Rate these badge images 0-100% similarity. Focus on overall shape, main colors, and text. Respond with only a number.`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: uploadedImageData }
-                  },
-                  {
-                    type: 'image_url', 
-                    image_url: { url: badge.image_url }
-                  }
-                ]
-              }
-            ],
-            max_tokens: 5, // Very short response
-            temperature: 0.1 // More deterministic
-          }
-          
-          const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openaiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-          })
-
-          const responseTime = Date.now() - startTime
-          
-          if (comparison.ok) {
-            const result = await comparison.json()
-            const similarityText = result.choices[0]?.message?.content?.trim()
-            const similarity = parseInt(similarityText) || 0
-            
-            console.log(`Stage 1 - "${badge.name}": ${similarity}%`)
-            
-            return {
-              badge,
-              similarity: similarity / 100,
-              confidence: similarity,
-              stage: 1
             }
           } else {
-            const isRateLimited = comparison.status === 429
-            console.log(`Stage 1 - Failed "${badge.name}": ${isRateLimited ? 'Rate limited' : 'API error'}`)
+            console.log(`❌ Failed "${badge.name}": Status ${comparison.status}`)
             return {
               badge,
               similarity: 0,
-              confidence: 0,
-              rateLimited: isRateLimited,
-              stage: 1
+              confidence: 0
             }
           }
         } catch (error) {
-          console.error(`Stage 1 error with ${badge.name}:`, error)
-          return { badge, similarity: 0, confidence: 0, stage: 1 }
+          console.error(`❌ Error with ${badge.name}:`, error)
+          return { badge, similarity: 0, confidence: 0 }
         }
       })
 
       const batchResults = await Promise.all(batchPromises)
-      stage1Results.push(...batchResults)
+      visualResults.push(...batchResults)
       
-      console.log(`Stage 1 batch ${batchNumber} complete`)
+      console.log(`📊 Batch ${batchNumber} complete`)
       
-      // Delay between batches
-      if (i + STAGE1_BATCH_SIZE < candidateBadges.length) {
-        await new Promise(resolve => setTimeout(resolve, STAGE1_DELAY_MS))
+      // Short delay between batches
+      if (i + BATCH_SIZE < candidateBadges.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS))
       }
     }
 
-    // Filter top candidates for Stage 2
-    const STAGE1_THRESHOLD = 0.3 // 30% threshold for stage 1
-    const MAX_STAGE2_CANDIDATES = 15 // Limit stage 2 candidates
+    // Filter and sort results
+    const SIMILARITY_THRESHOLD = 0.5 // 50% threshold for matches
     
-    const stage2Candidates = stage1Results
-      .filter(result => result.similarity >= STAGE1_THRESHOLD)
+    const finalMatches = visualResults
+      .filter(result => result.similarity >= SIMILARITY_THRESHOLD)
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, MAX_STAGE2_CANDIDATES)
+      .slice(0, 5) // Top 5 matches
     
-    console.log(`Stage 1 complete: ${stage2Candidates.length} candidates passed threshold for detailed analysis`)
+    const processingTime = Date.now() - startTime
+    console.log(`🎉 Analysis complete in ${processingTime}ms: ${finalMatches.length} matches found`)
     
-    if (stage2Candidates.length === 0) {
-      console.log('No candidates passed Stage 1 screening')
+    if (finalMatches.length === 0) {
+      console.log('❌ No matches found above threshold')
       return new Response(
         JSON.stringify({ matches: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    // Stage 2: Detailed comparison on top candidates
-    console.log('=== STAGE 2: Detailed Visual Analysis ===')
     
-    const stage2Results = []
-    const STAGE2_BATCH_SIZE = 5 // Much smaller batches for detailed analysis  
-    const STAGE2_DELAY_MS = 4000 // Longer delay: 4 seconds for stage 2
+    // Log performance metrics
+    finalMatches.forEach((match, index) => {
+      console.log(`🏆 Match ${index + 1}: ${match.badge.name} (${match.confidence}% confidence)`)
+    })
     
-    for (let i = 0; i < stage2Candidates.length; i += STAGE2_BATCH_SIZE) {
-      const batch = stage2Candidates.slice(i, i + STAGE2_BATCH_SIZE)
-      const batchNumber = Math.floor(i / STAGE2_BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(stage2Candidates.length / STAGE2_BATCH_SIZE)
-      
-      console.log(`Stage 2 - Processing batch ${batchNumber}/${totalBatches} (${batch.length} badges)...`)
-      
-      const batchPromises = batch.map(async (candidate) => {
-        const badge = candidate.badge
-        try {
-          const startTime = Date.now()
-          
-          // Stage 2: Detailed comparison
-          const requestBody = {
-      model: 'gpt-4.1-2025-04-14',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Detailed visual comparison: Rate similarity 0-100% based on shape, colors, text content, artwork details, size, and overall design. Look for exact matches of text, logos, and design elements. Respond with only a number.`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: uploadedImageData }
-                  },
-                  {
-                    type: 'image_url', 
-                    image_url: { url: badge.image_url }
-                  }
-                ]
-              }
-            ],
-            max_tokens: 10,
-            temperature: 0 // Most deterministic for final scoring
-          }
-          
-          const comparison = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openaiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-          })
-
-          const responseTime = Date.now() - startTime
-          
-          if (comparison.ok) {
-            const result = await comparison.json()
-            const similarityText = result.choices[0]?.message?.content?.trim()
-            const similarity = parseInt(similarityText) || 0
-            
-            console.log(`Stage 2 - "${badge.name}": ${similarity}% (was ${candidate.confidence}% in stage 1)`)
-            
-            // Log the API call
-            const promptText = `Detailed visual comparison: Rate similarity 0-100% based on shape, colors, text content, artwork details, size, and overall design.`
-            const inputTokens = countTokensApprox(promptText)
-            const outputTokens = countTokensApprox(similarityText || '0')
-            const estimatedCost = estimateOpenAICost('gpt-4o-mini', inputTokens, outputTokens)
-            
-            await logApiCall({
-              api_provider: 'openai',
-              endpoint: '/chat/completions',
-              method: 'POST',
-              request_data: { model: 'gpt-4o-mini', max_tokens: 10, messages: 'detailed_image_comparison' },
-              response_status: comparison.status,
-              response_time_ms: responseTime,
-              tokens_used: inputTokens + outputTokens,
-              estimated_cost_usd: estimatedCost,
-              success: true
-            })
-            
-            return {
-              badge,
-              similarity: similarity / 100,
-              confidence: similarity,
-              stage1Score: candidate.confidence,
-              stage: 2
-            }
-          } else {
-            const isRateLimited = comparison.status === 429
-            console.log(`Stage 2 - Failed "${badge.name}": ${isRateLimited ? 'Rate limited' : 'API error'}`)
-            return {
-              badge,
-              similarity: 0,
-              confidence: 0,
-              rateLimited: isRateLimited,
-              stage: 2
-            }
-          }
-        } catch (error) {
-          console.error(`Stage 2 error with ${badge.name}:`, error)
-          return { badge, similarity: 0, confidence: 0, stage: 2 }
-        }
-      })
-
-      const batchResults = await Promise.all(batchPromises)
-      stage2Results.push(...batchResults)
-      
-      console.log(`Stage 2 batch ${batchNumber} complete`)
-      
-      // Delay between batches
-      if (i + STAGE2_BATCH_SIZE < stage2Candidates.length) {
-        await new Promise(resolve => setTimeout(resolve, STAGE2_DELAY_MS))
-      }
-    }
-
-    const allMatches = stage2Results
-
-    // Check for excessive rate limiting
-    const totalRateLimited = allMatches.filter(match => match.rateLimited).length
-    if (totalRateLimited > stage2Candidates.length * 0.5) {
-      throw new Error(`OpenAI API rate limit exceeded. ${totalRateLimited} out of ${stage2Candidates.length} detailed comparisons failed due to rate limiting. Please try again in a few minutes.`)
-    }
-
-    // Sort by Stage 2 similarity (final detailed scores)
-    allMatches.sort((a, b) => b.similarity - a.similarity)
-
-    // Log top similarities for debugging
-    console.log('Top badge similarities after 2-stage matching:', allMatches.slice(0, 10).map(m => 
-      `${m.badge?.name || 'Unknown'}: ${(m.similarity * 100).toFixed(1)}% (Stage 1: ${m.stage1Score || 'N/A'}%)`
-    ))
-
-    // Apply final threshold and limit
-    const FINAL_THRESHOLD = 0.5
-    const TOP_N = 3
-    const matches = allMatches
-      .filter(match => match.similarity >= FINAL_THRESHOLD)
-      .slice(0, TOP_N)
-
-    const totalOriginalBadges = primaryImages.length + alternateImages.length
-    const totalStage1Processed = candidateBadges.length
-    const totalStage2Processed = stage2Candidates.length
-    const successfulComparisons = allMatches.filter(match => !match.rateLimited).length
-    
-    console.log(`=== FINAL RESULTS ===`)
-    console.log(`Original database: ${totalOriginalBadges} badges`)
-    console.log(`After text filtering: ${totalStage1Processed} badges`)
-    console.log(`After stage 1 screening: ${totalStage2Processed} badges`)  
-    console.log(`Final matches: ${matches.length} above ${FINAL_THRESHOLD * 100}% threshold`)
-    console.log(`Total API calls: ${totalStage1Processed + totalStage2Processed}`)
-
-    const responsePayload: any = { matches }
-    if (debug) {
-      responsePayload.debug = {
-        model: 'gpt-4o-mini',
-        stages: 'two-stage matching with text pre-filtering',
-        threshold: FINAL_THRESHOLD,
-        topN: TOP_N,
-        originalDatabaseSize: totalOriginalBadges,
-        textFilteredSize: totalStage1Processed,
-        stage1Candidates: totalStage1Processed,
-        stage2Candidates: totalStage2Processed,
-        totalApiCalls: totalStage1Processed + totalStage2Processed,
-        topSimilarities: allMatches.slice(0, 10).map(m => ({
-          name: m.badge?.name || 'Unknown',
-          stage1Score: m.stage1Score || 'N/A',
-          finalScore: Math.round((m.similarity || 0) * 100)
-        }))
-      }
-    }
-
     return new Response(
-      JSON.stringify(responsePayload),
+      JSON.stringify({ 
+        matches: finalMatches,
+        processingTime,
+        candidatesProcessed: candidateBadges.length,
+        embeddingPreFilter: uploadedImageEmbedding ? true : false,
+        message: `Found ${finalMatches.length} matches in ${(processingTime / 1000).toFixed(1)}s using smart pre-filtering`
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
