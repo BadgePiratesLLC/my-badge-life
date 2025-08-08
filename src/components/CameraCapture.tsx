@@ -31,6 +31,7 @@ export const CameraCapture = ({
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -70,27 +71,27 @@ export const CameraCapture = ({
 
   const handleFile = async (file: File) => {
     if (file.type.startsWith('image/')) {
-      console.log('CameraCapture handleFile - enableMatching:', enableMatching);
-      if (enableMatching) {
-        console.log('Starting image analysis...');
-        await handleImageAnalysis(file);
-      } else {
-        console.log('Just uploading image...');
-        onImageCapture(file);
-        onClose();
-      }
+      console.log('File selected:', file.name);
+      setSelectedFile(file);
+      const imageUrl = URL.createObjectURL(file);
+      setUploadedImageUrl(imageUrl);
     }
   };
 
-  const handleImageAnalysis = async (file: File) => {
+  const handleAnalyze = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No Image Selected",
+        description: "Please select an image first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     const startTime = Date.now();
     
     try {
-      // Create image URL for preview
-      const imageUrl = URL.createObjectURL(file);
-      setUploadedImageUrl(imageUrl);
-      
       // Convert file to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -98,7 +99,7 @@ export const CameraCapture = ({
         
         try {
           console.log('Starting badge matching analysis...');
-          console.log('Image size:', file.size, 'bytes');
+          console.log('Image size:', selectedFile.size, 'bytes');
           console.log('Base64 length:', base64?.length);
           
           // Step 1: Badge matching search
@@ -112,8 +113,6 @@ export const CameraCapture = ({
             console.error('Function invocation error:', error);
             throw error;
           }
-
-          // No additional searches needed - analyze-badge-image handles everything
 
           const endTime = Date.now();
           const totalDuration = endTime - startTime;
@@ -137,7 +136,7 @@ export const CameraCapture = ({
             console.warn('Analytics tracking failed, continuing anyway:', trackingError);
           }
 
-          setAnalysisResults({...data, originalImageBase64: base64, originalFile: file});
+          setAnalysisResults({...data, originalImageBase64: base64, originalFile: selectedFile});
           setShowAnalysis(true);
           setIsAnalyzing(false);
         } catch (analysisError) {
@@ -170,12 +169,9 @@ export const CameraCapture = ({
             variant: "destructive"
           });
           setIsAnalyzing(false);
-          // Fallback to regular creation
-          onImageCapture(file);
-          onClose();
         }
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(selectedFile);
     } catch (error) {
       console.error('Error processing image:', error);
       setIsAnalyzing(false);
@@ -204,6 +200,20 @@ export const CameraCapture = ({
     }
   };
 
+  const handleUploadToDatabase = () => {
+    if (!selectedFile) {
+      toast({
+        title: "No Image Selected",
+        description: "Please select an image first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    onImageCapture(selectedFile);
+    onClose();
+  };
+
   const handleCreateNew = (prefillData: any) => {
     setShowAnalysis(false);
     // Include the original file for proper upload
@@ -219,6 +229,7 @@ export const CameraCapture = ({
     setShowAnalysis(false);
     setAnalysisResults(null);
     setUploadedImageUrl('');
+    setSelectedFile(null);
     setIsAnalyzing(false);
     // Reset file input to allow re-scanning
     if (uploadInputRef.current) {
@@ -230,10 +241,10 @@ export const CameraCapture = ({
   };
 
   const handleRetrySearch = async () => {
-    if (!analysisResults?.originalFile) {
+    if (!selectedFile) {
       toast({
         title: "Cannot retry search",
-        description: "Original image data not available",
+        description: "No image selected",
         variant: "destructive"
       });
       return;
@@ -244,7 +255,7 @@ export const CameraCapture = ({
     setShowAnalysis(false);
     
     // Re-analyze the same image
-    await handleImageAnalysis(analysisResults.originalFile);
+    await handleAnalyze();
   };
 
   const triggerUploadInput = () => {
@@ -277,19 +288,35 @@ export const CameraCapture = ({
             onDragOver={handleDrag}
             onDrop={handleDrop}
           >
-            <div className="flex flex-col items-center space-y-3">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Camera className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium font-mono">
-                  Drop badge photo here
+            {selectedFile ? (
+              <div className="flex flex-col items-center space-y-3">
+                <img 
+                  src={uploadedImageUrl} 
+                  alt="Selected badge" 
+                  className="max-w-32 max-h-32 object-contain rounded"
+                />
+                <p className="text-sm font-medium font-mono text-primary">
+                  {selectedFile.name}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  or click to browse
+                <p className="text-xs text-muted-foreground">
+                  Ready to analyze or upload
                 </p>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <Camera className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium font-mono">
+                    Drop badge photo here
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    or click to browse
+                  </p>
+                </div>
+              </div>
+            )}
             
             <input
               ref={uploadInputRef}
@@ -308,47 +335,74 @@ export const CameraCapture = ({
             />
           </div>
           
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-               onClick={triggerUploadInput}
-              disabled={isAnalyzing}
-            >
-              <Upload className="h-4 w-4" />
-              UPLOAD
-            </Button>
-            
-            <Button
-              variant="matrix"
-              className="flex-1"
-               onClick={triggerCameraInput}
-              disabled={isAnalyzing}
-            >
-              <Camera className="h-4 w-4" />
-              CAMERA
-            </Button>
-          </div>
-          
-          {enableMatching && (
+          {!selectedFile && (
             <div className="flex space-x-2">
               <Button
-                variant="secondary"
+                variant="outline"
                 className="flex-1"
                 onClick={triggerUploadInput}
                 disabled={isAnalyzing}
               >
-                <Search className="h-4 w-4" />
-                {isAnalyzing ? "ANALYZING..." : "FIND SIMILAR"}
+                <Upload className="h-4 w-4" />
+                UPLOAD
+              </Button>
+              
+              <Button
+                variant="matrix"
+                className="flex-1"
+                onClick={triggerCameraInput}
+                disabled={isAnalyzing}
+              >
+                <Camera className="h-4 w-4" />
+                CAMERA
               </Button>
             </div>
           )}
           
+          {selectedFile && (
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                >
+                  <Search className="h-4 w-4" />
+                  {isAnalyzing ? "ANALYZING..." : "ANALYZE"}
+                </Button>
+                
+                <Button
+                  variant="matrix"
+                  className="flex-1"
+                  onClick={handleUploadToDatabase}
+                  disabled={isAnalyzing}
+                >
+                  <Upload className="h-4 w-4" />
+                  UPLOAD TO DB
+                </Button>
+              </div>
+              
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setUploadedImageUrl('');
+                  if (uploadInputRef.current) uploadInputRef.current.value = '';
+                  if (cameraInputRef.current) cameraInputRef.current.value = '';
+                }}
+                disabled={isAnalyzing}
+              >
+                SELECT DIFFERENT IMAGE
+              </Button>
+            </div>
+          )}
           
           <p className="text-xs text-muted-foreground text-center font-mono">
-            {enableMatching 
-              ? "CAPTURE TO SEARCH FOR SIMILAR BADGES OR CREATE NEW"
-              : "CAPTURE CLEAR PHOTOS FOR BEST IDENTIFICATION"
+            {selectedFile 
+              ? "ANALYZE TO FIND SIMILAR OR UPLOAD DIRECTLY TO DATABASE"
+              : "SELECT IMAGE TO ANALYZE OR UPLOAD TO DATABASE"
             }
           </p>
           
