@@ -14,68 +14,65 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true;
     
-    // Set a maximum loading time to prevent infinite loading
-    const maxLoadTime = setTimeout(() => {
-      if (isMounted) {
-        console.log('Auth initialization timeout - setting loading to false')
-        setLoading(false)
-        setInitialized(true)
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        // First get the current session
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!isMounted) return;
+        
+        console.log('Initial session check:', session?.user?.email || 'no user')
+        
+        if (session?.user) {
+          setUser(session.user)
+          await fetchProfile(session.user.id)
+        } else {
+          setUser(null)
+          setProfile(null)
+        }
+      } catch (error) {
+        console.error('Error during auth initialization:', error)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+          setInitialized(true)
+        }
       }
-    }, 5000) // 5 seconds max
+    }
 
-    // Listen for auth changes FIRST to catch all events
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       
-      console.log('Auth state change:', event, session?.user?.id || 'no user')
-      
-      // Update user state immediately
-      setUser(session?.user ?? null)
+      console.log('Auth state change:', event, session?.user?.email || 'no user')
       
       if (session?.user) {
-        // Only fetch profile if we haven't initialized or user changed
-        if (!initialized || user?.id !== session.user.id) {
-          // Use setTimeout to prevent deadlock with onAuthStateChange
-          setTimeout(() => {
-            if (isMounted) {
-              fetchProfile(session.user.id)
-            }
-          }, 0)
+        setUser(session.user)
+        // Fetch profile for new sessions or user changes
+        if (event === 'SIGNED_IN' || !profile || profile.id !== session.user.id) {
+          await fetchProfile(session.user.id)
         }
-        setLoading(false)
-        clearTimeout(maxLoadTime)
       } else {
+        setUser(null)
         setProfile(null)
-        setLoading(false)
-        clearTimeout(maxLoadTime)
       }
       
-      if (!initialized) {
-        setInitialized(true)
+      if (initialized) {
+        setLoading(false)
       }
     })
 
-    // THEN get initial session (this may trigger the listener above)
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!isMounted) return;
-      
-      if (error) {
-        console.error('Error getting initial session:', error)
-        setLoading(false)
-        clearTimeout(maxLoadTime)
-        setInitialized(true)
-      }
-      // Session will be handled by the listener above
-    })
+    // Initialize
+    initializeAuth()
 
     return () => {
       isMounted = false;
       subscription.unsubscribe()
-      clearTimeout(maxLoadTime)
     }
-  }, [])
+  }, []) // Remove dependencies to prevent re-initialization
 
   const fetchProfile = async (userId: string) => {
     try {
