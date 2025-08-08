@@ -237,34 +237,80 @@ export const CameraCapture = ({
     setDebugInfo(prev => prev + ` → Testing storage...`);
     try {
       const testFileName = `test/${Date.now()}.jpg`;
+      
+      // Check if file is too large for mobile upload
+      if (selectedFile.size > 2 * 1024 * 1024) { // 2MB
+        setDebugInfo(prev => prev + ` → File large (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB), compressing...`);
+        
+        // Try compressing the image
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          const compressedFile = await new Promise<File>((resolve, reject) => {
+            img.onload = () => {
+              // Calculate new dimensions (max 1024px)
+              const maxSize = 1024;
+              let { width, height } = img;
+              if (width > height && width > maxSize) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+              } else if (height > maxSize) {
+                width = (width * maxSize) / height;
+                height = maxSize;
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  const compressedFile = new File([blob], selectedFile.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
+                  });
+                  resolve(compressedFile);
+                } else {
+                  reject(new Error('Compression failed'));
+                }
+              }, 'image/jpeg', 0.8);
+            };
+            img.onerror = () => reject(new Error('Image load failed'));
+            img.src = URL.createObjectURL(selectedFile);
+          });
+          
+          setDebugInfo(prev => prev + ` Compressed to ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB →`);
+          
+          // Try uploading compressed version
+          const { error: compressedError } = await supabase.storage
+            .from('badge-images')
+            .upload(`test-compressed/${Date.now()}.jpg`, compressedFile);
+          
+          if (compressedError) {
+            setDebugInfo(prev => prev + ` ✗ Compressed failed: ${compressedError.message}`);
+          } else {
+            setDebugInfo(prev => prev + ` ✓ Compressed worked! → Full upload...`);
+            // Use onImageCapture with compressed file by modifying the selected file
+            setSelectedFile(compressedFile);
+            await onImageCapture(compressedFile);
+            setDebugInfo(prev => prev + ` ✓ Success!`);
+            onClose();
+            return;
+          }
+        } catch (compressionError) {
+          setDebugInfo(prev => prev + ` ✗ Compression failed: ${compressionError.message}`);
+        }
+      }
+      
+      // Try original upload
       const { data, error: testError } = await supabase.storage
         .from('badge-images')
         .upload(testFileName, selectedFile);
       
       if (testError) {
         setDebugInfo(prev => prev + ` ✗ Storage failed: ${testError.message}`);
-        
-        // Try with a different approach - convert to blob first
-        setDebugInfo(prev => prev + ` → Trying blob conversion...`);
-        try {
-          const arrayBuffer = await selectedFile.arrayBuffer();
-          const blob = new Blob([arrayBuffer], { type: selectedFile.type });
-          const { error: blobError } = await supabase.storage
-            .from('badge-images')
-            .upload(`test-blob/${Date.now()}.jpg`, blob);
-          
-          if (blobError) {
-            setDebugInfo(prev => prev + ` ✗ Blob failed: ${blobError.message}`);
-          } else {
-            setDebugInfo(prev => prev + ` ✓ Blob worked! → Full upload...`);
-            // Use blob for actual upload
-            await onImageCapture(selectedFile);
-            setDebugInfo(prev => prev + ` ✓ Success!`);
-            onClose();
-          }
-        } catch (blobError) {
-          setDebugInfo(prev => prev + ` ✗ Blob conversion failed: ${blobError.message}`);
-        }
         return;
       }
       setDebugInfo(prev => prev + ` Storage OK → Full upload...`);
