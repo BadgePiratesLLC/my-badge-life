@@ -252,6 +252,28 @@ export function useBadges() {
         userId: user?.id 
       });
 
+      // Deep inspection of File object
+      console.log('File object inspection:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified,
+        constructor: file.constructor.name,
+        webkitRelativePath: (file as any).webkitRelativePath,
+        stream: typeof file.stream,
+        arrayBuffer: typeof file.arrayBuffer,
+        slice: typeof file.slice
+      });
+
+      // Test if we can read the file
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        console.log('File read test successful, buffer size:', arrayBuffer.byteLength);
+      } catch (readError) {
+        console.error('File read test failed:', readError);
+        throw new Error(`Cannot read file: ${readError.message}`);
+      }
+
       // Check file size - large files might cause network issues
       const maxSizeB = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSizeB) {

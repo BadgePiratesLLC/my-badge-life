@@ -223,13 +223,21 @@ export const CameraCapture = ({
       return;
     }
 
-    setDebugInfo(prev => prev + ` → Uploading...`);
+    // Test file readability before upload
+    try {
+      const buffer = await selectedFile.arrayBuffer();
+      setDebugInfo(prev => prev + ` → File OK (${buffer.byteLength} bytes) → Uploading...`);
+    } catch (error) {
+      setDebugInfo(prev => prev + ` ✗ File read failed: ${error.message}`);
+      return;
+    }
+
     try {
       await onImageCapture(selectedFile);
       setDebugInfo(prev => prev + ` ✓ Success!`);
       onClose();
     } catch (error) {
-      setDebugInfo(prev => prev + ` ✗ Failed: ${error?.message || 'Unknown error'}`);
+      setDebugInfo(prev => prev + ` ✗ Upload failed: ${error?.message || 'Unknown error'}`);
       // Don't close modal if upload failed
     }
   };
