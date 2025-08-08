@@ -26,7 +26,6 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { BadgeStatsDisplay } from '@/components/BadgeStatsDisplay'
-import { AdminBadgeUpload } from '@/components/AdminBadgeUpload'
 
 interface BadgeData {
   id: string
@@ -112,7 +111,6 @@ export default function Admin() {
   const [teamForm, setTeamForm] = useState<{ name: string; description: string; website_url: string }>({ name: '', description: '', website_url: '' })
   const [showCreateTeam, setShowCreateTeam] = useState(false)
   const [allUsers, setAllUsers] = useState<{id: string, display_name: string | null, email: string | null}[]>([])
-  const [showAdminUpload, setShowAdminUpload] = useState(false)
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -720,20 +718,6 @@ export default function Admin() {
             </TabsList>
 
           <TabsContent value="uploads" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <div></div>
-              {isAdmin() && (
-                <Button
-                  variant="matrix"
-                  onClick={() => setShowAdminUpload(true)}
-                  className="font-mono"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  ADMIN UPLOAD
-                </Button>
-              )}
-            </div>
-            
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-mono">
@@ -1745,12 +1729,6 @@ export default function Admin() {
         </Tabs>
         </TooltipProvider>
       </div>
-
-      {/* Admin Badge Upload Modal */}
-      <AdminBadgeUpload
-        isOpen={showAdminUpload}
-        onClose={() => setShowAdminUpload(false)}
-      />
     </div>
   )
 }
