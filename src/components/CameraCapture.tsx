@@ -32,6 +32,7 @@ export const CameraCapture = ({
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -63,45 +64,26 @@ export const CameraCapture = ({
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('=== FILE INPUT TRIGGERED ===');
-    console.log('Input element:', e.target);
-    console.log('Input type:', e.target.type);
-    console.log('Input capture attribute:', e.target.getAttribute('capture'));
-    console.log('Has files:', !!e.target.files);
-    console.log('Files length:', e.target.files?.length);
-    
+    const isCamera = e.target.hasAttribute('capture');
     const files = e.target.files;
+    
     if (files && files[0]) {
-      console.log('File selected via input:', {
-        name: files[0].name,
-        size: files[0].size,
-        type: files[0].type,
-        lastModified: files[0].lastModified,
-        constructor: files[0].constructor.name
-      });
+      const file = files[0];
+      setDebugInfo(`${isCamera ? 'CAMERA' : 'FILE'}: ${file.name} (${file.size} bytes, ${file.type})`);
       handleFile(files[0]);
     } else {
-      console.log('No file selected or files array empty');
+      setDebugInfo('No file selected');
     }
   };
 
   const handleFile = async (file: File) => {
-    console.log('=== HANDLE FILE CALLED ===');
-    console.log('File details:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      isImageType: file.type.startsWith('image/')
-    });
-    
     if (file.type.startsWith('image/')) {
-      console.log('File is valid image, processing...');
       setSelectedFile(file);
       const imageUrl = URL.createObjectURL(file);
       setUploadedImageUrl(imageUrl);
-      console.log('File processed successfully, imageUrl created:', imageUrl);
+      setDebugInfo(prev => prev + ` ✓ Ready`);
     } else {
-      console.log('File is not an image type:', file.type);
+      setDebugInfo(`Error: Not an image (${file.type})`);
     }
   };
 
@@ -228,15 +210,8 @@ export const CameraCapture = ({
   };
 
   const handleUploadToDatabase = async () => {
-    console.log('=== UPLOAD TO DATABASE TRIGGERED ===');
-    console.log('Selected file exists:', !!selectedFile);
-    console.log('Selected file details:', selectedFile ? {
-      name: selectedFile.name,
-      size: selectedFile.size,
-      type: selectedFile.type
-    } : 'No file');
-    
     if (!selectedFile) {
+      setDebugInfo('Error: No file selected');
       toast({
         title: "No Image Selected",
         description: "Please select an image first",
@@ -245,13 +220,13 @@ export const CameraCapture = ({
       return;
     }
 
-    console.log('Calling onImageCapture with file...');
+    setDebugInfo(prev => prev + ` → Uploading...`);
     try {
       await onImageCapture(selectedFile);
-      console.log('onImageCapture completed successfully');
+      setDebugInfo(prev => prev + ` ✓ Success!`);
       onClose();
     } catch (error) {
-      console.error('onImageCapture failed:', error);
+      setDebugInfo(prev => prev + ` ✗ Failed: ${error?.message || 'Unknown error'}`);
       // Don't close modal if upload failed
     }
   };
@@ -451,6 +426,12 @@ export const CameraCapture = ({
               : "SELECT IMAGE TO ANALYZE OR UPLOAD TO DATABASE"
             }
           </p>
+          
+          {debugInfo && (
+            <div className="p-2 bg-muted rounded text-xs font-mono text-center">
+              {debugInfo}
+            </div>
+          )}
           
           {isAnalyzing && (
             <div className="flex items-center justify-center space-x-2 py-2">
