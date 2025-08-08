@@ -241,68 +241,13 @@ export function useBadges() {
     analysis?: any;
   }) => {
     try {
-      console.log('=== UPLOAD DEBUG START ===');
-      console.log('uploadBadgeImage called with:', { 
-        fileName: file.name, 
-        fileSize: file.size, 
-        fileSizeMB: (file.size / 1024 / 1024).toFixed(2),
-        fileType: file.type,
-        sendNotification,
-        userExists: !!user,
-        userId: user?.id 
-      });
-
-      // Deep inspection of File object
-      console.log('File object inspection:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-        constructor: file.constructor.name,
-        webkitRelativePath: (file as any).webkitRelativePath,
-        stream: typeof file.stream,
-        arrayBuffer: typeof file.arrayBuffer,
-        slice: typeof file.slice
-      });
-
-      // Test if we can read the file
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        console.log('File read test successful, buffer size:', arrayBuffer.byteLength);
-      } catch (readError) {
-        console.error('File read test failed:', readError);
-        throw new Error(`Cannot read file: ${readError.message}`);
-      }
-
-      // Check file size - large files might cause network issues
-      const maxSizeB = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSizeB) {
-        throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB (max 10MB)`);
-      }
-
-      // Test Supabase connection first
-      console.log('Testing Supabase connection...');
-      const { data: testData, error: testError } = await supabase
-        .from('badges')
-        .select('id')
-        .limit(1);
-      
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        throw new Error(`Database connection failed: ${testError.message}`);
-      }
-      console.log('Supabase connection test successful');
-
       // Create unique filename - allow anonymous uploads for testing
       const fileExt = file.name.split('.').pop()
       const fileName = user 
         ? `${user.id}/${Date.now()}.${fileExt}`
         : `anonymous/${Date.now()}.${fileExt}`
 
-      console.log('Generated filename:', fileName);
-
       // Upload to Supabase Storage
-      console.log('Starting storage upload...');
       let uploadData;
       try {
         const { data, error: uploadError } = await supabase.storage
@@ -310,14 +255,11 @@ export function useBadges() {
           .upload(fileName, file)
 
         if (uploadError) {
-          console.error('Storage upload error:', uploadError)
           throw new Error(`Storage upload failed: ${uploadError.message}`)
         }
 
         uploadData = data;
-        console.log('Storage upload successful:', uploadData);
       } catch (storageError) {
-        console.error('Storage operation failed:', storageError);
         // Try to provide more specific error message
         if (storageError.message?.includes('fetch')) {
           throw new Error('Network error: Cannot connect to storage. Please check your internet connection.');
@@ -329,8 +271,6 @@ export function useBadges() {
       const { data: { publicUrl } } = supabase.storage
         .from('badge-images')
         .getPublicUrl(uploadData.path)
-
-      console.log('Generated public URL:', publicUrl);
 
       // Record upload in database with metadata (allow anonymous uploads)
       console.log('Starting database insert...');

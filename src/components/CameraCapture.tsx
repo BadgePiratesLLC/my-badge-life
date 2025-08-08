@@ -32,7 +32,6 @@ export const CameraCapture = ({
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -64,15 +63,9 @@ export const CameraCapture = ({
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isCamera = e.target.hasAttribute('capture');
     const files = e.target.files;
-    
     if (files && files[0]) {
-      const file = files[0];
-      setDebugInfo(`${isCamera ? 'CAMERA' : 'FILE'}: ${file.name} (${file.size} bytes, ${file.type})`);
       handleFile(files[0]);
-    } else {
-      setDebugInfo('No file selected');
     }
   };
 
@@ -81,12 +74,6 @@ export const CameraCapture = ({
       setSelectedFile(file);
       const imageUrl = URL.createObjectURL(file);
       setUploadedImageUrl(imageUrl);
-      
-      // Enhanced debugging for file differences
-      const fileInfo = `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, Type: ${file.type}, Name: ${file.name}`;
-      setDebugInfo(prev => prev + ` ✓ Ready - ${fileInfo}`);
-    } else {
-      setDebugInfo(`Error: Not an image (${file.type})`);
     }
   };
 
@@ -214,7 +201,6 @@ export const CameraCapture = ({
 
   const handleUploadToDatabase = async () => {
     if (!selectedFile) {
-      setDebugInfo('Error: No file selected');
       toast({
         title: "No Image Selected",
         description: "Please select an image first",
@@ -223,104 +209,61 @@ export const CameraCapture = ({
       return;
     }
 
-    // Test file readability before upload
-    setDebugInfo(prev => prev + ` → Testing file...`);
-    try {
-      const buffer = await selectedFile.arrayBuffer();
-      setDebugInfo(prev => prev + ` File OK (${buffer.byteLength} bytes)`);
-    } catch (error) {
-      setDebugInfo(prev => prev + ` ✗ File read failed: ${error.message}`);
-      return;
-    }
-
-    // Try direct storage upload test
-    setDebugInfo(prev => prev + ` → Testing storage...`);
-    try {
-      const testFileName = `test/${Date.now()}.jpg`;
-      
-      // Check if file is too large for mobile upload
-      if (selectedFile.size > 2 * 1024 * 1024) { // 2MB
-        setDebugInfo(prev => prev + ` → File large (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB), compressing...`);
+    // Compress large files (> 2MB) to avoid network issues
+    let fileToUpload = selectedFile;
+    if (selectedFile.size > 2 * 1024 * 1024) {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
         
-        // Try compressing the image
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          const compressedFile = await new Promise<File>((resolve, reject) => {
-            img.onload = () => {
-              // Calculate new dimensions (max 1024px)
-              const maxSize = 1024;
-              let { width, height } = img;
-              if (width > height && width > maxSize) {
-                height = (height * maxSize) / width;
-                width = maxSize;
-              } else if (height > maxSize) {
-                width = (width * maxSize) / height;
-                height = maxSize;
+        fileToUpload = await new Promise<File>((resolve, reject) => {
+          img.onload = () => {
+            // Calculate new dimensions (max 1024px)
+            const maxSize = 1024;
+            let { width, height } = img;
+            if (width > height && width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            } else if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx?.drawImage(img, 0, 0, width, height);
+            
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], selectedFile.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Compression failed'));
               }
-              
-              canvas.width = width;
-              canvas.height = height;
-              ctx?.drawImage(img, 0, 0, width, height);
-              
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  const compressedFile = new File([blob], selectedFile.name, {
-                    type: 'image/jpeg',
-                    lastModified: Date.now()
-                  });
-                  resolve(compressedFile);
-                } else {
-                  reject(new Error('Compression failed'));
-                }
-              }, 'image/jpeg', 0.8);
-            };
-            img.onerror = () => reject(new Error('Image load failed'));
-            img.src = URL.createObjectURL(selectedFile);
-          });
-          
-          setDebugInfo(prev => prev + ` Compressed to ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB →`);
-          
-          // Try uploading compressed version
-          const { error: compressedError } = await supabase.storage
-            .from('badge-images')
-            .upload(`test-compressed/${Date.now()}.jpg`, compressedFile);
-          
-          if (compressedError) {
-            setDebugInfo(prev => prev + ` ✗ Compressed failed: ${compressedError.message}`);
-          } else {
-            setDebugInfo(prev => prev + ` ✓ Compressed worked! → Full upload...`);
-            // Use onImageCapture with compressed file by modifying the selected file
-            setSelectedFile(compressedFile);
-            await onImageCapture(compressedFile);
-            setDebugInfo(prev => prev + ` ✓ Success!`);
-            onClose();
-            return;
-          }
-        } catch (compressionError) {
-          setDebugInfo(prev => prev + ` ✗ Compression failed: ${compressionError.message}`);
-        }
-      }
-      
-      // Try original upload
-      const { data, error: testError } = await supabase.storage
-        .from('badge-images')
-        .upload(testFileName, selectedFile);
-      
-      if (testError) {
-        setDebugInfo(prev => prev + ` ✗ Storage failed: ${testError.message}`);
+            }, 'image/jpeg', 0.8);
+          };
+          img.onerror = () => reject(new Error('Image load failed'));
+          img.src = URL.createObjectURL(selectedFile);
+        });
+      } catch (error) {
+        toast({
+          title: "Compression Failed",
+          description: "Could not compress image. Please try a smaller file.",
+          variant: "destructive",
+        });
         return;
       }
-      setDebugInfo(prev => prev + ` Storage OK → Full upload...`);
-      
-      // If storage test passed, proceed with full upload
-      await onImageCapture(selectedFile);
-      setDebugInfo(prev => prev + ` ✓ Success!`);
+    }
+
+    try {
+      await onImageCapture(fileToUpload);
       onClose();
     } catch (error) {
-      setDebugInfo(prev => prev + ` ✗ Upload failed: ${error?.message || 'Unknown error'}`);
+      // Error handling is done in onImageCapture
     }
   };
 
@@ -369,14 +312,10 @@ export const CameraCapture = ({
   };
 
   const triggerUploadInput = () => {
-    console.log('=== TRIGGERING UPLOAD INPUT ===');
-    console.log('Upload input ref:', uploadInputRef.current);
     uploadInputRef.current?.click();
   };
 
   const triggerCameraInput = () => {
-    console.log('=== TRIGGERING CAMERA INPUT ===');
-    console.log('Camera input ref:', cameraInputRef.current);
     cameraInputRef.current?.click();
   };
 
@@ -519,12 +458,6 @@ export const CameraCapture = ({
               : "SELECT IMAGE TO ANALYZE OR UPLOAD TO DATABASE"
             }
           </p>
-          
-          {debugInfo && (
-            <div className="p-2 bg-muted rounded text-xs font-mono text-center">
-              {debugInfo}
-            </div>
-          )}
           
           {isAnalyzing && (
             <div className="flex items-center justify-center space-x-2 py-2">
