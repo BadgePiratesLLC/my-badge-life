@@ -63,18 +63,42 @@ export const CameraCapture = ({
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('=== FILE INPUT TRIGGERED ===');
+    console.log('Input element:', e.target);
+    console.log('Has files:', !!e.target.files);
+    console.log('Files length:', e.target.files?.length);
+    
     const files = e.target.files;
     if (files && files[0]) {
+      console.log('File selected via input:', {
+        name: files[0].name,
+        size: files[0].size,
+        type: files[0].type,
+        lastModified: files[0].lastModified
+      });
       handleFile(files[0]);
+    } else {
+      console.log('No file selected or files array empty');
     }
   };
 
   const handleFile = async (file: File) => {
+    console.log('=== HANDLE FILE CALLED ===');
+    console.log('File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      isImageType: file.type.startsWith('image/')
+    });
+    
     if (file.type.startsWith('image/')) {
-      console.log('File selected:', file.name);
+      console.log('File is valid image, processing...');
       setSelectedFile(file);
       const imageUrl = URL.createObjectURL(file);
       setUploadedImageUrl(imageUrl);
+      console.log('File processed successfully, imageUrl created:', imageUrl);
+    } else {
+      console.log('File is not an image type:', file.type);
     }
   };
 
@@ -201,6 +225,14 @@ export const CameraCapture = ({
   };
 
   const handleUploadToDatabase = () => {
+    console.log('=== UPLOAD TO DATABASE TRIGGERED ===');
+    console.log('Selected file exists:', !!selectedFile);
+    console.log('Selected file details:', selectedFile ? {
+      name: selectedFile.name,
+      size: selectedFile.size,
+      type: selectedFile.type
+    } : 'No file');
+    
     if (!selectedFile) {
       toast({
         title: "No Image Selected",
@@ -210,6 +242,7 @@ export const CameraCapture = ({
       return;
     }
 
+    console.log('Calling onImageCapture with file...');
     onImageCapture(selectedFile);
     onClose();
   };
