@@ -237,12 +237,34 @@ export const CameraCapture = ({
     setDebugInfo(prev => prev + ` → Testing storage...`);
     try {
       const testFileName = `test/${Date.now()}.jpg`;
-      const { error: testError } = await supabase.storage
+      const { data, error: testError } = await supabase.storage
         .from('badge-images')
         .upload(testFileName, selectedFile);
       
       if (testError) {
         setDebugInfo(prev => prev + ` ✗ Storage failed: ${testError.message}`);
+        
+        // Try with a different approach - convert to blob first
+        setDebugInfo(prev => prev + ` → Trying blob conversion...`);
+        try {
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: selectedFile.type });
+          const { error: blobError } = await supabase.storage
+            .from('badge-images')
+            .upload(`test-blob/${Date.now()}.jpg`, blob);
+          
+          if (blobError) {
+            setDebugInfo(prev => prev + ` ✗ Blob failed: ${blobError.message}`);
+          } else {
+            setDebugInfo(prev => prev + ` ✓ Blob worked! → Full upload...`);
+            // Use blob for actual upload
+            await onImageCapture(selectedFile);
+            setDebugInfo(prev => prev + ` ✓ Success!`);
+            onClose();
+          }
+        } catch (blobError) {
+          setDebugInfo(prev => prev + ` ✗ Blob conversion failed: ${blobError.message}`);
+        }
         return;
       }
       setDebugInfo(prev => prev + ` Storage OK → Full upload...`);
