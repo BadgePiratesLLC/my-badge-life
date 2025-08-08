@@ -92,6 +92,10 @@ export function useBadges() {
 
       if (error) {
         console.error('Supabase error fetching badges:', error)
+        // Show error to user
+        import('sonner').then(({ toast }) => {
+          toast.error('Failed to load badges: ' + error.message)
+        })
         setBadges([])
         badgesCache = []
       } else {
@@ -103,6 +107,11 @@ export function useBadges() {
       }
     } catch (error) {
       console.error('Error in fetchBadges:', error)
+      
+      // Show error to user
+      import('sonner').then(({ toast }) => {
+        toast.error('Network error loading badges. Trying fallback...')
+      })
       
         // Fallback: Try to use a direct REST call with all images
         console.log('Trying fallback method...')
@@ -120,15 +129,24 @@ export function useBadges() {
           setBadges(fallbackData || [])
           badgesCache = fallbackData || []
           badgesCacheTime = Date.now()
+          import('sonner').then(({ toast }) => {
+            toast.success('Badges loaded successfully via fallback')
+          })
         } else {
           console.error('Fallback fetch failed:', response.status, response.statusText)
           setBadges([])
           badgesCache = []
+          import('sonner').then(({ toast }) => {
+            toast.error(`Failed to load badges: ${response.status} ${response.statusText}`)
+          })
         }
       } catch (fallbackError) {
         console.error('Fallback fetch error:', fallbackError)
         setBadges([])
         badgesCache = []
+        import('sonner').then(({ toast }) => {
+          toast.error('Complete failure loading badges: ' + (fallbackError as Error).message)
+        })
       }
     } finally {
       console.log('Setting loading to false')
