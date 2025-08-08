@@ -12,7 +12,7 @@ interface AdminBadgeUploadProps {
 }
 
 export const AdminBadgeUpload = ({ isOpen, onClose }: AdminBadgeUploadProps) => {
-  const { user, loading: authLoading, initialized } = useAuth();
+  const { user, profile, loading: authLoading, initialized } = useAuth();
   const [isDragActive, setIsDragActive] = useState(false);
   const [showBadgeForm, setShowBadgeForm] = useState(false);
   const [capturedImage, setCapturedImage] = useState<{ url: string; file: File } | null>(null);
@@ -25,14 +25,29 @@ export const AdminBadgeUpload = ({ isOpen, onClose }: AdminBadgeUploadProps) => 
     isOpen, 
     user: user?.email || 'none', 
     authLoading, 
-    initialized 
+    initialized,
+    profile: profile?.email || 'none'
   });
 
   if (!isOpen && !showBadgeForm) return null;
 
-  // Check authentication before allowing uploads - only after auth is initialized
-  if (initialized && !authLoading && !user) {
-    console.log('Blocking upload - user not authenticated after initialization');
+  // Show loading state while auth is initializing
+  if (!initialized || authLoading) {
+    return (
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="h-4 w-4 animate-spin border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-sm text-muted-foreground font-mono">CHECKING AUTHENTICATION...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check authentication after initialization is complete
+  if (!user) {
+    console.log('Blocking upload - user not authenticated');
     toast.error('You must be logged in to upload badges');
     onClose();
     return null;
