@@ -65,6 +65,8 @@ export const CameraCapture = ({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('=== FILE INPUT TRIGGERED ===');
     console.log('Input element:', e.target);
+    console.log('Input type:', e.target.type);
+    console.log('Input capture attribute:', e.target.getAttribute('capture'));
     console.log('Has files:', !!e.target.files);
     console.log('Files length:', e.target.files?.length);
     
@@ -74,7 +76,8 @@ export const CameraCapture = ({
         name: files[0].name,
         size: files[0].size,
         type: files[0].type,
-        lastModified: files[0].lastModified
+        lastModified: files[0].lastModified,
+        constructor: files[0].constructor.name
       });
       handleFile(files[0]);
     } else {
@@ -298,10 +301,14 @@ export const CameraCapture = ({
   };
 
   const triggerUploadInput = () => {
+    console.log('=== TRIGGERING UPLOAD INPUT ===');
+    console.log('Upload input ref:', uploadInputRef.current);
     uploadInputRef.current?.click();
   };
 
   const triggerCameraInput = () => {
+    console.log('=== TRIGGERING CAMERA INPUT ===');
+    console.log('Camera input ref:', cameraInputRef.current);
     cameraInputRef.current?.click();
   };
 

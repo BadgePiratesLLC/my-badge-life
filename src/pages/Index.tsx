@@ -109,7 +109,16 @@ const Index = () => {
 
   const handleImageCapture = async (file: File) => {
     try {
+      console.log('=== INDEX.TSX handleImageCapture START ===');
+      console.log('File received:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        constructor: file.constructor.name,
+        lastModified: file.lastModified
+      });
       console.log('Starting image upload...', { fileName: file.name, fileSize: file.size });
+      
       const { url } = await uploadBadgeImage(file);
       console.log('Upload successful, got URL:', url);
       toast({
@@ -117,17 +126,20 @@ const Index = () => {
         description: "Image uploaded successfully. Check uploads in admin panel.",
       });
     } catch (error) {
+      console.error('=== INDEX.TSX handleImageCapture ERROR ===');
       console.error('Upload failed with error:', error);
       console.error('Error details:', {
         message: error?.message,
         cause: error?.cause,
-        stack: error?.stack
+        stack: error?.stack,
+        name: error?.name
       });
       toast({
         title: "Upload Failed",
         description: `Failed to upload image: ${error?.message || 'Unknown error'}`,
         variant: "destructive",
       });
+      throw error; // Re-throw so CameraCapture can handle it
     }
   };
 
