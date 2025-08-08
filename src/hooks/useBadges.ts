@@ -241,6 +241,7 @@ export function useBadges() {
     analysis?: any;
   }) => {
     try {
+      console.log('=== UPLOAD DEBUG START ===');
       console.log('uploadBadgeImage called with:', { 
         fileName: file.name, 
         fileSize: file.size, 
@@ -248,6 +249,19 @@ export function useBadges() {
         userExists: !!user,
         userId: user?.id 
       });
+
+      // Test Supabase connection first
+      console.log('Testing Supabase connection...');
+      const { data: testData, error: testError } = await supabase
+        .from('badges')
+        .select('id')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        throw new Error(`Database connection failed: ${testError.message}`);
+      }
+      console.log('Supabase connection test successful');
 
       // Create unique filename - allow anonymous uploads for testing
       const fileExt = file.name.split('.').pop()
