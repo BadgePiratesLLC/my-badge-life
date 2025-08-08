@@ -17,36 +17,16 @@ export function useAuth() {
     // Initialize auth state
     const initializeAuth = async () => {
       try {
-        console.log('Starting auth initialization...')
-        
-        // First get the current session
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Session error:', error)
-        }
+        const { data: { session } } = await supabase.auth.getSession()
         
         if (!isMounted) return;
         
-        console.log('Session data:', session?.user?.email || 'no session found')
+        console.log('Initial session check:', session?.user?.email || 'no user')
         
         if (session?.user) {
           setUser(session.user)
-          console.log('User found, fetching profile...')
           await fetchProfile(session.user.id)
         } else {
-          console.log('No session found, checking localStorage...')
-          
-          // Check all localStorage keys for Supabase auth
-          const keys = Object.keys(localStorage);
-          const authKeys = keys.filter(key => key.includes('supabase') || key.includes('auth'));
-          console.log('Auth-related localStorage keys:', authKeys);
-          
-          // Also check the specific Supabase auth key pattern
-          const sbAuthKey = 'sb-zdegwavcldwlgzzandae-auth-token';
-          const sbAuthValue = localStorage.getItem(sbAuthKey);
-          console.log('Supabase auth key check:', sbAuthKey, 'exists:', !!sbAuthValue);
-          
           setUser(null)
           setProfile(null)
         }
@@ -119,27 +99,24 @@ export function useAuth() {
   }
 
   const signInWithGoogle = async (keepLoggedIn: boolean = true) => {
-    try {
-      console.log('Starting Google sign-in with redirect to:', window.location.origin)
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
         }
-      })
-      
-      if (error) {
-        console.error('Google sign-in error:', error)
-        throw error
       }
-      
-      console.log('Google sign-in initiated, redirecting...')
-      return data
-    } catch (error) {
-      console.error('Sign-in failed:', error)
+    })
+    
+    if (error) {
+      console.error('Error signing in with Google:', error)
       throw error
     }
+    
+    // Store the preference to keep logged in
+    localStorage.setItem('keepLoggedIn', 'true')
   }
 
   const signOut = async () => {
