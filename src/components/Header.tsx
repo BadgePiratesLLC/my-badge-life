@@ -80,15 +80,6 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
               <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
             )}
           </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onMenuClick}
-            className="md:hidden"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </header>

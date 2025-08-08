@@ -118,32 +118,35 @@ export function useAuth() {
     }
   }
 
-  const signInWithGoogle = async (keepLoggedIn: boolean = false) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-        ...(keepLoggedIn && {
-          // Set session to persist for 5 days (432000 seconds)
-          persistSession: true,
+  const signInWithGoogle = async (keepLoggedIn: boolean = true) => {
+    try {
+      console.log('Starting Google sign-in...')
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
           }
-        })
+        }
+      })
+      
+      if (error) {
+        console.error('Error signing in with Google:', error)
+        throw error
       }
-    })
-    
-    if (error) {
-      console.error('Error signing in with Google:', error)
-      throw error
-    }
-    
-    // If keep logged in is selected, store the preference
-    if (keepLoggedIn) {
+      
+      console.log('Google sign-in initiated successfully')
+      
+      // Always store the preference to keep logged in for this app
       localStorage.setItem('keepLoggedIn', 'true')
-    } else {
-      localStorage.removeItem('keepLoggedIn')
+      
+      return data
+    } catch (error) {
+      console.error('Sign-in error:', error)
+      throw error
     }
   }
 
