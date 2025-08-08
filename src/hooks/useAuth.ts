@@ -120,32 +120,24 @@ export function useAuth() {
 
   const signInWithGoogle = async (keepLoggedIn: boolean = true) => {
     try {
-      console.log('Starting Google sign-in...')
+      console.log('Starting Google sign-in with redirect to:', window.location.origin)
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
+          redirectTo: window.location.origin
         }
       })
       
       if (error) {
-        console.error('Error signing in with Google:', error)
+        console.error('Google sign-in error:', error)
         throw error
       }
       
-      console.log('Google sign-in initiated successfully')
-      
-      // Always store the preference to keep logged in for this app
-      localStorage.setItem('keepLoggedIn', 'true')
-      
+      console.log('Google sign-in initiated, redirecting...')
       return data
     } catch (error) {
-      console.error('Sign-in error:', error)
+      console.error('Sign-in failed:', error)
       throw error
     }
   }
