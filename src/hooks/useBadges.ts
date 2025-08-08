@@ -273,16 +273,27 @@ export function useBadges() {
 
       // Upload to Supabase Storage
       console.log('Starting storage upload...');
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('badge-images')
-        .upload(fileName, file)
+      let uploadData;
+      try {
+        const { data, error: uploadError } = await supabase.storage
+          .from('badge-images')
+          .upload(fileName, file)
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError)
-        throw new Error(`Storage upload failed: ${uploadError.message}`)
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError)
+          throw new Error(`Storage upload failed: ${uploadError.message}`)
+        }
+
+        uploadData = data;
+        console.log('Storage upload successful:', uploadData);
+      } catch (storageError) {
+        console.error('Storage operation failed:', storageError);
+        // Try to provide more specific error message
+        if (storageError.message?.includes('fetch')) {
+          throw new Error('Network error: Cannot connect to storage. Please check your internet connection.');
+        }
+        throw storageError;
       }
-
-      console.log('Storage upload successful:', uploadData);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
