@@ -9,7 +9,17 @@ export const useAdminAccess = () => {
   const canAccessAdmin = () => {
     const adminCheck = isAdmin();
     const makerCheck = profile?.role === 'maker' && profile?.maker_approved;
-    return adminCheck || makerCheck;
+    const result = adminCheck || makerCheck;
+    
+    console.log('canAccessAdmin check:', {
+      profile: profile?.email,
+      profileRole: profile?.role,
+      isAdmin: adminCheck,
+      makerCheck,
+      result
+    });
+    
+    return result;
   };
 
   // Only real admins can manage users and teams
