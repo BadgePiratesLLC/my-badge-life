@@ -200,6 +200,7 @@ export function useAuth() {
     user,
     profile,
     loading,
+    initialized,
     signInWithGoogle,
     signOut,
     updateProfile,

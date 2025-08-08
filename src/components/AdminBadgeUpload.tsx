@@ -12,7 +12,7 @@ interface AdminBadgeUploadProps {
 }
 
 export const AdminBadgeUpload = ({ isOpen, onClose }: AdminBadgeUploadProps) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, initialized } = useAuth();
   const [isDragActive, setIsDragActive] = useState(false);
   const [showBadgeForm, setShowBadgeForm] = useState(false);
   const [capturedImage, setCapturedImage] = useState<{ url: string; file: File } | null>(null);
@@ -22,8 +22,8 @@ export const AdminBadgeUpload = ({ isOpen, onClose }: AdminBadgeUploadProps) => 
 
   if (!isOpen && !showBadgeForm) return null;
 
-  // Check authentication before allowing uploads
-  if (!authLoading && !user) {
+  // Check authentication before allowing uploads - only after auth is initialized
+  if (initialized && !authLoading && !user) {
     toast.error('You must be logged in to upload badges');
     onClose();
     return null;
