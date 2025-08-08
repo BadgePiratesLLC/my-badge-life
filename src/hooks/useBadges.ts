@@ -240,31 +240,46 @@ export function useBadges() {
     external_link?: string;
     analysis?: any;
   }) => {
-    // Create unique filename - allow anonymous uploads for testing
-    const fileExt = file.name.split('.').pop()
-    const fileName = user 
-      ? `${user.id}/${Date.now()}.${fileExt}`
-      : `anonymous/${Date.now()}.${fileExt}`
+    try {
+      console.log('uploadBadgeImage called with:', { 
+        fileName: file.name, 
+        fileSize: file.size, 
+        sendNotification,
+        userExists: !!user,
+        userId: user?.id 
+      });
 
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('badge-images')
-      .upload(fileName, file)
+      // Create unique filename - allow anonymous uploads for testing
+      const fileExt = file.name.split('.').pop()
+      const fileName = user 
+        ? `${user.id}/${Date.now()}.${fileExt}`
+        : `anonymous/${Date.now()}.${fileExt}`
 
-    if (uploadError) {
-      console.error('Error uploading image:', uploadError)
-      throw uploadError
-    }
+      console.log('Generated filename:', fileName);
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('badge-images')
-      .getPublicUrl(uploadData.path)
+      // Upload to Supabase Storage
+      console.log('Starting storage upload...');
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('badge-images')
+        .upload(fileName, file)
 
-    // Record upload in database with metadata (allow anonymous uploads)
-    const { data, error } = await supabase
-      .from('uploads')
-      .insert({
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError)
+        throw new Error(`Storage upload failed: ${uploadError.message}`)
+      }
+
+      console.log('Storage upload successful:', uploadData);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('badge-images')
+        .getPublicUrl(uploadData.path)
+
+      console.log('Generated public URL:', publicUrl);
+
+      // Record upload in database with metadata (allow anonymous uploads)
+      console.log('Starting database insert...');
+      const insertData = {
         user_id: user?.id || null,
         image_url: publicUrl,
         badge_name: badgeMetadata?.name || null,
@@ -274,55 +289,67 @@ export function useBadges() {
         badge_category: badgeMetadata?.category || null,
         badge_external_link: badgeMetadata?.external_link || null,
         analysis_metadata: badgeMetadata?.analysis || null
-      })
-      .select()
-      .single()
+      };
 
-    if (error) {
-      console.error('Error recording upload:', error)
-      throw error
-    }
+      console.log('Insert data:', insertData);
 
-    // Send Discord notification for new upload (only if requested)
-    if (sendNotification) {
-      try {
-        const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-discord-notification', {
-          body: {
-            type: 'badge_submitted',
-            data: {
-              title: '📷 New Badge Image Uploaded',
-              description: user 
-                ? `**${user.email}** uploaded a new badge image for identification.`
-                : 'An anonymous user uploaded a new badge image for identification.',
-              fields: [
-                {
-                  name: 'Upload ID',
-                  value: data.id,
-                  inline: true
-                },
-                {
-                  name: 'Status',
-                  value: 'Awaiting admin processing',
-                  inline: true
+      const { data, error } = await supabase
+        .from('uploads')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Database insert error:', error)
+        throw new Error(`Database insert failed: ${error.message} (Code: ${error.code})`)
+      }
+
+      console.log('Database insert successful:', data);
+
+      // Send Discord notification for new upload (only if requested)
+      if (sendNotification) {
+        try {
+          const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-discord-notification', {
+            body: {
+              type: 'badge_submitted',
+              data: {
+                title: '📷 New Badge Image Uploaded',
+                description: user 
+                  ? `**${user.email}** uploaded a new badge image for identification.`
+                  : 'An anonymous user uploaded a new badge image for identification.',
+                fields: [
+                  {
+                    name: 'Upload ID',
+                    value: data.id,
+                    inline: true
+                  },
+                  {
+                    name: 'Status',
+                    value: 'Awaiting admin processing',
+                    inline: true
+                  }
+                ],
+                thumbnail: {
+                  url: publicUrl
                 }
-              ],
-              thumbnail: {
-                url: publicUrl
               }
             }
+          });
+
+          if (notificationError) {
+            console.error('Discord notification error:', notificationError);
           }
-        });
-
-        if (notificationError) {
-          console.error('Discord notification error:', notificationError);
+        } catch (error) {
+          console.error('Failed to send Discord notification:', error);
+          // Don't throw here - upload was successful, notification failure shouldn't break the flow
         }
-      } catch (error) {
-        console.error('Failed to send Discord notification:', error);
-        // Don't throw here - upload was successful, notification failure shouldn't break the flow
       }
-    }
 
-    return { url: publicUrl, upload: data }
+      return { url: publicUrl, upload: data }
+    } catch (error) {
+      console.error('uploadBadgeImage failed:', error);
+      throw error;
+    }
   }
 
   // Helper functions for ownership status
