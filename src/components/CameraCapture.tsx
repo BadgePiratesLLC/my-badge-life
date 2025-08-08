@@ -224,21 +224,35 @@ export const CameraCapture = ({
     }
 
     // Test file readability before upload
+    setDebugInfo(prev => prev + ` → Testing file...`);
     try {
       const buffer = await selectedFile.arrayBuffer();
-      setDebugInfo(prev => prev + ` → File OK (${buffer.byteLength} bytes) → Uploading...`);
+      setDebugInfo(prev => prev + ` File OK (${buffer.byteLength} bytes)`);
     } catch (error) {
       setDebugInfo(prev => prev + ` ✗ File read failed: ${error.message}`);
       return;
     }
 
+    // Try direct storage upload test
+    setDebugInfo(prev => prev + ` → Testing storage...`);
     try {
+      const testFileName = `test/${Date.now()}.jpg`;
+      const { error: testError } = await supabase.storage
+        .from('badge-images')
+        .upload(testFileName, selectedFile);
+      
+      if (testError) {
+        setDebugInfo(prev => prev + ` ✗ Storage failed: ${testError.message}`);
+        return;
+      }
+      setDebugInfo(prev => prev + ` Storage OK → Full upload...`);
+      
+      // If storage test passed, proceed with full upload
       await onImageCapture(selectedFile);
       setDebugInfo(prev => prev + ` ✓ Success!`);
       onClose();
     } catch (error) {
       setDebugInfo(prev => prev + ` ✗ Upload failed: ${error?.message || 'Unknown error'}`);
-      // Don't close modal if upload failed
     }
   };
 
