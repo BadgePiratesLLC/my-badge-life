@@ -10,7 +10,7 @@ import { useAnalyticsTracking } from "@/hooks/useAnalyticsTracking";
 
 
 interface CameraCaptureProps {
-  onImageCapture: (file: File) => void;
+  onImageCapture: (file: File) => Promise<void>;
   onClose: () => void;
   isOpen: boolean;
   enableMatching?: boolean;
@@ -224,7 +224,7 @@ export const CameraCapture = ({
     }
   };
 
-  const handleUploadToDatabase = () => {
+  const handleUploadToDatabase = async () => {
     console.log('=== UPLOAD TO DATABASE TRIGGERED ===');
     console.log('Selected file exists:', !!selectedFile);
     console.log('Selected file details:', selectedFile ? {
@@ -243,8 +243,14 @@ export const CameraCapture = ({
     }
 
     console.log('Calling onImageCapture with file...');
-    onImageCapture(selectedFile);
-    onClose();
+    try {
+      await onImageCapture(selectedFile);
+      console.log('onImageCapture completed successfully');
+      onClose();
+    } catch (error) {
+      console.error('onImageCapture failed:', error);
+      // Don't close modal if upload failed
+    }
   };
 
   const handleCreateNew = (prefillData: any) => {
