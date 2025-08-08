@@ -81,7 +81,10 @@ export const CameraCapture = ({
       setSelectedFile(file);
       const imageUrl = URL.createObjectURL(file);
       setUploadedImageUrl(imageUrl);
-      setDebugInfo(prev => prev + ` ✓ Ready`);
+      
+      // Enhanced debugging for file differences
+      const fileInfo = `Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, Type: ${file.type}, Name: ${file.name}`;
+      setDebugInfo(prev => prev + ` ✓ Ready - ${fileInfo}`);
     } else {
       setDebugInfo(`Error: Not an image (${file.type})`);
     }

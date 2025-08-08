@@ -245,10 +245,18 @@ export function useBadges() {
       console.log('uploadBadgeImage called with:', { 
         fileName: file.name, 
         fileSize: file.size, 
+        fileSizeMB: (file.size / 1024 / 1024).toFixed(2),
+        fileType: file.type,
         sendNotification,
         userExists: !!user,
         userId: user?.id 
       });
+
+      // Check file size - large files might cause network issues
+      const maxSizeB = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSizeB) {
+        throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB (max 10MB)`);
+      }
 
       // Test Supabase connection first
       console.log('Testing Supabase connection...');
