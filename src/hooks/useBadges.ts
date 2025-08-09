@@ -222,6 +222,16 @@ export function useBadges() {
         description: "Badge created successfully, but notifications may not have been sent.",
       })
     }
+
+    // Auto-process embeddings for the new badge
+    try {
+      console.log('Auto-processing embeddings after badge creation...')
+      await supabase.functions.invoke('process-badge-embeddings')
+      console.log('Embeddings processed successfully after badge creation')
+    } catch (embeddingError) {
+      console.error('Failed to auto-process embeddings:', embeddingError)
+      // Don't throw error as badge was successfully created
+    }
     
     return data
   }
