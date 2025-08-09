@@ -165,8 +165,8 @@ serve(async (req) => {
           similarity: cosineSimilarity(uploadedImageEmbedding!, row.embedding)
         })).sort((a, b) => b.similarity - a.similarity)
 
-        // Take top 12 candidates for visual comparison
-        const topCandidates = similarities.slice(0, 12)
+        // Take top 20 candidates for visual comparison, but fall back to more if embedding similarities are low
+        const topCandidates = similarities.slice(0, similarities[0]?.similarity > 0.7 ? 12 : 25)
         console.log(`📊 Top embedding similarities:`)
         topCandidates.forEach((candidate, i) => {
           console.log(`  ${i + 1}. ${candidate.badge.name}: ${(candidate.similarity * 100).toFixed(1)}%`)
@@ -342,7 +342,7 @@ serve(async (req) => {
     }
 
     // Filter and sort results
-    const SIMILARITY_THRESHOLD = 0.5 // 50% threshold for matches
+    const SIMILARITY_THRESHOLD = 0.25 // 25% threshold for matches
     
     const finalMatches = visualResults
       .filter(result => result.similarity >= SIMILARITY_THRESHOLD)
