@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { BadgeCard } from "@/components/BadgeCard";
+import { BadgeListItem } from "@/components/BadgeListItem";
 import { BadgeDetailModal } from "@/components/BadgeDetailModal";
-import { Search, ArrowLeft } from "lucide-react";
+import { Search, ArrowLeft, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBadges } from "@/hooks/useBadges";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BadgeExplorerProps {
   isOpen: boolean;
@@ -14,6 +16,8 @@ interface BadgeExplorerProps {
 }
 
 export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps) => {
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -57,7 +61,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Search */}
+        {/* Search and View Toggle */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -68,9 +72,30 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
               className="pl-10 font-mono"
             />
           </div>
-          <Button variant="matrix" onClick={onSignIn}>
-            SIGN IN TO TRACK
-          </Button>
+          <div className="flex gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex gap-1 border rounded-lg p-1">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="h-8 w-8 p-0"
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 w-8 p-0"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button variant="matrix" onClick={onSignIn}>
+              SIGN IN TO TRACK
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -101,7 +126,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
               {searchQuery ? "No badges found matching your search." : "No badges available."}
             </p>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBadges.map((badge) => (
               <BadgeCard
@@ -135,6 +160,41 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
               />
             ))}
           </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredBadges.map((badge, index) => (
+              <div key={badge.id} style={{ animationDelay: `${index * 50}ms` }}>
+                <BadgeListItem
+                  badge={{
+                    id: badge.id,
+                    name: badge.name,
+                    year: badge.year || undefined,
+                    maker: badge.profiles?.display_name || undefined,
+                    description: badge.description || undefined,
+                    imageUrl: badge.image_url || undefined,
+                    externalLink: badge.external_link || undefined,
+                    isOwned: false,
+                    isWanted: false,
+                    retired: badge.retired,
+                  }}
+                  onOwnershipToggle={handleOwnershipToggle}
+                  onBadgeClick={(badgeData) => {
+                    const fullBadge = badges.find(b => b.id === badgeData.id);
+                    if (fullBadge) {
+                      setSelectedBadge({
+                        ...badgeData,
+                        category: fullBadge.category,
+                        teamName: fullBadge.team_name,
+                        profiles: fullBadge.profiles ? [fullBadge.profiles] : undefined,
+                      });
+                      setIsDetailModalOpen(true);
+                    }
+                  }}
+                  isAuthenticated={false}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </main>
 
@@ -147,6 +207,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
           setSelectedBadge(null);
         }}
         isAuthenticated={false}
+        onAuthRequired={onSignIn}
       />
     </div>
   );
