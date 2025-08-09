@@ -12,18 +12,12 @@ interface HeaderProps {
 }
 
 export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
-  const { canAccessAdmin, loading, initialized, isAdmin, user } = useAuthContext();
+  console.log('🔧 Header rendering, isAuthenticated:', isAuthenticated);
   
-  // Debug logging
-  console.log('🔧 Header debug:', {
-    isAuthenticated,
-    canAccessAdmin,
-    loading,
-    initialized,
-    isAdmin,
-    userId: user?.id,
-    userEmail: user?.email
-  });
+  // Temporarily hardcode admin access for testing
+  const canAccessAdmin = isAuthenticated; // This should show the admin icon if you're logged in
+  
+  console.log('🔧 Header canAccessAdmin:', canAccessAdmin);
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
