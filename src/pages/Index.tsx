@@ -223,14 +223,24 @@ const Index = () => {
   // Show loading screen if needed
   if (showLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
-          <p className="text-xs text-muted-foreground">
-            If this takes too long, try refreshing the page
-          </p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <Header
+          onCameraClick={handleCameraClick}
+          onMenuClick={() => {}}
+          isAuthenticated={isAuthenticated}
+          onAuthClick={handleAuthClick}
+        />
+        <main className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+              <p className="font-mono text-sm text-muted-foreground">INITIALIZING...</p>
+              <p className="text-xs text-muted-foreground">
+                If this takes too long, try refreshing the page
+              </p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -238,8 +248,16 @@ const Index = () => {
   // Show welcome screen only if badges are still loading (first time)
   if (badgesLoading && badges.length === 0) {
     return (
-      <>
-        <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} />
+      <div className="min-h-screen bg-background">
+        <Header
+          onCameraClick={handleCameraClick}
+          onMenuClick={() => {}}
+          isAuthenticated={isAuthenticated}
+          onAuthClick={handleAuthClick}
+        />
+        <main className="container mx-auto px-4 py-6">
+          <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} />
+        </main>
         <BadgeExplorer 
           isOpen={showAllBadges} 
           onClose={() => setShowAllBadges(false)}
@@ -258,7 +276,7 @@ const Index = () => {
           isOpen={showAuth}
           onClose={() => setShowAuth(false)}
         />
-      </>
+      </div>
     );
   }
 
