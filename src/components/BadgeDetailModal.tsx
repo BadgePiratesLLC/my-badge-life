@@ -31,13 +31,15 @@ interface BadgeDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   isAuthenticated?: boolean;
+  onAuthRequired?: () => void;
 }
 
 export const BadgeDetailModal = ({ 
   badge, 
   isOpen, 
   onClose, 
-  isAuthenticated = false 
+  isAuthenticated = false,
+  onAuthRequired
 }: BadgeDetailModalProps) => {
   const { trackBadgeInteraction } = useAnalyticsTracking();
   const { userOwnership, toggleOwnership } = useBadgeStats(badge?.id || '');
@@ -166,7 +168,7 @@ export const BadgeDetailModal = ({
               </Button>
             )}
 
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <>
                 <Button
                   variant={userOwnership.isOwned ? "default" : "outline"}
@@ -206,6 +208,26 @@ export const BadgeDetailModal = ({
                 >
                   <Heart className={`h-4 w-4 mr-2 ${userOwnership.isWanted ? 'fill-current' : ''}`} />
                   {userOwnership.isWanted ? 'Want' : 'Add to Wishlist'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onAuthRequired?.()}
+                >
+                  <Star className="h-4 w-4 mr-2" />
+                  Login to Track
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onAuthRequired?.()}
+                >
+                  <Heart className="h-4 w-4 mr-2" />
+                  Login to Track
                 </Button>
               </>
             )}

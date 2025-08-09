@@ -174,11 +174,11 @@ const Index = () => {
         case 'all':
           return true;
         case 'own':
-          return isOwned(badge.id);
+          return isAuthenticated && isOwned(badge.id);
         case 'want':
-          return isWanted(badge.id);
+          return isAuthenticated && isWanted(badge.id);
         case 'available':
-          return !isOwned(badge.id) && !isWanted(badge.id);
+          return isAuthenticated && !isOwned(badge.id) && !isWanted(badge.id);
         case 'retired':
           return badge.retired;
         default:
@@ -205,8 +205,8 @@ const Index = () => {
     );
   }
 
-  // Show welcome screen for non-authenticated users
-  if (!isAuthenticated) {
+  // Show welcome screen only if badges are still loading (first time)
+  if (badgesLoading && badges.length === 0) {
     return (
       <>
         <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} />
@@ -233,8 +233,8 @@ const Index = () => {
 
   // Get filtered badges
   const filteredBadges = getFilteredBadges();
-  const ownedCount = badges.filter(badge => isOwned(badge.id)).length;
-  const wantedCount = badges.filter(badge => isWanted(badge.id)).length;
+  const ownedCount = isAuthenticated ? badges.filter(badge => isOwned(badge.id)).length : 0;
+  const wantedCount = isAuthenticated ? badges.filter(badge => isWanted(badge.id)).length : 0;
 
   const renderBadges = (badges: typeof filteredBadges) => {
     if (badgesLoading) {
@@ -284,8 +284,8 @@ const Index = () => {
               description: badge.description || undefined,
               imageUrl: badge.image_url || undefined,
               externalLink: badge.external_link || undefined,
-              isOwned: isOwned(badge.id),
-              isWanted: isWanted(badge.id),
+               isOwned: isAuthenticated ? isOwned(badge.id) : false,
+               isWanted: isAuthenticated ? isWanted(badge.id) : false,
               retired: badge.retired,
             }}
             onOwnershipToggle={handleOwnershipToggle}
@@ -318,8 +318,8 @@ const Index = () => {
                 description: badge.description || undefined,
                 imageUrl: badge.image_url || undefined,
                 externalLink: badge.external_link || undefined,
-                isOwned: isOwned(badge.id),
-                isWanted: isWanted(badge.id),
+                 isOwned: isAuthenticated ? isOwned(badge.id) : false,
+                 isWanted: isAuthenticated ? isWanted(badge.id) : false,
                 retired: badge.retired,
               }}
               onOwnershipToggle={handleOwnershipToggle}
@@ -370,13 +370,13 @@ const Index = () => {
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Badges ({badges.length})</SelectItem>
-                <SelectItem value="own">Own ({ownedCount})</SelectItem>
-                <SelectItem value="want">Want ({wantedCount})</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
-              </SelectContent>
+               <SelectContent>
+                 <SelectItem value="all">All Badges ({badges.length})</SelectItem>
+                 {isAuthenticated && <SelectItem value="own">Own ({ownedCount})</SelectItem>}
+                 {isAuthenticated && <SelectItem value="want">Want ({wantedCount})</SelectItem>}
+                 {isAuthenticated && <SelectItem value="available">Available</SelectItem>}
+                 <SelectItem value="retired">Retired</SelectItem>
+               </SelectContent>
             </Select>
 
             {/* View Mode Toggle */}
@@ -425,28 +425,53 @@ const Index = () => {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => setSelectedFilter('own')}
-              className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
-                selectedFilter === 'own' ? 'ring-2 ring-primary' : ''
-              }`}
-            >
-              <div className="text-lg font-bold font-mono text-primary">
-                {stats.owned}
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">OWN</div>
-            </button>
-            <button
-              onClick={() => setSelectedFilter('want')}
-              className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
-                selectedFilter === 'want' ? 'ring-2 ring-primary' : ''
-              }`}
-            >
-              <div className="text-lg font-bold font-mono text-accent">
-                {stats.wanted}
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">WANT</div>
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => setSelectedFilter('own')}
+                  className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
+                    selectedFilter === 'own' ? 'ring-2 ring-primary' : ''
+                  }`}
+                >
+                  <div className="text-lg font-bold font-mono text-primary">
+                    {stats.owned}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">OWN</div>
+                </button>
+                <button
+                  onClick={() => setSelectedFilter('want')}
+                  className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
+                    selectedFilter === 'want' ? 'ring-2 ring-primary' : ''
+                  }`}
+                >
+                  <div className="text-lg font-bold font-mono text-accent">
+                    {stats.wanted}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">WANT</div>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50"
+                >
+                  <div className="text-lg font-bold font-mono text-muted-foreground">
+                    -
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">LOGIN TO TRACK</div>
+                </button>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50"
+                >
+                  <div className="text-lg font-bold font-mono text-muted-foreground">
+                    -
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">LOGIN TO TRACK</div>
+                </button>
+              </>
+            )}
             <button
               onClick={() => setSelectedFilter('all')}
               className={`bg-card border border-border rounded p-3 text-center transition-all hover:bg-muted/50 ${
@@ -489,25 +514,30 @@ const Index = () => {
         onClose={() => setShowAuth(false)}
       />
 
-      <AddBadgeModal
-        isOpen={showAddBadge}
-        onClose={() => {
-          setShowAddBadge(false);
-          setBadgePrefillData(null);
-        }}
-        prefillData={badgePrefillData}
-      />
+      {isAuthenticated && (
+        <AddBadgeModal
+          isOpen={showAddBadge}
+          onClose={() => {
+            setShowAddBadge(false);
+            setBadgePrefillData(null);
+          }}
+          prefillData={badgePrefillData}
+        />
+      )}
 
       {/* Badge Detail Modal */}
-      <BadgeDetailModal
-        badge={selectedBadge}
-        isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedBadge(null);
-        }}
-        isAuthenticated={isAuthenticated}
-      />
+      {selectedBadge && (
+        <BadgeDetailModal
+          badge={selectedBadge}
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedBadge(null);
+          }}
+          isAuthenticated={isAuthenticated}
+          onAuthRequired={() => setShowAuth(true)}
+        />
+      )}
     </div>
   );
 };
