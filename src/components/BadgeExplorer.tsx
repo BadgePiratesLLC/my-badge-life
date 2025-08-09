@@ -13,15 +13,16 @@ interface BadgeExplorerProps {
   isOpen: boolean;
   onClose: () => void;
   onSignIn: () => void;
+  isAuthenticated?: boolean;
 }
 
-export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps) => {
+export const BadgeExplorer = ({ isOpen, onClose, onSignIn, isAuthenticated = false }: BadgeExplorerProps) => {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const { badges, loading: badgesLoading } = useBadges();
+  const { badges, loading: badgesLoading, isOwned, isWanted } = useBadges();
   const { toast } = useToast();
 
   if (!isOpen) return null;
@@ -35,12 +36,15 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
   });
 
   const handleOwnershipToggle = () => {
-    // For unauthenticated users, prompt to sign in
-    toast({
-      title: "Sign In Required",
-      description: "Please sign in to track badges in your collection.",
-    });
-    onSignIn();
+    if (!isAuthenticated) {
+      // For unauthenticated users, prompt to sign in
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to track badges in your collection.",
+      });
+      onSignIn();
+    }
+    // If authenticated, the individual badge components handle ownership
   };
 
   return (
@@ -93,7 +97,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
               </Button>
             </div>
             <Button variant="matrix" onClick={onSignIn}>
-              SIGN IN TO TRACK
+              {isAuthenticated ? 'SIGNED IN' : 'SIGN IN TO TRACK'}
             </Button>
           </div>
         </div>
@@ -139,8 +143,8 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
                   description: badge.description || undefined,
                   imageUrl: badge.image_url || undefined,
                   externalLink: badge.external_link || undefined,
-                  isOwned: false,
-                  isWanted: false,
+                  isOwned: isAuthenticated ? isOwned(badge.id) : false,
+                  isWanted: isAuthenticated ? isWanted(badge.id) : false,
                   retired: badge.retired,
                 }}
                 onOwnershipToggle={handleOwnershipToggle}
@@ -156,7 +160,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
                     setIsDetailModalOpen(true);
                   }
                 }}
-                isAuthenticated={false}
+                isAuthenticated={isAuthenticated}
               />
             ))}
           </div>
@@ -173,8 +177,8 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
                     description: badge.description || undefined,
                     imageUrl: badge.image_url || undefined,
                     externalLink: badge.external_link || undefined,
-                    isOwned: false,
-                    isWanted: false,
+                    isOwned: isAuthenticated ? isOwned(badge.id) : false,
+                    isWanted: isAuthenticated ? isWanted(badge.id) : false,
                     retired: badge.retired,
                   }}
                   onOwnershipToggle={handleOwnershipToggle}
@@ -190,7 +194,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
                       setIsDetailModalOpen(true);
                     }
                   }}
-                  isAuthenticated={false}
+                  isAuthenticated={isAuthenticated}
                 />
               </div>
             ))}
@@ -206,7 +210,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn }: BadgeExplorerProps)
           setIsDetailModalOpen(false);
           setSelectedBadge(null);
         }}
-        isAuthenticated={false}
+        isAuthenticated={isAuthenticated}
         onAuthRequired={onSignIn}
       />
     </div>

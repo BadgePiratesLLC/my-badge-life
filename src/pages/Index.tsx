@@ -225,6 +225,7 @@ const Index = () => {
           isOpen={showAllBadges} 
           onClose={() => setShowAllBadges(false)}
           onSignIn={handleLogin}
+          isAuthenticated={isAuthenticated}
         />
         <CameraCapture
           isOpen={showCamera}
