@@ -19,12 +19,7 @@ export function useBadges() {
   const { notifyBadgeSubmitted } = useDiscordNotifications()
 
   useEffect(() => {
-    // Only fetch badges if user is authenticated
-    if (!user) {
-      setLoading(false)
-      return
-    }
-
+    // Fetch badges for everyone (authenticated or not)
     // Check if we need to fetch badges (no cache or cache is old)
     const now = Date.now()
     const cacheExpiry = 5 * 60 * 1000 // 5 minutes
@@ -39,7 +34,7 @@ export function useBadges() {
       setBadges(badgesCache)
       setLoading(false)
     }
-  }, [user])
+  }, []) // Remove user dependency
 
   useEffect(() => {
     // Only fetch ownership if user is logged in

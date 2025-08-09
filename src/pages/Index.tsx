@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
@@ -30,7 +30,18 @@ const Index = () => {
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const isMobile = useIsMobile();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    // Initialize with proper mobile detection - fall back to grid if mobile detection is not ready
+    return isMobile === true ? 'list' : 'grid';
+  });
+  
+  // Update view mode when mobile detection changes
+  useEffect(() => {
+    if (isMobile === true && viewMode === 'grid') {
+      setViewMode('list');
+    }
+  }, [isMobile, viewMode]);
+  
   const [selectedFilter, setSelectedFilter] = useState('all');
   const { toast } = useToast();
   
