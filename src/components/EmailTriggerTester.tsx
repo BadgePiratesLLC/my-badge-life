@@ -6,13 +6,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useBadgeManagement } from '@/hooks/useBadgeManagement'
 import { toast } from 'sonner'
 import { Mail, Send, TestTube, CheckCircle, XCircle } from 'lucide-react'
 
 export function EmailTriggerTester() {
-  const { user, profile } = useAuth()
+  const { user, profile } = useAuthContext()
   const { approveBadge, rejectBadge } = useBadgeManagement()
   const [selectedEmailType, setSelectedEmailType] = useState<string>('')
   const [testEmail, setTestEmail] = useState(user?.email || '')

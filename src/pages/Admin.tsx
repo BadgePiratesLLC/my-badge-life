@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRoles } from '@/hooks/useRoles'
-import { useAuth } from '@/hooks/useAuth'
-import { useAdminAccess } from '@/hooks/useAdminAccess'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useBadges } from '@/hooks/useBadges'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -91,9 +90,7 @@ interface User {
 
 export default function Admin() {
   const isMobile = useIsMobile()
-  const { isAdmin, loading: rolesLoading } = useRoles()
-  const { user, profile, loading: authLoading } = useAuth()
-  const { canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAdminAccess()
+  const { user, profile, loading: authLoading, isAdmin, canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAuthContext()
   const { refreshBadges } = useBadges()
   const { teams, users: teamUsers, loading: teamsLoading, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
   const navigate = useNavigate()
@@ -115,18 +112,18 @@ export default function Admin() {
   useEffect(() => {
     const checkAuthAndLoad = async () => {
       console.log('Admin page loading - checking auth state...')
-      console.log('Auth loading:', authLoading, 'Roles loading:', rolesLoading)
+      console.log('Auth loading:', authLoading)
       console.log('User:', user?.email, 'Profile role:', profile?.role)
       
       // Wait for auth to complete and ensure we have either user profile or roles loaded
-      if (!authLoading && user && (profile || !rolesLoading)) {
-        console.log('Auth checks complete, canAccessAdmin:', canAccessAdmin())
-        if (canAccessAdmin()) {
+      if (!authLoading && user && profile) {
+        console.log('Auth checks complete, canAccessAdmin:', canAccessAdmin)
+        if (canAccessAdmin) {
           console.log('Loading admin data...')
           fetchUploads()
           fetchAllUsers()
           loadSearchSources()
-          if (!usersFetched && canManageUsers()) {
+          if (!usersFetched && canManageUsers) {
             fetchUsers()
           }
           fetchBadges()
@@ -139,7 +136,7 @@ export default function Admin() {
     }
     
     checkAuthAndLoad()
-  }, [rolesLoading, authLoading, usersFetched, user, profile, canAccessAdmin, canManageUsers]) // Added missing dependencies
+  }, [authLoading, usersFetched, user, profile, canAccessAdmin, canManageUsers]) // Added missing dependencies
 
   const fetchAllUsers = async () => {
     try {
@@ -409,7 +406,7 @@ export default function Admin() {
     }
   }
 
-  if (authLoading || rolesLoading || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -532,7 +529,7 @@ export default function Admin() {
     }
   }
 
-  if (!canAccessAdmin()) {
+  if (!canAccessAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -572,7 +569,7 @@ export default function Admin() {
             </Link>
             <div>
               <h1 className="text-lg font-bold font-mono">
-                {isAdmin() ? 'ADMIN PANEL' : 'BADGE MAKER PANEL'}
+                {isAdmin ? 'ADMIN PANEL' : 'BADGE MAKER PANEL'}
               </h1>
               <span className="text-xs text-muted-foreground">Badge Management System</span>
             </div>
@@ -596,7 +593,7 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <p className="text-muted-foreground">
-              {isAdmin() ? 'Manage badges and users' : 'Manage badges for your team'}
+              {isAdmin ? 'Manage badges and users' : 'Manage badges for your team'}
             </p>
           </div>
           <Link to="/">
@@ -609,8 +606,8 @@ export default function Admin() {
 
         <TooltipProvider>
           <Tabs defaultValue="badges" className="w-full">
-            <TabsList className={`grid w-full ${canManageUsers() && canManageTeams() ? 'grid-cols-7' : 'grid-cols-5'}`}>
-              {canAccessAdmin() && (
+            <TabsList className={`grid w-full ${canManageUsers && canManageTeams ? 'grid-cols-7' : 'grid-cols-5'}`}>
+              {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="uploads" className="flex items-center gap-2">
@@ -625,7 +622,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canManageBadges() && (
+              {canManageBadges && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="badges" className="flex items-center gap-2">
@@ -640,7 +637,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canManageTeams() && (
+              {canManageTeams && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="teams" className="flex items-center gap-2">
@@ -655,7 +652,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canManageUsers() && (
+              {canManageUsers && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="users" className="flex items-center gap-2">
@@ -670,7 +667,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canAccessAdmin() && (
+              {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                      <TabsTrigger value="search" className="flex items-center gap-2">
@@ -685,7 +682,7 @@ export default function Admin() {
                    )}
                 </Tooltip>
               )}
-              {canAccessAdmin() && (
+              {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="emails" className="flex items-center gap-2">
@@ -700,7 +697,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canAccessAdmin() && (
+              {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -934,7 +931,7 @@ export default function Admin() {
                                   <X className="h-4 w-4" />
                                   Cancel
                                 </Button>
-                                {isAdmin() && (
+                                {isAdmin && (
                                   <Button
                                     variant="destructive"
                                     onClick={() => deleteBadge(badge)}
@@ -1032,7 +1029,7 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {canManageTeams() && (
+          {canManageTeams && (
             <TabsContent value="teams" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1274,7 +1271,7 @@ export default function Admin() {
           </TabsContent>
           )}
 
-          {canManageUsers() && (
+          {canManageUsers && (
             <TabsContent value="users" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1333,7 +1330,7 @@ export default function Admin() {
           )}
 
           {/* Settings Tab */}
-          {isAdmin() && (
+          {isAdmin && (
             <TabsContent value="search" className="space-y-6">
               {/* API Keys Management Section */}
               <Card>
@@ -1704,7 +1701,7 @@ export default function Admin() {
           )}
 
           {/* Email Testing Tab - Admin Only */}
-          {canAccessAdmin() && (
+          {canAccessAdmin && (
             <TabsContent value="emails" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -1721,7 +1718,7 @@ export default function Admin() {
           )}
 
           {/* Analytics Tab - Admin Only */}
-          {isAdmin() && (
+          {isAdmin && (
             <TabsContent value="analytics" className="space-y-4">
               <AdminAnalytics />
             </TabsContent>

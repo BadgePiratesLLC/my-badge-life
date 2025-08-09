@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useBadges } from '@/hooks/useBadges'
 import { useTeams } from '@/hooks/useTeams'
 import { supabase } from '@/integrations/supabase/client'
@@ -17,7 +17,7 @@ import { toast } from 'sonner'
 export default function BadgeRegister() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const { createBadge } = useBadges()
   const { teams } = useTeams()
   

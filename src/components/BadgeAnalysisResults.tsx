@@ -8,7 +8,7 @@ import { BadgeCard } from "./BadgeCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAIFeedback } from "@/hooks/useAIFeedback";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface BadgeAnalysis {
   name?: string;
@@ -63,7 +63,7 @@ export const BadgeAnalysisResults = ({
   debugInfo
 }: BadgeAnalysisResultsProps) => {
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthContext();
   const { submitFeedback, isSubmitting: feedbackSubmitting } = useAIFeedback();
   const [webSearchResults, setWebSearchResults] = useState<any>(null);
   const [isAddingToDatabase, setIsAddingToDatabase] = useState(false);

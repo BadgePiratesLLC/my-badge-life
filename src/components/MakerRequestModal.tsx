@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, UserCheck } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useTeams } from "@/hooks/useTeams";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,7 +15,7 @@ interface MakerRequestModalProps {
 }
 
 export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) => {
-  const { requestMakerStatus } = useAuth();
+  const { requestMakerStatus } = useAuthContext();
   const { teams, createTeam } = useTeams();
   const { toast } = useToast();
   

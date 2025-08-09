@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Upload, Plus } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useBadges } from "@/hooks/useBadges";
 import { useToast } from "@/hooks/use-toast";
 import { useDiscordNotifications } from "@/hooks/useDiscordNotifications";
@@ -46,7 +46,7 @@ export const AddBadgeModal = ({ isOpen, onClose, prefillData }: AddBadgeModalPro
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   
-  const { profile } = useAuth();
+  const { profile } = useAuthContext();
   const { createBadge, uploadBadgeImage } = useBadges();
   const { toast } = useToast();
   const { notifyBadgeSubmitted } = useDiscordNotifications();
