@@ -22,7 +22,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn, isAuthenticated = fal
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const { badges, loading: badgesLoading, isOwned, isWanted } = useBadges();
+  const { badges, loading: badgesLoading, isOwned, isWanted, getOwnershipStats } = useBadges();
   const { toast } = useToast();
 
   if (!isOpen) return null;
@@ -34,6 +34,9 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn, isAuthenticated = fal
       badge.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
+
+  // Ownership stats (for Have/Want totals)
+  const stats = getOwnershipStats();
 
   const handleOwnershipToggle = () => {
     if (!isAuthenticated) {
@@ -48,7 +51,7 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn, isAuthenticated = fal
   };
 
   return (
-    <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-background z-40 overflow-y-auto">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -96,21 +99,56 @@ export const BadgeExplorer = ({ isOpen, onClose, onSignIn, isAuthenticated = fal
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            <Button variant="matrix" onClick={onSignIn}>
-              {isAuthenticated ? 'SIGNED IN' : 'SIGN IN TO TRACK'}
-            </Button>
+            {!isAuthenticated && (
+              <Button variant="matrix" onClick={onSignIn}>
+                SIGN IN TO TRACK
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Stats */}
-        <div className="bg-card border border-border rounded p-4 text-center">
-          <div className="text-2xl font-bold font-mono text-primary">
-            {filteredBadges.length}
+        {badgesLoading ? (
+          <div className="grid grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded p-3">
+                <div className="h-6 bg-muted animate-pulse rounded mb-2"></div>
+                <div className="h-4 bg-muted animate-pulse rounded"></div>
+              </div>
+            ))}
           </div>
-          <div className="text-sm text-muted-foreground font-mono">
-            {searchQuery ? 'BADGES FOUND' : 'TOTAL BADGES'}
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {isAuthenticated ? (
+              <>
+                <div className="bg-card border border-border rounded p-3 text-center">
+                  <div className="text-lg font-bold font-mono text-primary">{stats.owned}</div>
+                  <div className="text-xs text-muted-foreground font-mono">OWN</div>
+                </div>
+                <div className="bg-card border border-border rounded p-3 text-center">
+                  <div className="text-lg font-bold font-mono text-accent">{stats.wanted}</div>
+                  <div className="text-xs text-muted-foreground font-mono">WANT</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-card border border-border rounded p-3 text-center">
+                  <div className="text-lg font-bold font-mono text-muted-foreground">-</div>
+                  <div className="text-xs text-muted-foreground font-mono">LOGIN TO TRACK</div>
+                </div>
+                <div className="bg-card border border-border rounded p-3 text-center">
+                  <div className="text-lg font-bold font-mono text-muted-foreground">-</div>
+                  <div className="text-xs text-muted-foreground font-mono">LOGIN TO TRACK</div>
+                </div>
+              </>
+            )}
+            <div className="bg-card border border-border rounded p-3 text-center">
+              <div className="text-lg font-bold font-mono text-foreground">{filteredBadges.length}</div>
+              <div className="text-xs text-muted-foreground font-mono">{searchQuery ? 'BADGES FOUND' : 'TOTAL'}</div>
+            </div>
           </div>
-        </div>
+        )}
+
 
         {/* Badge Grid */}
         {badgesLoading ? (
