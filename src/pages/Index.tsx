@@ -19,6 +19,8 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  console.log('🏠 Index component rendering...');
+  
   const [searchParams, setSearchParams] = useSearchParams();
   const [showCamera, setShowCamera] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -30,7 +32,6 @@ const Index = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
-    // Initialize with proper mobile detection - fall back to grid if mobile detection is not ready
     return isMobile === true ? 'list' : 'grid';
   });
   
@@ -45,7 +46,27 @@ const Index = () => {
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
-  const { user, profile, loading: authLoading, isAuthenticated, canManageBadges } = useAuthContext();
+  const { 
+    user, 
+    profile, 
+    loading: authLoading, 
+    initialized: authInitialized,
+    isAuthenticated, 
+    canManageBadges,
+    canAccessAdmin
+  } = useAuthContext();
+  
+  // Debug logging for auth state in Index
+  console.log('🏠 Index auth state:', {
+    user: user?.email,
+    profile: profile?.role,
+    authLoading,
+    authInitialized,
+    isAuthenticated,
+    canManageBadges,
+    canAccessAdmin
+  });
+  
   const { 
     badges, 
     loading: badgesLoading, 
@@ -352,6 +373,8 @@ const Index = () => {
       </div>
     );
   };
+
+  console.log('🏠 Index about to render Header with isAuthenticated:', isAuthenticated);
 
   return (
     <div className="min-h-screen bg-background">

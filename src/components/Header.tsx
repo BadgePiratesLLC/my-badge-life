@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Camera, Menu, User, Shield, Bug } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,12 +13,18 @@ interface HeaderProps {
 }
 
 export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
-  console.log('🔧 Header rendering, isAuthenticated:', isAuthenticated);
+  console.log('🔧 Header rendering, isAuthenticated prop:', isAuthenticated);
   
-  // Temporarily hardcode admin access for testing
-  const canAccessAdmin = isAuthenticated; // This should show the admin icon if you're logged in
+  // Get auth state directly from context to avoid timing issues
+  const { canAccessAdmin, loading, initialized } = useAuthContext();
   
-  console.log('🔧 Header canAccessAdmin:', canAccessAdmin);
+  console.log('🔧 Header auth context:', {
+    canAccessAdmin,
+    loading,
+    initialized,
+    isAuthenticatedProp: isAuthenticated
+  });
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -46,8 +53,7 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
             <span className="hidden sm:inline">SCAN</span>
           </Button>
           
-          
-          {/* Admin Button */}
+          {/* Admin Button - Use context directly */}
           {canAccessAdmin && (
             <Link to="/admin">
               <Button
