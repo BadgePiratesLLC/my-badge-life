@@ -8,6 +8,7 @@ export const ProcessEmbeddingsButton = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleProcessEmbeddings = async () => {
+    console.log('Button clicked - starting badge embedding processing...');
     setIsProcessing(true);
     
     try {
@@ -15,6 +16,7 @@ export const ProcessEmbeddingsButton = () => {
       
       toast("Starting badge embedding processing...", {
         description: "This may take a few minutes depending on the number of badges.",
+        duration: 5000,
       });
 
       const { data, error } = await supabase.functions.invoke('process-badge-embeddings');
