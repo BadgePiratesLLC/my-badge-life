@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBadges } from "@/hooks/useBadges";
 import { useRoles } from "@/hooks/useRoles";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,7 +29,8 @@ const Index = () => {
   const [badgePrefillData, setBadgePrefillData] = useState<any>(null);
   const [selectedBadge, setSelectedBadge] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const { toast } = useToast();
   
@@ -108,6 +110,7 @@ const Index = () => {
   };
 
   const handleImageCapture = async (file: File) => {
+    // Allow image uploads without authentication
     try {
       const { url } = await uploadBadgeImage(file);
       toast({

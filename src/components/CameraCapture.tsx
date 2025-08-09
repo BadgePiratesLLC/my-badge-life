@@ -214,6 +214,7 @@ export const CameraCapture = ({
       return;
     }
 
+    // Allow uploads without authentication
     // Compress large files (> 2MB) to avoid network issues
     let fileToUpload = selectedFile;
     if (selectedFile.size > 2 * 1024 * 1024) {
