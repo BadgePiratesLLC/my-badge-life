@@ -2,80 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
-// API logging utilities
-interface ApiLogData {
-  user_id?: string | null
-  session_id?: string | null
-  api_provider: 'openai' | 'serpapi' | 'replicate' | 'perplexity'
-  endpoint: string
-  method: string
-  request_data?: any
-  response_status?: number
-  response_time_ms?: number
-  tokens_used?: number
-  estimated_cost_usd?: number
-  success: boolean
-  error_message?: string
-}
-
-async function logApiCall(logData: ApiLogData) {
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('Supabase credentials not available for API logging')
-      return
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Sanitize request data (remove API keys)
-    const sanitizedRequestData = logData.request_data ? 
-      JSON.parse(JSON.stringify(logData.request_data).replace(/"[^"]*api[_-]?key[^"]*":\s*"[^"]*"/gi, '"api_key":"[REDACTED]"')) :
-      null
-
-    const { error } = await supabase
-      .from('api_call_logs')
-      .insert({
-        user_id: logData.user_id,
-        session_id: logData.session_id,
-        api_provider: logData.api_provider,
-        endpoint: logData.endpoint,
-        method: logData.method,
-        request_data: sanitizedRequestData,
-        response_status: logData.response_status,
-        response_time_ms: logData.response_time_ms,
-        tokens_used: logData.tokens_used,
-        estimated_cost_usd: logData.estimated_cost_usd,
-        success: logData.success,
-        error_message: logData.error_message
-      })
-
-    if (error) {
-      console.error('Failed to log API call:', error)
-    }
-  } catch (error) {
-    console.error('Error logging API call:', error)
-  }
-}
-
-function estimateOpenAICost(model: string, inputTokens: number, outputTokens: number = 0): number {
-  const costs = {
-    'gpt-4o-mini': { input: 0.00015 / 1000, output: 0.0006 / 1000 },
-    'gpt-4o': { input: 0.0025 / 1000, output: 0.01 / 1000 }
-  }
-  
-  const modelCosts = costs[model as keyof typeof costs]
-  if (!modelCosts) return 0.001 // Default small cost
-  
-  return (modelCosts.input * inputTokens) + (modelCosts.output * outputTokens)
-}
-
-function countTokensApprox(text: string): number {
-  return Math.ceil(text.length / 4)
-}
-
 // Text similarity function for pre-filtering
 function calculateTextSimilarity(text1: string, text2: string): number {
   if (!text1 || !text2) return 0
@@ -95,16 +21,6 @@ function calculateTextSimilarity(text1: string, text2: string): number {
   return intersection.size / union.size
 }
 
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const openaiKey = Deno.env.get('OPENAI_API_KEY')
-
 // Cosine similarity calculation
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
   if (vecA.length !== vecB.length) return 0
@@ -121,6 +37,15 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
   
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
 }
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const openaiKey = Deno.env.get('OPENAI_API_KEY')
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

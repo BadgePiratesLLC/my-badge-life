@@ -29,7 +29,13 @@ export function useAuth() {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       
-      console.log('Auth state change:', event, session?.user?.id || 'no user')
+      console.log('🔐 Auth state change:', event, session?.user?.id || 'no user');
+      console.log('🔐 Session details:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        accessToken: session?.access_token ? 'present' : 'missing',
+        refreshToken: session?.refresh_token ? 'present' : 'missing'
+      });
       
       // Update user state immediately
       setUser(session?.user ?? null)
@@ -103,10 +109,12 @@ export function useAuth() {
   }
 
   const signInWithGoogle = async (keepLoggedIn: boolean = false) => {
+    console.log('🔐 Starting Google sign in, keepLoggedIn:', keepLoggedIn);
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/`,
         ...(keepLoggedIn && {
           // Set session to persist for 5 days (432000 seconds)
           persistSession: true,
@@ -119,7 +127,7 @@ export function useAuth() {
     })
     
     if (error) {
-      console.error('Error signing in with Google:', error)
+      console.error('🔐 Error signing in with Google:', error)
       throw error
     }
     
@@ -132,14 +140,16 @@ export function useAuth() {
   }
 
   const signOut = async () => {
+    console.log('🔐 Starting sign out...');
     // Clear the keep logged in preference
     localStorage.removeItem('keepLoggedIn')
     
     const { error } = await supabase.auth.signOut()
     if (error) {
-      console.error('Error signing out:', error)
+      console.error('🔐 Error signing out:', error)
       throw error
     }
+    console.log('🔐 Sign out successful');
   }
 
   const updateProfile = async (updates: Partial<Profile>) => {

@@ -101,15 +101,20 @@ export const CameraCapture = ({
           console.log('Image size:', selectedFile.size, 'bytes');
           console.log('Base64 length:', base64?.length);
           
+          const analysisStartTime = Date.now();
+          
           // Step 1: Badge matching search
           const { data, error } = await supabase.functions.invoke('match-badge-image', {
-            body: { imageBase64: base64, debug: false }
+            body: { imageBase64: base64, debug: true }
           });
 
+          const analysisTime = Date.now() - analysisStartTime;
+          console.log('Analysis completed in:', analysisTime, 'ms');
           console.log('Function response:', { data, error });
 
           if (error) {
             console.error('Function invocation error:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
             throw error;
           }
 
