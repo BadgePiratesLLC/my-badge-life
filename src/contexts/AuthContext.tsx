@@ -1,8 +1,8 @@
+console.log('🔥 AuthContext file loading...');
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Profile } from '@/lib/supabase';
-import { useDiscordNotifications } from '@/hooks/useDiscordNotifications';
 
 export type AppRole = 'admin' | 'moderator' | 'user';
 
@@ -40,13 +40,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  console.log('🚀 AuthProvider mounting...');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
-  const { notifyMakerRequest } = useDiscordNotifications();
 
   useEffect(() => {
     let isMounted = true;
@@ -205,9 +205,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await updateProfile({ wants_to_be_maker: true });
 
     try {
-      await notifyMakerRequest({
-        display_name: profile?.display_name,
-        email: profile?.email,
+      // Send Discord notification without hook dependency
+      await supabase.functions.invoke('send-discord-notification', {
+        body: {
+          type: 'maker_request',
+          data: {
+            title: '🛠️ New Maker Request',
+            description: `**${profile?.display_name || user?.email || 'User'}** has requested maker status.`,
+            fields: [
+              ...(user?.email ? [{ name: 'Email', value: user.email, inline: true }] : []),
+            ],
+          }
+        }
       });
 
       await supabase.functions.invoke('send-email', {

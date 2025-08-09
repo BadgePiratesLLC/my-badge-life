@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 
 interface EmailPreferences {
@@ -16,7 +16,7 @@ interface EmailPreferences {
 }
 
 export function useEmailPreferences() {
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const [preferences, setPreferences] = useState<EmailPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

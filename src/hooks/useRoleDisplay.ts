@@ -1,8 +1,8 @@
-import { useAuth } from './useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { useRoles } from './useRoles';
 
 export const useRoleDisplay = () => {
-  const { profile } = useAuth();
+  const { profile } = useAuthContext();
   const { roles, isAdmin } = useRoles();
 
   const getDisplayRole = () => {

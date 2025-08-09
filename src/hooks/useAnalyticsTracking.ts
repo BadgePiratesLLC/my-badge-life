@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 
 // Generate a unique session ID for tracking
 const generateSessionId = () => {
@@ -34,7 +34,7 @@ interface SearchAnalytics {
 }
 
 export function useAnalyticsTracking() {
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const [sessionId] = useState(() => generateSessionId())
   const [sessionInitialized, setSessionInitialized] = useState(false)
 

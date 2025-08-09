@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 
 export type AppRole = 'admin' | 'moderator' | 'user'
 
 export function useRoles() {
   const [roles, setRoles] = useState<AppRole[]>([])
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { user } = useAuthContext()
 
   useEffect(() => {
     if (user) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 
 export interface BadgeStats {
   ownersCount: number
@@ -24,7 +24,7 @@ export function useBadgeStats(badgeId: string) {
     isWanted: false
   })
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { user } = useAuthContext()
 
   const fetchBadgeStats = async () => {
     console.log(`[useBadgeStats] fetchBadgeStats called for badge ${badgeId}`);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
 export interface Team {
@@ -34,7 +34,7 @@ export function useTeams() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [users, setUsers] = useState<UserWithTeams[]>([])
   const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const { toast } = useToast()
 
   useEffect(() => {

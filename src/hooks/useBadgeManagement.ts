@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useDiscordNotifications } from './useDiscordNotifications'
 import { toast } from 'sonner'
 
@@ -13,7 +13,7 @@ interface BadgeApprovalData {
 }
 
 export function useBadgeManagement() {
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const { notifyBadgeApproved, notifyBadgeRejected } = useDiscordNotifications()
 
   const approveBadge = async (badge: BadgeApprovalData, approverNotes?: string) => {

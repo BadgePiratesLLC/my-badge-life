@@ -6,7 +6,7 @@ let isFetching = false
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import type { Badge, Ownership } from '@/lib/supabase'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { useDiscordNotifications } from './useDiscordNotifications'
 
@@ -14,7 +14,7 @@ export function useBadges() {
   const [badges, setBadges] = useState<Badge[]>(badgesCache)
   const [ownership, setOwnership] = useState<Ownership[]>([])
   const [loading, setLoading] = useState(badgesCache.length === 0)
-  const { user, profile } = useAuth()
+  const { user, profile } = useAuthContext()
   const { toast } = useToast()
   const { notifyBadgeSubmitted } = useDiscordNotifications()
 

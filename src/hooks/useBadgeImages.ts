@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from './useAuth'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
 export interface BadgeImage {
@@ -17,7 +17,7 @@ export interface BadgeImage {
 export function useBadgeImages(badgeId?: string) {
   const [images, setImages] = useState<BadgeImage[]>([])
   const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const { toast } = useToast()
 
   useEffect(() => {
