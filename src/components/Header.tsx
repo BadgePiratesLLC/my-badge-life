@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, Menu, User, Shield, Bug } from "lucide-react";
 import { Link } from "react-router-dom";
 import mybadgelifeLogo from "@/assets/mybadgelife-logo.jpg";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   onCameraClick: () => void;
@@ -12,7 +12,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
-  const { canAccessAdmin } = useAdminAccess();
+  const { canAccessAdmin } = useAuthContext();
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
@@ -43,7 +43,7 @@ export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClic
           
           
           {/* Admin Button */}
-          {canAccessAdmin() && (
+          {canAccessAdmin && (
             <Link to="/admin">
               <Button
                 variant="ghost"

@@ -14,9 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { useBadges } from "@/hooks/useBadges";
-import { useRoles } from "@/hooks/useRoles";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
@@ -46,8 +45,7 @@ const Index = () => {
   const { toast } = useToast();
   
   // Real authentication and data - MUST call all hooks unconditionally
-  const { user, profile, loading: authLoading, isAuthenticated } = useAuth();
-  const { isAdmin } = useRoles();
+  const { user, profile, loading: authLoading, isAuthenticated, canManageBadges } = useAuthContext();
   const { 
     badges, 
     loading: badgesLoading, 
@@ -411,8 +409,7 @@ const Index = () => {
               </Button>
             </div>
 
-            {(isAuthenticated && (profile?.role === 'admin' || 
-              (profile?.role === 'maker' && profile?.maker_approved))) && (
+            {(isAuthenticated && canManageBadges) && (
               <Button 
                 variant="terminal" 
                 size="mobile"

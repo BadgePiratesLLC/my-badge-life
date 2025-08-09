@@ -3,9 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, LogIn, UserCheck, Crown, Settings } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useRoleDisplay } from "@/hooks/useRoleDisplay";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { MakerRequestModal } from "./MakerRequestModal";
 import { UserSettingsModal } from "./UserSettingsModal";
 
@@ -15,8 +14,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
-  const { user, profile, signInWithGoogle, signOut } = useAuth();
-  const { getDisplayRole } = useRoleDisplay();
+  const { user, profile, signInWithGoogle, signOut, getDisplayRole } = useAuthContext();
   const { toast } = useToast();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
