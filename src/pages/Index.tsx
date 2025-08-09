@@ -256,7 +256,7 @@ const Index = () => {
           onAuthClick={handleAuthClick}
         />
         <main className="container mx-auto px-4 py-6">
-          <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} />
+          <WelcomeScreen onLogin={handleLogin} onStartScan={handleStartScan} onExploreCollection={handleExploreCollection} showInlineHeader={false} />
         </main>
         <BadgeExplorer 
           isOpen={showAllBadges} 

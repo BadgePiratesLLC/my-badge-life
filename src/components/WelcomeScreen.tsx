@@ -7,44 +7,47 @@ interface WelcomeScreenProps {
   onLogin: () => void;
   onStartScan: () => void;
   onExploreCollection: () => void;
+  showInlineHeader?: boolean;
 }
 
-export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection }: WelcomeScreenProps) => {
+export const WelcomeScreen = ({ onLogin, onStartScan, onExploreCollection, showInlineHeader = true }: WelcomeScreenProps) => {
   return (
     <div className="min-h-screen bg-gradient-dark flex flex-col">
       {/* Simple Header */}
-      <header className="flex justify-between items-center p-4">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded border border-primary/30 overflow-hidden">
-            <img 
-              src={mybadgelifeLogo} 
-              alt="MyBadgeLife"
-              className="w-full h-full object-cover"
-            />
+      {showInlineHeader && (
+        <header className="flex justify-between items-center p-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded border border-primary/30 overflow-hidden">
+              <img 
+                src={mybadgelifeLogo} 
+                alt="MyBadgeLife"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <span className="font-mono text-sm text-foreground">My Badge Life</span>
           </div>
-          <span className="font-mono text-sm text-foreground">My Badge Life</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          {/* Bug Report Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Bug className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onLogin}
-            className="relative text-muted-foreground hover:text-foreground"
-          >
-            <User className="h-4 w-4" />
-          </Button>
-        </div>
-      </header>
+          <div className="flex items-center space-x-2">
+            {/* Bug Report Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.open('https://github.com/BadgePiratesLLC/my-badge-life/issues/new?template=bug_report.md', '_blank')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Bug className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogin}
+              className="relative text-muted-foreground hover:text-foreground"
+            >
+              <User className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4">
