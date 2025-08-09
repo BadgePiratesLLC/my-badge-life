@@ -7,9 +7,27 @@ export const useAdminAccess = () => {
 
   // Badge Makers (approved makers) and Admins can access admin portal
   const canAccessAdmin = () => {
+    // Don't show admin access until both auth and roles have finished loading
+    if (authLoading || rolesLoading) {
+      console.log('useAdminAccess still loading:', { authLoading, rolesLoading });
+      return false;
+    }
+    
+    // Debug logging
+    console.log('useAdminAccess debug:', {
+      authLoading,
+      rolesLoading,
+      isAdminResult: isAdmin(),
+      profileRole: profile?.role,
+      makerApproved: profile?.maker_approved
+    });
+    
     const adminCheck = isAdmin();
     const makerCheck = profile?.role === 'maker' && profile?.maker_approved;
-    return adminCheck || makerCheck;
+    const result = adminCheck || makerCheck;
+    
+    console.log('canAccessAdmin result:', result);
+    return result;
   };
 
   // Only real admins can manage users and teams
