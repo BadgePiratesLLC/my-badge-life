@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { X, LogIn, UserCheck, Crown, Settings, Clock } from "lucide-react";
+import { X, LogIn, UserCheck, Crown, Clock, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { MakerRequestModal } from "./MakerRequestModal";
-import { UserSettingsModal } from "./UserSettingsModal";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AuthModalProps {
@@ -215,19 +214,11 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 )}
                 
                 <Button
-                  variant="outline"
-                  onClick={() => setShowSettings(true)}
-                  className="w-full"
-                >
-                  <Settings className="h-4 w-4" />
-                  SETTINGS
-                </Button>
-                
-                <Button
                   variant="destructive"
                   onClick={handleSignOut}
                   className="w-full"
                 >
+                  <LogOut className="h-4 w-4 mr-2" />
                   SIGN OUT
                 </Button>
               </div>
@@ -239,11 +230,6 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       <MakerRequestModal 
         isOpen={showMakerRequest}
         onClose={() => setShowMakerRequest(false)}
-      />
-      
-      <UserSettingsModal 
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
       />
     </div>
   );

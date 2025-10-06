@@ -2,10 +2,11 @@ import React, { memo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Calendar, Clock, Users, Shield, UserPlus } from 'lucide-react';
+import { User, Calendar, Clock, Users, Shield, UserPlus, Mail } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { MakerRequestModal } from '@/components/MakerRequestModal';
+import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
 import { format } from 'date-fns';
 
 interface TeamMembership {
@@ -216,6 +217,9 @@ export const MyProfile = memo(function MyProfile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Email Notification Settings */}
+      <EmailPreferencesSettings />
 
       <MakerRequestModal 
         isOpen={showMakerRequest}
