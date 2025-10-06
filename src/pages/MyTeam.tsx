@@ -7,13 +7,31 @@ import { AuthModal } from '@/components/AuthModal';
 
 const MyTeam = () => {
   const navigate = useNavigate();
-  const { profile, user } = useAuthContext();
+  const { profile, user, loading } = useAuthContext();
   const [showAuth, setShowAuth] = useState(false);
+
+  console.log('MyTeam page loaded:', { profile, user, loading });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Please sign in to view your team.</p>
+      </div>
+    );
+  }
 
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Please sign in to view your team.</p>
+        <p className="text-muted-foreground">Loading profile...</p>
       </div>
     );
   }

@@ -12,18 +12,27 @@ import { toast } from 'sonner';
 
 export const MyTeamManagement = memo(function MyTeamManagement() {
   const { profile } = useAuthContext();
-  const { teams, users, updateTeam, refreshTeams, refreshUsers } = useTeams();
+  const { teams, users, updateTeam, refreshTeams, refreshUsers, loading } = useTeams();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ 
     description: '', 
     website_url: '' 
   });
 
+  console.log('MyTeamManagement rendering:', { 
+    profile: profile?.email, 
+    assigned_team: profile?.assigned_team,
+    teamsCount: teams.length,
+    usersCount: users.length,
+    loading 
+  });
+
   // Refresh data when component mounts
   React.useEffect(() => {
+    console.log('MyTeamManagement mounted, refreshing data...');
     refreshTeams();
     refreshUsers();
-  }, [refreshTeams, refreshUsers]);
+  }, []);
 
   const myTeam = teams.find(t => t.name === profile?.assigned_team);
   
