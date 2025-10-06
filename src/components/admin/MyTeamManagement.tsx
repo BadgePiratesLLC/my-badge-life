@@ -1,13 +1,23 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Users, ExternalLink, Edit, Save, X } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useTeams } from '@/hooks/useTeams';
+import { toast } from 'sonner';
 
 export const MyTeamManagement = memo(function MyTeamManagement() {
   const { profile } = useAuthContext();
-  const { teams, users } = useTeams();
+  const { teams, users, updateTeam } = useTeams();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ 
+    description: '', 
+    website_url: '' 
+  });
 
   const myTeam = teams.find(t => t.name === profile?.assigned_team);
   const teamMembers = users.filter(u => u.teams.includes(profile?.assigned_team || ''));
@@ -30,6 +40,32 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
     );
   }
 
+  const startEdit = useCallback(() => {
+    setEditForm({
+      description: myTeam.description || '',
+      website_url: myTeam.website_url || ''
+    });
+    setIsEditing(true);
+  }, [myTeam]);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditForm({ description: '', website_url: '' });
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    try {
+      await updateTeam(myTeam.id, {
+        description: editForm.description.trim() || undefined,
+        website_url: editForm.website_url.trim() || undefined
+      });
+      setIsEditing(false);
+      toast.success('Team updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update team');
+    }
+  }, [myTeam.id, editForm, updateTeam]);
+
   return (
     <Card>
       <CardHeader>
@@ -39,21 +75,66 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold font-mono mb-2">{myTeam.name}</h3>
-          {myTeam.description && (
-            <p className="text-sm text-muted-foreground mb-2">{myTeam.description}</p>
-          )}
-          {myTeam.website_url && (
-            <a
-              href={myTeam.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-            >
-              {myTeam.website_url}
-              <ExternalLink className="h-3 w-3" />
-            </a>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold font-mono mb-2">{myTeam.name}</h3>
+            
+            {isEditing ? (
+              <div className="space-y-3 mb-4">
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Team description"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <Label>Website URL</Label>
+                  <Input
+                    type="url"
+                    value={editForm.website_url}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, website_url: e.target.value }))}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveEdit}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={cancelEdit}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {myTeam.description && (
+                  <p className="text-sm text-muted-foreground mb-2">{myTeam.description}</p>
+                )}
+                {myTeam.website_url && (
+                  <a
+                    href={myTeam.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    {myTeam.website_url}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </>
+            )}
+          </div>
+          
+          {!isEditing && (
+            <Button size="sm" variant="outline" onClick={startEdit}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
           )}
         </div>
 

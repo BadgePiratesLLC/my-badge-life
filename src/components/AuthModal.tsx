@@ -14,7 +14,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
-  const { user, profile, signInWithGoogle, signOut, getDisplayRole } = useAuthContext();
+  const { user, profile, signInWithGoogle, signOut, getDisplayRole, isBadgeMaker } = useAuthContext();
   const { toast } = useToast();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -155,23 +155,16 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
-                {profile?.role === 'user' && !profile.wants_to_be_maker && (
+                {/* Only show REQUEST MAKER STATUS button if user is not a maker and hasn't already requested */}
+                {!isBadgeMaker && (
                   <Button
                     variant="outline"
                     onClick={handleRequestMaker}
                     className="w-full"
                   >
                     <UserCheck className="h-4 w-4" />
-                    REQUEST MAKER STATUS
+                    REQUEST TEAM MEMBERSHIP
                   </Button>
-                )}
-                
-                {profile?.wants_to_be_maker && !profile.maker_approved && (
-                  <div className="p-3 bg-muted rounded border">
-                    <p className="text-xs text-muted-foreground text-center">
-                      Maker request pending admin approval
-                    </p>
-                  </div>
                 )}
                 
                 <Button
