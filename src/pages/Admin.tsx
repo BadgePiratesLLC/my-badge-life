@@ -1,30 +1,23 @@
-import { useState, useEffect } from 'react'
-import { useRoles } from '@/hooks/useRoles'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBadges } from '@/hooks/useBadges'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Upload, Users, Image, Shield, ArrowLeft, Trash2, Edit, Save, X, Settings, Plus, UserPlus, UserMinus, Brain, BarChart3, Bug, Key, ExternalLink, CheckCircle, XCircle, AlertTriangle, Mail } from 'lucide-react'
+import { ArrowLeft, Shield, Bug, Image, Settings, Users, Mail, BarChart3 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { RoleManagementModal } from '@/components/RoleManagementModal'
-import { ProcessEmbeddingsButton } from '@/components/ProcessEmbeddingsButton'
-import { BadgeImageManager } from '@/components/BadgeImageManager'
-import { useTeams, Team, UserWithTeams } from '@/hooks/useTeams'
+import { useTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
 import { AdminAnalytics } from '@/components/AdminAnalytics'
 import { EmailTriggerTester } from '@/components/EmailTriggerTester'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
-import { BadgeStatsDisplay } from '@/components/BadgeStatsDisplay'
+import { UploadsManagement } from '@/components/admin/UploadsManagement'
+import { BadgeManagement } from '@/components/admin/BadgeManagement'
+import { TeamManagement } from '@/components/admin/TeamManagement'
+import { UserManagement } from '@/components/admin/UserManagement'
 
 interface BadgeData {
   id: string
@@ -43,25 +36,6 @@ interface BadgeData {
   } | null
 }
 
-interface SearchSource {
-  id: string
-  name: string
-  url: string
-  prompt_template: string
-  priority: number
-  enabled: boolean
-  created_at: string
-  updated_at: string
-}
-
-interface UserData {
-  id: string
-  email: string | null
-  display_name: string | null
-  roles: string[]
-  assigned_team?: string | null
-}
-
 interface Upload {
   id: string
   user_id: string | null
@@ -73,7 +47,6 @@ interface Upload {
   badge_maker?: string | null
   badge_category?: string | null
   badge_external_link?: string | null
-  analysis_metadata?: any | null
   profiles?: {
     display_name: string | null
     email: string | null
@@ -92,37 +65,19 @@ export default function Admin() {
   const isMobile = useIsMobile()
   const { user, profile, loading: authLoading, isAdmin, canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAuthContext()
   const { refreshBadges } = useBadges()
-  const { teams, users: teamUsers, loading: teamsLoading, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
+  const { teams, users: teamUsers, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
   const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [badges, setBadges] = useState<BadgeData[]>([])
-  const [searchSources, setSearchSources] = useState<SearchSource[]>([])
-  const [editingBadge, setEditingBadge] = useState<string | null>(null)
-  const [editingSearchSourceId, setEditingSearchSourceId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
-  const [editingSearchSourceData, setEditingSearchSourceData] = useState<Partial<SearchSource>>({})
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
-  const [editingTeam, setEditingTeam] = useState<string | null>(null)
-  const [teamForm, setTeamForm] = useState<{ name: string; description: string; website_url: string }>({ name: '', description: '', website_url: '' })
-  const [showCreateTeam, setShowCreateTeam] = useState(false)
-  const [allUsers, setAllUsers] = useState<{id: string, display_name: string | null, email: string | null}[]>([])
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
-      console.log('Admin page loading - checking auth state...')
-      console.log('Auth loading:', authLoading)
-      console.log('User:', user?.email, 'Profile role:', profile?.role)
-      
-      // Wait for auth to complete and ensure we have either user profile or roles loaded
       if (!authLoading && user && profile) {
-        console.log('Auth checks complete, canAccessAdmin:', canAccessAdmin)
         if (canAccessAdmin) {
-          console.log('Loading admin data...')
           fetchUploads()
-          fetchAllUsers()
-          loadSearchSources()
           if (!usersFetched && canManageUsers) {
             fetchUsers()
           }
@@ -130,27 +85,12 @@ export default function Admin() {
         }
         setLoading(false)
       } else if (!authLoading && !user) {
-        // No user logged in
         setLoading(false)
       }
     }
     
     checkAuthAndLoad()
-  }, [authLoading, usersFetched, user, profile, canAccessAdmin, canManageUsers]) // Added missing dependencies
-
-  const fetchAllUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, display_name, email')
-        .order('display_name')
-
-      if (error) throw error
-      setAllUsers(data || [])
-    } catch (error) {
-      console.error('Error fetching all users:', error)
-    }
-  }
+  }, [authLoading, usersFetched, user, profile, canAccessAdmin, canManageUsers])
 
   const fetchUploads = async () => {
     try {
@@ -167,37 +107,30 @@ export default function Admin() {
 
       if (error) throw error
       setUploads(data || [])
-    } catch (error) {
-      console.error('Error fetching uploads:', error)
+    } catch (error: any) {
       toast.error('Failed to load uploads')
     }
   }
 
   const fetchUsers = async () => {
     try {
-      // Get profiles first
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, display_name, assigned_team')
 
       if (profilesError) {
-        console.error('Profiles error:', profilesError)
-        // Don't throw error, just show empty users
         setUsers([])
         return
       }
 
-      // Get roles separately  
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role')
 
       if (rolesError) {
-        console.error('Roles error:', rolesError)
         // Continue without roles data
       }
 
-      // Combine the data
       const usersWithRoles = (profilesData || []).map(profile => ({
         id: profile.id,
         email: profile.email,
@@ -210,27 +143,9 @@ export default function Admin() {
 
       setUsers(usersWithRoles)
       setUsersFetched(true)
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      // Don't show error toast repeatedly, just log it
+    } catch (error: any) {
       setUsers([])
-      setUsersFetched(true) // Still set to true to prevent repeated attempts
-    }
-  }
-
-  const loadSearchSources = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('web_search_sources')
-        .select('*')
-        .order('priority', { ascending: true })
-
-      if (error) throw error
-
-      setSearchSources(data || [])
-    } catch (error) {
-      console.error('Error loading search sources:', error)
-      toast.error('Failed to load search sources')
+      setUsersFetched(true)
     }
   }
 
@@ -249,72 +164,46 @@ export default function Admin() {
 
       if (error) throw error
       setBadges(data || [])
-    } catch (error) {
-      console.error('Error fetching badges:', error)
+    } catch (error: any) {
       toast.error('Failed to load badges')
     }
   }
 
-  const startEditBadge = (badge: BadgeData) => {
-    setEditingBadge(badge.id)
-    setEditForm({
-      name: badge.name,
-      description: badge.description || '',
-      year: badge.year,
-      image_url: badge.image_url || '',
-      external_link: badge.external_link || '',
-      team_name: badge.team_name || '',
-      category: badge.category || null,
-      retired: badge.retired
-    })
-  }
-
-  const cancelEditBadge = () => {
-    setEditingBadge(null)
-    setEditForm({})
-  }
-
-  const saveBadgeEdit = async (badgeId: string) => {
+  const saveBadgeEdit = useCallback(async (badgeId: string, updates: Partial<BadgeData>) => {
     try {
       const { error } = await supabase
         .from('badges')
         .update({
-          name: editForm.name,
-          description: editForm.description || null,
-          year: editForm.year || null,
-          image_url: editForm.image_url || null,
-          external_link: editForm.external_link || null,
-          team_name: editForm.team_name || null,
-          category: editForm.category as any,
-          retired: editForm.retired
+          name: updates.name,
+          description: updates.description || null,
+          year: updates.year || null,
+          image_url: updates.image_url || null,
+          external_link: updates.external_link || null,
+          team_name: updates.team_name || null,
+          category: updates.category as any,
+          retired: updates.retired
         })
         .eq('id', badgeId)
 
       if (error) throw error
 
-      // Update local state
       setBadges(prev => prev.map(badge => 
         badge.id === badgeId 
-          ? { ...badge, ...editForm, updated_at: new Date().toISOString() }
+          ? { ...badge, ...updates, updated_at: new Date().toISOString() }
           : badge
       ))
 
-      setEditingBadge(null)
-      setEditForm({})
       toast.success('Badge updated successfully!')
-    } catch (error) {
-      console.error('Error updating badge:', error)
+    } catch (error: any) {
       toast.error('Failed to update badge')
     }
-  }
+  }, [])
 
-  const createBadgeFromUpload = (upload: Upload) => {
-    // Build query parameters with all available information from the upload
+  const createBadgeFromUpload = useCallback((upload: Upload) => {
     const params = new URLSearchParams();
     params.set('image_url', upload.image_url);
     params.set('upload_id', upload.id);
     
-    // Pass through stored badge information if available
     if (upload.badge_name) params.set('name', upload.badge_name);
     if (upload.badge_description) params.set('description', upload.badge_description);
     if (upload.badge_year) params.set('year', upload.badge_year.toString());
@@ -322,31 +211,29 @@ export default function Admin() {
     if (upload.badge_category) params.set('category', upload.badge_category);
     if (upload.badge_external_link) params.set('external_link', upload.badge_external_link);
     
-    // Navigate to badge register form with all the information
     navigate(`/badge/register?${params.toString()}`);
-  }
+  }, [navigate])
 
-  const associateImageWithBadge = async (imageUrl: string, badgeId: string) => {
+  const associateImageWithBadge = useCallback(async (imageUrl: string, badgeId: string) => {
     try {
       const { error } = await supabase
         .from('badge_images')
         .insert({
           badge_id: badgeId,
           image_url: imageUrl,
-          display_order: 0, // Will be adjusted by triggers if needed
+          display_order: 0,
         })
 
       if (error) throw error
 
       toast.success('Image associated with badge successfully!')
-      fetchUploads() // Refresh uploads
-    } catch (error) {
-      console.error('Error associating image with badge:', error)
+      fetchUploads()
+    } catch (error: any) {
       toast.error('Failed to associate image with badge')
     }
-  }
+  }, [])
 
-  const deleteBadge = async (badge: BadgeData) => {
+  const deleteBadge = useCallback(async (badge: BadgeData) => {
     if (!confirm('Are you sure you want to delete this badge? This action cannot be undone.')) return
 
     try {
@@ -357,54 +244,40 @@ export default function Admin() {
 
       if (error) throw error
 
-      // Update local state
       setBadges(prev => prev.filter(b => b.id !== badge.id))
-      
-      // Refresh the badges cache to ensure consistency
       refreshBadges()
       
       toast.success('Badge deleted successfully!')
-    } catch (error) {
-      console.error('Error deleting badge:', error)
+    } catch (error: any) {
       toast.error('Failed to delete badge')
     }
-  }
+  }, [refreshBadges])
 
-  const deleteUpload = async (upload: Upload) => {
+  const deleteUpload = useCallback(async (upload: Upload) => {
     if (!confirm('Are you sure you want to delete this upload?')) return
 
-    console.log('Starting delete process for upload:', upload.id)
-
     try {
-      // Delete from database first (this is what matters for the UI)
-      console.log('Deleting from database...')
       const { error: dbError } = await supabase
         .from('uploads')
         .delete()
         .eq('id', upload.id)
 
       if (dbError) {
-        console.error('Database delete error:', dbError)
         toast.error('Failed to delete upload: ' + dbError.message)
         return
       }
-      
-      console.log('Database deletion successful')
 
-      // Update UI immediately
-      setUploads(prev => {
-        const newUploads = prev.filter(u => u.id !== upload.id)
-        console.log('Upload count before:', prev.length, 'after:', newUploads.length)
-        return newUploads
-      })
-      
+      setUploads(prev => prev.filter(u => u.id !== upload.id))
       toast.success('Upload deleted successfully!')
-      
-    } catch (error) {
-      console.error('Error deleting upload:', error)
-      toast.error('Failed to delete upload: ' + (error as Error).message)
+    } catch (error: any) {
+      toast.error('Failed to delete upload: ' + error.message)
     }
-  }
+  }, [])
+
+  const handleRoleChange = useCallback(() => {
+    setUsersFetched(false)
+    fetchUsers()
+  }, [])
 
   if (authLoading || loading) {
     return (
@@ -436,97 +309,6 @@ export default function Admin() {
         </Card>
       </div>
     )
-  }
-
-  // Search Source Management Functions
-  const startEditSearchSource = (source: SearchSource) => {
-    setEditingSearchSourceId(source.id)
-    setEditingSearchSourceData({ ...source })
-  }
-
-  const cancelEditSearchSource = () => {
-    setEditingSearchSourceId(null)
-    setEditingSearchSourceData({})
-  }
-
-  const saveSearchSource = async () => {
-    if (!editingSearchSourceId || !editingSearchSourceData.name || !editingSearchSourceData.url) return
-
-    try {
-      const { error } = await supabase
-        .from('web_search_sources')
-        .update({
-          name: editingSearchSourceData.name,
-          url: editingSearchSourceData.url,
-          prompt_template: editingSearchSourceData.prompt_template,
-          priority: editingSearchSourceData.priority,
-          enabled: editingSearchSourceData.enabled
-        })
-        .eq('id', editingSearchSourceId)
-
-      if (error) throw error
-
-      // Update local state
-      setSearchSources(prev => prev.map(source => 
-        source.id === editingSearchSourceId 
-          ? { ...source, ...editingSearchSourceData as SearchSource }
-          : source
-      ))
-      
-      setEditingSearchSourceId(null)
-      setEditingSearchSourceData({})
-      toast.success('Search source updated successfully!')
-    } catch (error) {
-      console.error('Error updating search source:', error)
-      toast.error('Failed to update search source')
-    }
-  }
-
-  const createSearchSource = async () => {
-    try {
-      const maxPriority = Math.max(...searchSources.map(s => s.priority), 0)
-      
-      const { data, error } = await supabase
-        .from('web_search_sources')
-        .insert([{
-          name: 'New Search Source',
-          url: 'https://api.perplexity.ai/chat/completions',
-          prompt_template: 'Search for "{query}" badge. Return JSON: {name, maker, year, description, url, found: true/false}.',
-          priority: maxPriority + 1,
-          enabled: false
-        }])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Add to local state
-      setSearchSources(prev => [...prev, data])
-      toast.success('Search source created successfully!')
-    } catch (error) {
-      console.error('Error creating search source:', error)
-      toast.error('Failed to create search source')
-    }
-  }
-
-  const deleteSearchSource = async (source: SearchSource) => {
-    if (!confirm(`Are you sure you want to delete "${source.name}"? This action cannot be undone.`)) return
-
-    try {
-      const { error } = await supabase
-        .from('web_search_sources')
-        .delete()
-        .eq('id', source.id)
-
-      if (error) throw error
-
-      // Update local state
-      setSearchSources(prev => prev.filter(s => s.id !== source.id))
-      toast.success('Search source deleted successfully!')
-    } catch (error) {
-      console.error('Error deleting search source:', error)
-      toast.error('Failed to delete search source')
-    }
   }
 
   if (!canAccessAdmin) {
@@ -576,7 +358,6 @@ export default function Admin() {
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Bug Report Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -670,16 +451,16 @@ export default function Admin() {
               {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                     <TabsTrigger value="search" className="flex items-center gap-2">
-                       <Settings className="h-4 w-4" />
-                       {!isMobile && "Settings"}
+                    <TabsTrigger value="search" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      {!isMobile && "Settings"}
                     </TabsTrigger>
                   </TooltipTrigger>
-                   {isMobile && (
-                     <TooltipContent>
-                       <p>Settings</p>
-                     </TooltipContent>
-                   )}
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>Settings</p>
+                    </TooltipContent>
+                  )}
                 </Tooltip>
               )}
               {canAccessAdmin && (
@@ -714,1016 +495,77 @@ export default function Admin() {
               )}
             </TabsList>
 
-          <TabsContent value="uploads" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-mono">
-                  <Upload className="h-5 w-5" />
-                  UPLOADED IMAGES ({uploads.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {uploads.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No uploads found</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {uploads.map((upload) => (
-                      <Card key={upload.id} className="overflow-hidden">
-                        <div className="aspect-video relative">
-                          <img
-                            src={upload.image_url}
-                            alt="Upload"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <CardContent className="p-4">
-                          <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">
-                              Uploaded by: {upload.profiles?.display_name || upload.profiles?.email || 'Anonymous'}
-                            </p>
-                            {upload.badge_name && (
-                              <p className="text-sm font-medium">
-                                Suggested: {upload.badge_name}
-                              </p>
-                            )}
-                            {upload.badge_description && (
-                              <p className="text-xs text-muted-foreground">
-                                {upload.badge_description}
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(upload.created_at).toLocaleDateString()}
-                            </p>
-                             <div className="flex gap-2">
-                               <Button
-                                 onClick={() => createBadgeFromUpload(upload)}
-                                 className="flex-1"
-                                 variant="matrix"
-                               >
-                                 Create Badge
-                               </Button>
-                               <Select onValueChange={(badgeId) => associateImageWithBadge(upload.image_url, badgeId)}>
-                                 <SelectTrigger className="flex-1">
-                                   <SelectValue placeholder="Associate with badge..." />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                   {badges.map((badge) => (
-                                     <SelectItem key={badge.id} value={badge.id}>
-                                       {badge.name}
-                                     </SelectItem>
-                                   ))}
-                                 </SelectContent>
-                               </Select>
-                               <Button
-                                 onClick={() => deleteUpload(upload)}
-                                 size="icon"
-                                 variant="destructive"
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="badges" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-mono">
-                  <Settings className="h-5 w-5" />
-                  BADGE MANAGEMENT ({badges.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <ProcessEmbeddingsButton />
-                </div>
-                {badges.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No badges found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {badges.map((badge) => (
-                      <Card key={badge.id}>
-                        <CardContent className="p-6">
-                          {editingBadge === badge.id ? (
-                            // Edit mode
-                            <div className="space-y-4">
-                              <div>
-                                <label className="text-sm font-medium mb-2 block">Badge Name</label>
-                                <Input
-                                  value={editForm.name || ''}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                  placeholder="Badge name"
-                                />
-                              </div>
-                              
-                              <div>
-                                <Label htmlFor="description">Description</Label>
-                                <Textarea
-                                  id="description"
-                                  value={editForm.description || ''}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                  placeholder="Badge description"
-                                  rows={3}
-                                />
-                              </div>
-
-                              <div>
-                                <Label htmlFor="team_name">Badge Maker Team</Label>
-                                 <Select 
-                                   value={editForm.team_name || 'none'} 
-                                   onValueChange={(value) => setEditForm(prev => ({ ...prev, team_name: value === 'none' ? null : value }))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select team (or leave empty)" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">No Team</SelectItem>
-                                    {teams.map((team) => (
-                                      <SelectItem key={team.id} value={team.name}>
-                                        {team.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div>
-                                <Label htmlFor="category">Category</Label>
-                                <Select 
-                                  value={editForm.category || ''} 
-                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value as BadgeData['category'] }))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select badge category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Elect Badge">Elect Badge</SelectItem>
-                                    <SelectItem value="None Elect Badge">None Elect Badge</SelectItem>
-                                    <SelectItem value="SAO">SAO</SelectItem>
-                                    <SelectItem value="Tool">Tool</SelectItem>
-                                    <SelectItem value="Misc">Misc</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <label className="text-sm font-medium mb-2 block">Year</label>
-                                  <Input
-                                    type="number"
-                                    value={editForm.year || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, year: e.target.value ? parseInt(e.target.value) : null }))}
-                                    placeholder="Year"
-                                  />
-                                </div>
-                                
-                                <div>
-                                  <Label htmlFor="purchase_link">Purchase Link</Label>
-                                  <Input
-                                    id="purchase_link"
-                                    value={editForm.external_link || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, external_link: e.target.value }))}
-                                    placeholder="https://..."
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div>
-                                <label className="text-sm font-medium mb-2 block">Image URL</label>
-                                <Input
-                                  value={editForm.image_url || ''}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, image_url: e.target.value }))}
-                                  placeholder="Image URL"
-                                />
-                              </div>
-
-                              <div className="flex items-center space-x-2">
-                                <Checkbox
-                                  id="retired"
-                                  checked={editForm.retired || false}
-                                  onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, retired: !!checked }))}
-                                />
-                                <Label htmlFor="retired" className="text-sm font-medium">
-                                  Retired Badge (can no longer be obtained)
-                                </Label>
-                              </div>
-                              
-                              <div className="flex gap-2 pt-4">
-                                <Button
-                                  onClick={() => saveBadgeEdit(badge.id)}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Save className="h-4 w-4" />
-                                  Save Changes
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={cancelEditBadge}
-                                  className="flex items-center gap-2"
-                                >
-                                  <X className="h-4 w-4" />
-                                  Cancel
-                                </Button>
-                                {isAdmin && (
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() => deleteBadge(badge)}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete Badge
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            // View mode
-                            <div className="flex gap-6">
-                              {badge.image_url && (
-                                <div className="flex-shrink-0">
-                                  <img
-                                    src={badge.image_url}
-                                    alt={badge.name}
-                                    className="w-24 h-24 object-cover rounded border"
-                                  />
-                                </div>
-                              )}
-                              
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <h3 className="text-lg font-semibold">{badge.name}</h3>
-                                    {badge.description && (
-                                      <p className="text-sm text-muted-foreground mt-1">{badge.description}</p>
-                                    )}
-                                  </div>
-                                  
-                                   {canEditBadge(badge.team_name) && (
-                                     <Button
-                                       size="sm"
-                                       variant="outline"
-                                       onClick={() => startEditBadge(badge)}
-                                       className="flex items-center gap-2"
-                                     >
-                                       <Edit className="h-4 w-4" />
-                                       Edit
-                                     </Button>
-                                   )}
-                                </div>
-                                
-                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                   {badge.year && <span>Year: {badge.year}</span>}
-                                   {badge.team_name && <span>Team: {badge.team_name}</span>}
-                                   {badge.category && <span>Category: {badge.category}</span>}
-                                   {badge.profiles?.display_name && (
-                                     <span>Created By: {badge.profiles.display_name}</span>
-                                   )}
-                                   {badge.retired && (
-                                     <Badge variant="destructive" className="text-xs">RETIRED</Badge>
-                                   )}
-                                 </div>
-                                 
-                                  {/* Badge Stats */}
-                                  <BadgeStatsDisplay badgeId={badge.id} />
-                                  
-                                  {/* Badge Images */}
-                                  <div className="mt-4">
-                                    <BadgeImageManager badgeId={badge.id} canEdit={canEditBadge(badge.team_name)} />
-                                  </div>
-                                
-                                {badge.external_link && (
-                                  <div className="text-sm">
-                                    <a 
-                                      href={badge.external_link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:underline"
-                                    >
-                                      {badge.external_link}
-                                    </a>
-                                  </div>
-                                )}
-                                
-                                <div className="text-xs text-muted-foreground">
-                                  Created: {new Date(badge.created_at).toLocaleDateString()}
-                                  {badge.updated_at !== badge.created_at && (
-                                    <span> • Updated: {new Date(badge.updated_at).toLocaleDateString()}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {canManageTeams && (
-            <TabsContent value="teams" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-mono">
-                  <Users className="h-5 w-5" />
-                  TEAM MANAGEMENT ({teams.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <Button 
-                    onClick={() => setShowCreateTeam(!showCreateTeam)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create New Team
-                  </Button>
-                </div>
-
-                {showCreateTeam && (
-                  <Card className="mb-4">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div>
-                          <Label htmlFor="teamName">Team Name</Label>
-                          <Input
-                            id="teamName"
-                            value={teamForm.name}
-                            onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Team name (e.g., DEF CON Goons)"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="teamDescription">Description (optional)</Label>
-                          <Textarea
-                            id="teamDescription"
-                            value={teamForm.description}
-                            onChange={(e) => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="Team description"
-                            rows={2}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="teamWebsiteUrl">Website URL (optional)</Label>
-                          <Input
-                            id="teamWebsiteUrl"
-                            type="url"
-                            value={teamForm.website_url}
-                            onChange={(e) => setTeamForm(prev => ({ ...prev, website_url: e.target.value }))}
-                            placeholder="https://example.com"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={async () => {
-                              if (teamForm.name.trim()) {
-                                await createTeam(teamForm.name.trim(), teamForm.description.trim() || undefined, teamForm.website_url.trim() || undefined)
-                                setTeamForm({ name: '', description: '', website_url: '' })
-                                setShowCreateTeam(false)
-                              }
-                            }}
-                            disabled={!teamForm.name.trim()}
-                          >
-                            Create Team
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setShowCreateTeam(false)
-                              setTeamForm({ name: '', description: '', website_url: '' })
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {teams.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No teams found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {teams.map((team) => (
-                      <Card key={team.id}>
-                        <CardContent className="p-6">
-                          {editingTeam === team.id ? (
-                            // Edit mode for team
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="editTeamName">Team Name</Label>
-                                <Input
-                                  id="editTeamName"
-                                  value={teamForm.name}
-                                  onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
-                                  placeholder="Team name"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="editTeamDescription">Description</Label>
-                                <Textarea
-                                  id="editTeamDescription"
-                                  value={teamForm.description}
-                                  onChange={(e) => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
-                                  placeholder="Team description"
-                                  rows={2}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="editTeamWebsiteUrl">Website URL</Label>
-                                <Input
-                                  id="editTeamWebsiteUrl"
-                                  type="url"
-                                  value={teamForm.website_url}
-                                  onChange={(e) => setTeamForm(prev => ({ ...prev, website_url: e.target.value }))}
-                                  placeholder="https://example.com"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={async () => {
-                                    await updateTeam(team.id, {
-                                      name: teamForm.name.trim(),
-                                      description: teamForm.description.trim() || undefined,
-                                      website_url: teamForm.website_url.trim() || undefined
-                                    })
-                                    setEditingTeam(null)
-                                    setTeamForm({ name: '', description: '', website_url: '' })
-                                  }}
-                                  disabled={!teamForm.name.trim()}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Save className="h-4 w-4" />
-                                  Save Changes
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditingTeam(null)
-                                    setTeamForm({ name: '', description: '', website_url: '' })
-                                  }}
-                                  className="flex items-center gap-2"
-                                >
-                                  <X className="h-4 w-4" />
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            // View mode for team
-                            <div>
-                              <div className="flex items-start justify-between mb-4">
-                                <div>
-                                  <h3 className="text-lg font-semibold">{team.name}</h3>
-                                  {team.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">{team.description}</p>
-                                  )}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setEditingTeam(team.id)
-                                      setTeamForm({
-                                        name: team.name,
-                                        description: team.description || '',
-                                        website_url: team.website_url || ''
-                                      })
-                                    }}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={async () => {
-                                      if (confirm(`Are you sure you want to delete team "${team.name}"?`)) {
-                                        await deleteTeam(team.id)
-                                      }
-                                    }}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Team Members Section */}
-                              <div className="border-t pt-4">
-                                <h4 className="font-medium mb-3">Team Members ({teamUsers.filter(u => u.teams.includes(team.name)).length})</h4>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-                                  {teamUsers.filter(u => u.teams.includes(team.name)).map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                                      <span className="text-sm">{user.display_name || user.email}</span>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => removeUserFromTeam(user.id, team.id)}
-                                        className="flex items-center gap-1"
-                                      >
-                                        <UserMinus className="h-3 w-3" />
-                                        Remove
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {/* Add Members Dropdown */}
-                                <div className="flex gap-2">
-                                  <Select onValueChange={(userId) => addUserToTeam(userId, team.id)}>
-                                    <SelectTrigger className="w-64">
-                                      <SelectValue placeholder="Add user to team" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {teamUsers.filter(u => !u.teams.includes(team.name)).map((user) => (
-                                        <SelectItem key={user.id} value={user.id}>
-                                          {user.display_name || user.email}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          )}
-
-          {canManageUsers && (
-            <TabsContent value="users" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-mono">
-                  <Users className="h-5 w-5" />
-                  USER MANAGEMENT ({users.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {users.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No users found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {users.map((userData) => (
-                      <Card key={userData.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-medium">
-                                {userData.display_name || userData.email || 'Unknown User'}
-                              </h3>
-                               <p className="text-sm text-muted-foreground">{userData.email}</p>
-                               {userData.assigned_team && (
-                                 <p className="text-sm text-muted-foreground">Team: {userData.assigned_team}</p>
-                               )}
-                              <div className="flex gap-1 mt-2">
-                                {userData.roles.length > 0 ? (
-                                  userData.roles.map((role) => (
-                                    <Badge key={role} variant="secondary">
-                                      {role}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <Badge variant="outline">No roles</Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <RoleManagementModal 
-                                user={userData} 
-                                onRoleChange={() => {
-                                  setUsersFetched(false)
-                                  fetchUsers()
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          )}
-
-          {/* Settings Tab */}
-          {isAdmin && (
-            <TabsContent value="search" className="space-y-6">
-              {/* API Keys Management Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    API KEYS MANAGEMENT
-                  </CardTitle>
-                  <div className="bg-muted/50 border rounded-lg p-3 mt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <AlertTriangle className="h-4 w-4" />
-                      <span>These API keys are stored for future integration and are currently hard-coded in the system.</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* OpenAI API Key */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">OpenAI API Key</Label>
-                        <p className="text-xs text-muted-foreground">Used for AI badge analysis, image matching, and embeddings processing</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="sk-...abc123" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* SerpAPI Key */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">SerpAPI Key</Label>
-                        <p className="text-xs text-muted-foreground">Used for Google search integration and badge information lookup</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="***...xyz789" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://serpapi.com/dashboard" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Replicate API Token */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Replicate API Token</Label>
-                        <p className="text-xs text-muted-foreground">Used for advanced AI image processing and model inference</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="r8_...def456" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Perplexity API Key */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Perplexity API Key</Label>
-                        <p className="text-xs text-muted-foreground">Used for web search and research capabilities for badge identification</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="pplx-...ghi789" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Discord Webhook URL */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Discord Webhook URL</Label>
-                        <p className="text-xs text-muted-foreground">Used for Discord notifications and alerts</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="https://discord.com/api/webhooks/...abc123" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Supabase URL */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Supabase Project URL</Label>
-                        <p className="text-xs text-muted-foreground">Base URL for Supabase database and storage operations</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="https://zdegwavcldwlgzzandae.supabase.co" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://supabase.com/dashboard/project/zdegwavcldwlgzzandae/settings/api" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Supabase Anon Key */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Supabase Anon Key</Label>
-                        <p className="text-xs text-muted-foreground">Public API key for client-side database access</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...abc123" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://supabase.com/dashboard/project/zdegwavcldwlgzzandae/settings/api" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Resend API Key */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Resend API Key</Label>
-                        <p className="text-xs text-muted-foreground">Email service provider for notification system</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-xs text-green-600">Configured</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input 
-                        type="password" 
-                        value="re_SpRDm4tc_BLmfUiJpMr6HdJqNdFE7GU8q" 
-                        disabled 
-                        className="flex-1"
-                      />
-                      <Button variant="outline" size="icon" asChild>
-                        <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Web Search Sources Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Brain className="h-5 w-5" />
-                      WEB SEARCH SOURCES
-                    </div>
-                    <Button onClick={createSearchSource} className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      Add Search Source
-                    </Button>
-                  </CardTitle>
-                  <p className="text-muted-foreground">Configure external search sources for badge identification. Sources are tried in priority order until first success.</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {searchSources.map((source) => (
-                      <Card key={source.id}>
-                        <CardContent className="p-6">
-                          {editingSearchSourceId === source.id ? (
-                            // Edit mode
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor={`name-${source.id}`}>Name</Label>
-                                  <Input
-                                    id={`name-${source.id}`}
-                                    value={editingSearchSourceData.name || ''}
-                                    onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder="Search source name"
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor={`priority-${source.id}`}>Priority</Label>
-                                  <Input
-                                    id={`priority-${source.id}`}
-                                    type="number"
-                                    value={editingSearchSourceData.priority || 1}
-                                    onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, priority: parseInt(e.target.value) }))}
-                                    placeholder="Priority (lower = higher priority)"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div>
-                                <Label htmlFor={`url-${source.id}`}>URL Endpoint</Label>
-                                <Input
-                                  id={`url-${source.id}`}
-                                  value={editingSearchSourceData.url || ''}
-                                  onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, url: e.target.value }))}
-                                  placeholder="https://api.example.com/search"
-                                />
-                              </div>
-                              
-                              <div>
-                                <Label htmlFor={`template-${source.id}`}>Prompt Template</Label>
-                                <Textarea
-                                  id={`template-${source.id}`}
-                                  value={editingSearchSourceData.prompt_template || ''}
-                                  onChange={(e) => setEditingSearchSourceData(prev => ({ ...prev, prompt_template: e.target.value }))}
-                                  placeholder="Search prompt template (use {query} for badge name placeholder)"
-                                  rows={3}
-                                />
-                              </div>
-                              
-                              <div className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`enabled-${source.id}`}
-                                  checked={editingSearchSourceData.enabled || false}
-                                  onCheckedChange={(checked) => setEditingSearchSourceData(prev => ({ ...prev, enabled: checked as boolean }))}
-                                />
-                                <Label htmlFor={`enabled-${source.id}`}>Enabled</Label>
-                              </div>
-                              
-                              <div className="flex gap-2">
-                                <Button onClick={saveSearchSource} className="flex items-center gap-2">
-                                  <Save className="h-4 w-4" />
-                                  Save
-                                </Button>
-                                <Button variant="outline" onClick={cancelEditSearchSource} className="flex items-center gap-2">
-                                  <X className="h-4 w-4" />
-                                  Cancel
-                                </Button>
-                                <Button variant="destructive" onClick={() => deleteSearchSource(source)} className="flex items-center gap-2">
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            // View mode
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-start">
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-semibold">{source.name}</h3>
-                                    <Badge variant={source.enabled ? "default" : "secondary"}>
-                                      {source.enabled ? "Enabled" : "Disabled"}
-                                    </Badge>
-                                    <Badge variant="outline">Priority {source.priority}</Badge>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    <strong>URL:</strong> {source.url}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    <strong>Template:</strong> {source.prompt_template}
-                                  </p>
-                                </div>
-                                <Button variant="outline" onClick={() => startEditSearchSource(source)} className="flex items-center gap-2">
-                                  <Edit className="h-4 w-4" />
-                                  Edit
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {searchSources.length === 0 && (
-                    <Card>
-                      <CardContent className="p-6 text-center text-muted-foreground">
-                        No search sources configured. Add your first search source to get started.
-                      </CardContent>
-                    </Card>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <WebSearchTester />
+            <TabsContent value="uploads" className="space-y-4">
+              <UploadsManagement
+                uploads={uploads}
+                badges={badges}
+                onCreateBadge={createBadgeFromUpload}
+                onAssociateImage={associateImageWithBadge}
+                onDeleteUpload={deleteUpload}
+              />
             </TabsContent>
-          )}
 
-          {/* Email Testing Tab - Admin Only */}
-          {canAccessAdmin && (
-            <TabsContent value="emails" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-mono">
-                    <Mail className="h-5 w-5" />
-                    EMAIL TESTING
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <EmailTriggerTester />
-                </CardContent>
-              </Card>
+            <TabsContent value="badges" className="space-y-4">
+              <BadgeManagement
+                badges={badges}
+                teams={teams}
+                canEditBadge={canEditBadge}
+                onSaveBadge={saveBadgeEdit}
+                onDeleteBadge={deleteBadge}
+              />
             </TabsContent>
-          )}
 
-          {/* Analytics Tab - Admin Only */}
-          {isAdmin && (
-            <TabsContent value="analytics" className="space-y-4">
-              <AdminAnalytics />
-            </TabsContent>
-          )}
-        </Tabs>
+            {canManageTeams && (
+              <TabsContent value="teams" className="space-y-4">
+                <TeamManagement
+                  teams={teams}
+                  users={teamUsers}
+                  onCreateTeam={createTeam}
+                  onUpdateTeam={updateTeam}
+                  onDeleteTeam={deleteTeam}
+                  onAddUserToTeam={addUserToTeam}
+                  onRemoveUserFromTeam={removeUserFromTeam}
+                />
+              </TabsContent>
+            )}
+
+            {canManageUsers && (
+              <TabsContent value="users" className="space-y-4">
+                <UserManagement
+                  users={users}
+                  onRoleChange={handleRoleChange}
+                />
+              </TabsContent>
+            )}
+
+            {canAccessAdmin && (
+              <TabsContent value="search" className="space-y-6">
+                <WebSearchTester />
+              </TabsContent>
+            )}
+
+            {canAccessAdmin && (
+              <TabsContent value="emails" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-mono">
+                      <Mail className="h-5 w-5" />
+                      EMAIL TESTING
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EmailTriggerTester />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="analytics" className="space-y-4">
+                <AdminAnalytics />
+              </TabsContent>
+            )}
+          </Tabs>
         </TooltipProvider>
       </div>
     </div>
