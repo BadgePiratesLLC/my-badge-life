@@ -48,9 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    console.log('🔐 AuthContext initializing...');
 
     const maxLoadTime = setTimeout(() => {
       if (isMounted) {
+        console.log('🔐 AuthContext timeout - forcing initialized state');
         setLoading(false);
         setInitialized(true);
       }
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         if (!isMounted) return;
         
+        console.log('🔐 Auth state change:', { event, hasSession: !!session, userId: session?.user?.id });
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -67,16 +70,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Fetch both profile and roles together
           setTimeout(async () => {
             if (isMounted) {
+              console.log('🔐 Fetching profile and roles for user:', session.user.id);
               await Promise.all([
                 fetchProfile(session.user.id),
                 fetchUserRoles(session.user.id)
               ]);
+              console.log('🔐 Profile and roles loaded');
               setLoading(false);
               setInitialized(true);
               clearTimeout(maxLoadTime);
             }
           }, 0);
         } else {
+          console.log('🔐 No session - clearing profile and roles');
           setProfile(null);
           setRoles([]);
           setLoading(false);
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!isMounted) return;
+      console.log('🔐 Initial session check:', { hasSession: !!session, error, userId: session?.user?.id });
       if (error) {
         console.error('🔐 Error getting initial session:', error);
         setLoading(false);
