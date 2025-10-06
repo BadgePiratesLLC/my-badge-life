@@ -293,7 +293,12 @@ export const TeamManagement = memo(function TeamManagement({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                                   {users.filter(u => u.teams.includes(team.name)).map((user) => (
                                     <div key={user.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                                      <span className="text-sm">{user.display_name || user.email}</span>
+                                      <div className="flex flex-col">
+                                        <span className="text-sm font-medium">{user.display_name || user.email}</span>
+                                        {user.display_name && user.email && (
+                                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                                        )}
+                                      </div>
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -315,7 +320,7 @@ export const TeamManagement = memo(function TeamManagement({
                                     <SelectContent>
                                       {users.filter(u => !u.teams.includes(team.name)).map((user) => (
                                         <SelectItem key={user.id} value={user.id}>
-                                          {user.display_name || user.email}
+                                          {user.display_name || user.email} {user.display_name && user.email && `(${user.email})`}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
