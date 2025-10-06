@@ -120,7 +120,7 @@ export const BadgeManagement = memo(function BadgeManagement({
           <p className="text-muted-foreground text-center py-8">No badges found</p>
         ) : (
           <div className="space-y-4">
-            {badges.map((badge) => (
+            {filteredBadges.map((badge) => (
               <Card key={badge.id}>
                 <CardContent className="p-6">
                   {editingBadge === badge.id ? (

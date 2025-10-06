@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Users } from 'lucide-react'
 import { RoleManagementModal } from '@/components/RoleManagementModal'
+import { useRoles } from '@/hooks/useRoles'
 
 interface User {
   id: string
@@ -21,6 +22,8 @@ export const UserManagement = memo(function UserManagement({
   users,
   onRoleChange
 }: UserManagementProps) {
+  const { getAllUserRoles } = useRoles()
+  
   return (
     <Card>
       <CardHeader>
@@ -47,15 +50,11 @@ export const UserManagement = memo(function UserManagement({
                         <p className="text-sm text-muted-foreground">Team: {userData.assigned_team}</p>
                       )}
                       <div className="flex gap-1 mt-2">
-                        {userData.roles.length > 0 ? (
-                          userData.roles.map((role) => (
-                            <Badge key={role} variant="secondary">
-                              {role}
-                            </Badge>
-                          ))
-                        ) : (
-                          <Badge variant="outline">No roles</Badge>
-                        )}
+                        {getAllUserRoles(null, userData.roles).map((displayRole) => (
+                          <Badge key={displayRole} variant="secondary">
+                            {displayRole}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                     <div className="flex gap-2">

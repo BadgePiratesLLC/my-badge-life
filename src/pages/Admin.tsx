@@ -408,10 +408,10 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${
               isAdmin ? 'grid-cols-7' : 
-              canManageBadges ? 'grid-cols-1' : 
-              'grid-cols-5'
+              canManageBadges ? 'grid-cols-2' : 
+              'grid-cols-1'
             }`}>
-              {canAccessAdmin && (
+              {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="uploads" className="flex items-center gap-2">
