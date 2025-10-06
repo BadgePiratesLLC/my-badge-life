@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type NotificationType = 'badge_submitted' | 'user_registered' | 'maker_request' | 'badge_approved' | 'badge_rejected';
+export type NotificationType = 'badge_submitted' | 'user_registered' | 'maker_request' | 'badge_approved' | 'badge_rejected' | 'team_request';
 
 interface NotificationData {
   title: string;

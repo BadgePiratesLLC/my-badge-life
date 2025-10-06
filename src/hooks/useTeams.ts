@@ -29,10 +29,24 @@ export interface UserWithTeams {
   teams: string[]
 }
 
+export interface TeamRequest {
+  id: string
+  user_id: string
+  team_name: string
+  team_description: string | null
+  team_website_url: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+}
+
 export function useTeams() {
   const [teams, setTeams] = useState<Team[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [users, setUsers] = useState<UserWithTeams[]>([])
+  const [teamRequests, setTeamRequests] = useState<TeamRequest[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuthContext()
   const { toast } = useToast()
@@ -42,6 +56,7 @@ export function useTeams() {
       fetchTeams()
       fetchTeamMembers()
       fetchUsers()
+      fetchTeamRequests()
     }
   }, [user])
 
@@ -281,18 +296,205 @@ export function useTeams() {
     }
   }
 
+  const fetchTeamRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('team_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setTeamRequests((data || []) as TeamRequest[])
+    } catch (error) {
+      console.error('Error fetching team requests:', error)
+    }
+  }
+
+  const createTeamRequest = async (
+    name: string,
+    description?: string,
+    websiteUrl?: string
+  ) => {
+    try {
+      const { data, error } = await supabase
+        .from('team_requests')
+        .insert({
+          user_id: user?.id,
+          team_name: name,
+          team_description: description || null,
+          team_website_url: websiteUrl || null,
+          status: 'pending'
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setTeamRequests(prev => [data as TeamRequest, ...prev])
+
+      // Send Discord notification
+      await supabase.functions.invoke('send-discord-notification', {
+        body: {
+          type: 'team_request',
+          data: {
+            title: '🏢 New Team Creation Request',
+            description: `**${user?.email}** has requested to create a new team: **${name}**`,
+            fields: [
+              ...(description ? [{ name: 'Description', value: description, inline: false }] : []),
+              ...(websiteUrl ? [{ name: 'Website', value: websiteUrl, inline: false }] : []),
+            ],
+          },
+        },
+      })
+
+      // Send email notification
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'team_request',
+          to: 'flightgod@gmail.com',
+          data: {
+            userName: user?.email,
+            teamName: name,
+            teamDescription: description,
+            teamWebsite: websiteUrl,
+          },
+        },
+      })
+
+      toast({
+        title: 'Request Submitted',
+        description: 'Your team creation request has been sent to admins for approval.'
+      })
+
+      return data
+    } catch (error: any) {
+      console.error('Error creating team request:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit team request',
+        variant: 'destructive'
+      })
+      throw error
+    }
+  }
+
+  const approveTeamRequest = async (requestId: string) => {
+    try {
+      // Get the request details
+      const { data: request, error: fetchError } = await supabase
+        .from('team_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Create the team
+      const { data: team, error: teamError } = await supabase
+        .from('teams')
+        .insert({
+          name: request.team_name,
+          description: request.team_description,
+          website_url: request.team_website_url
+        })
+        .select()
+        .single()
+
+      if (teamError) throw teamError
+
+      // Add the user to the team
+      const { error: memberError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: request.user_id
+        })
+
+      if (memberError) throw memberError
+
+      // Update request status
+      const { error: updateError } = await supabase
+        .from('team_requests')
+        .update({
+          status: 'approved',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+
+      if (updateError) throw updateError
+
+      await Promise.all([
+        fetchTeams(),
+        fetchTeamMembers(),
+        fetchUsers(),
+        fetchTeamRequests()
+      ])
+
+      toast({
+        title: 'Success',
+        description: 'Team request approved and team created'
+      })
+
+      return team
+    } catch (error: any) {
+      console.error('Error approving team request:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve team request',
+        variant: 'destructive'
+      })
+      throw error
+    }
+  }
+
+  const rejectTeamRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_requests')
+        .update({
+          status: 'rejected',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      await fetchTeamRequests()
+
+      toast({
+        title: 'Success',
+        description: 'Team request rejected'
+      })
+    } catch (error: any) {
+      console.error('Error rejecting team request:', error)
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject team request',
+        variant: 'destructive'
+      })
+      throw error
+    }
+  }
+
   return {
     teams,
     teamMembers,
     users,
+    teamRequests,
     loading,
     createTeam,
     updateTeam,
     deleteTeam,
     addUserToTeam,
     removeUserFromTeam,
+    createTeamRequest,
+    approveTeamRequest,
+    rejectTeamRequest,
     refreshTeams: fetchTeams,
     refreshMembers: fetchTeamMembers,
-    refreshUsers: fetchUsers
+    refreshUsers: fetchUsers,
+    refreshTeamRequests: fetchTeamRequests
   }
 }

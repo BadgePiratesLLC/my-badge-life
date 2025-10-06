@@ -16,7 +16,7 @@ interface MakerRequestModalProps {
 
 export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) => {
   const { requestMakerStatus } = useAuthContext();
-  const { teams, createTeam } = useTeams();
+  const { teams, createTeamRequest } = useTeams();
   const { toast } = useToast();
   
   const [selectedTeam, setSelectedTeam] = useState<string>("");
@@ -29,12 +29,14 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
     try {
       setLoading(true);
       
-      let teamToAssign = selectedTeam;
-      
-      // If user entered a new team name, create it first
+      // If user wants to create a new team, submit a team creation request
       if (selectedTeam === "new" && newTeamName.trim()) {
-        const newTeam = await createTeam(newTeamName.trim());
-        teamToAssign = newTeam.id;
+        await createTeamRequest(newTeamName.trim());
+        
+        toast({
+          title: "Team Request Sent",
+          description: "Your team creation request has been sent to admins for approval.",
+        });
       } else if (selectedTeam === "new" && !newTeamName.trim()) {
         toast({
           title: "Team Name Required",
@@ -50,7 +52,7 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
       toast({
         title: "Maker Request Sent",
         description: selectedTeam === "new" 
-          ? "Your maker request and new team have been submitted for admin approval."
+          ? "Your maker request and team creation request have been submitted for admin approval."
           : "Your maker request has been sent to admins for approval.",
       });
       

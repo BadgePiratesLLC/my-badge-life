@@ -18,6 +18,7 @@ import { UploadsManagement } from '@/components/admin/UploadsManagement'
 import { BadgeManagement } from '@/components/admin/BadgeManagement'
 import { TeamManagement } from '@/components/admin/TeamManagement'
 import { UserManagement } from '@/components/admin/UserManagement'
+import { TeamRequestsManagement } from '@/components/admin/TeamRequestsManagement'
 
 interface BadgeData {
   id: string
@@ -65,7 +66,18 @@ export default function Admin() {
   const isMobile = useIsMobile()
   const { user, profile, loading: authLoading, isAdmin, canAccessAdmin, canManageUsers, canManageTeams, canManageBadges, canEditBadge } = useAuthContext()
   const { refreshBadges } = useBadges()
-  const { teams, users: teamUsers, createTeam, updateTeam, deleteTeam, addUserToTeam, removeUserFromTeam } = useTeams()
+  const { 
+    teams, 
+    users: teamUsers, 
+    teamRequests,
+    createTeam, 
+    updateTeam, 
+    deleteTeam, 
+    addUserToTeam, 
+    removeUserFromTeam,
+    approveTeamRequest,
+    rejectTeamRequest
+  } = useTeams()
   const navigate = useNavigate()
   const [uploads, setUploads] = useState<Upload[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -517,6 +529,11 @@ export default function Admin() {
 
             {canManageTeams && (
               <TabsContent value="teams" className="space-y-4">
+                <TeamRequestsManagement
+                  teamRequests={teamRequests}
+                  onApprove={approveTeamRequest}
+                  onReject={rejectTeamRequest}
+                />
                 <TeamManagement
                   teams={teams}
                   users={teamUsers}

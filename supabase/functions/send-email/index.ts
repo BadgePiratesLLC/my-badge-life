@@ -178,6 +178,17 @@ const handler = async (req: Request): Promise<Response> => {
         fromName = "MyBadgeLife Admin";
         break;
 
+      case 'team_request':
+        emailComponent = React.createElement(TeamRequestEmail, {
+          userName: data.userName,
+          teamName: data.teamName,
+          teamDescription: data.teamDescription,
+          teamWebsite: data.teamWebsite
+        });
+        subject = `🏢 New Team Creation Request: ${data.teamName}`;
+        fromName = "MyBadgeLife Admin";
+        break;
+
       default:
         throw new Error(`Unknown email type: ${type}`);
     }
