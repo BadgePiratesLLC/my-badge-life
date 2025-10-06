@@ -687,6 +687,13 @@ export type Database = {
           wants_count: number
         }[]
       }
+      get_public_maker_info: {
+        Args: { maker_user_id: string }
+        Returns: {
+          display_name: string
+          role: string
+        }[]
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
