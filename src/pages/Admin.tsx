@@ -22,6 +22,7 @@ import { TeamRequestsManagement } from '@/components/admin/TeamRequestsManagemen
 import { ApiKeysStatus } from '@/components/admin/ApiKeysStatus'
 import { AdminNotificationBell } from '@/components/admin/AdminNotificationBell'
 import { MyTeamManagement } from '@/components/admin/MyTeamManagement'
+import { MyProfile } from '@/components/admin/MyProfile'
 
 interface BadgeData {
   id: string
@@ -410,8 +411,8 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${
               isAdmin ? 'grid-cols-7' : 
-              canManageBadges && profile?.assigned_team ? 'grid-cols-2' : 
-              canManageBadges ? 'grid-cols-1' : 
+              canManageBadges && profile?.assigned_team ? 'grid-cols-3' : 
+              canManageBadges ? 'grid-cols-2' : 
               'grid-cols-1'
             }`}>
               {isAdmin && (
@@ -429,6 +430,20 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
+              {/* My Profile tab - visible to ALL users with admin access */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="my-profile" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    {!isMobile && "My Profile"}
+                  </TabsTrigger>
+                </TooltipTrigger>
+                {isMobile && (
+                  <TooltipContent>
+                    <p>My Profile</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
               {!isAdmin && canManageBadges && profile?.assigned_team && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -544,6 +559,11 @@ export default function Admin() {
                 onAssociateImage={associateImageWithBadge}
                 onDeleteUpload={deleteUpload}
               />
+            </TabsContent>
+
+            {/* My Profile tab - available to all users */}
+            <TabsContent value="my-profile" className="space-y-4">
+              <MyProfile />
             </TabsContent>
 
             {!isAdmin && canManageBadges && profile?.assigned_team && (
