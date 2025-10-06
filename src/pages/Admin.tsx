@@ -588,11 +588,19 @@ export default function Admin() {
             </TabsContent>
 
             {/* My Team tab - available to non-admin users with assigned team */}
-            {!isAdmin && canManageBadges && profile?.assigned_team && (
-              <TabsContent value="my-team" className="space-y-4">
+            <TabsContent value="my-team" className="space-y-4">
+              {!isAdmin && canManageBadges && profile?.assigned_team ? (
                 <MyTeamManagement />
-              </TabsContent>
-            )}
+              ) : (
+                <Card>
+                  <CardContent className="py-8">
+                    <p className="text-muted-foreground text-center">
+                      You need to be assigned to a team to view this section.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
 
             <TabsContent value="badges" className="space-y-4">
               <BadgeManagement

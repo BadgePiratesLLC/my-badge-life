@@ -8,20 +8,22 @@ import { AuthModal } from '@/components/AuthModal';
 const MyTeam = () => {
   console.log('🔵 MyTeam COMPONENT RENDERING');
   const navigate = useNavigate();
-  const { profile, user, loading } = useAuthContext();
+  const { profile, user, loading, initialized } = useAuthContext();
   const [showAuth, setShowAuth] = useState(false);
 
   console.log('🔵 MyTeam state:', { 
     hasProfile: !!profile, 
     hasUser: !!user, 
     loading,
+    initialized,
     profileEmail: profile?.email,
     assignedTeam: profile?.assigned_team 
   });
 
-  if (loading) {
+  // Wait for auth to initialize before showing anything
+  if (!initialized || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -29,7 +31,7 @@ const MyTeam = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Please sign in to view your team.</p>
       </div>
     );
@@ -37,7 +39,7 @@ const MyTeam = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading profile...</p>
       </div>
     );
