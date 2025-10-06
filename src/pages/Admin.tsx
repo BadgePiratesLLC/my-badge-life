@@ -388,6 +388,15 @@ export default function Admin() {
             >
               <Bug className="h-4 w-4" />
             </Button>
+            <Link to="/">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </header>

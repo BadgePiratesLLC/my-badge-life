@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 import { MyTeamManagement } from '@/components/admin/MyTeamManagement';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { Header } from '@/components/Header';
+import { AuthModal } from '@/components/AuthModal';
 
 const MyTeam = () => {
   const navigate = useNavigate();
-  const { profile } = useAuthContext();
+  const { profile, user } = useAuthContext();
+  const [showAuth, setShowAuth] = useState(false);
 
   if (!profile) {
     return (
@@ -19,20 +20,21 @@ const MyTeam = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header 
+        onCameraClick={() => navigate('/')}
+        onMenuClick={() => {}}
+        isAuthenticated={!!user}
+        onAuthClick={() => setShowAuth(true)}
+      />
+      
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Home
-          </Button>
-        </div>
-        
         <MyTeamManagement />
       </div>
+
+      <AuthModal 
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+      />
     </div>
   );
 };

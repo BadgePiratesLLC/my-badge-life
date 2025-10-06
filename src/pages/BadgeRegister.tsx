@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBadges } from '@/hooks/useBadges'
 import { useTeams } from '@/hooks/useTeams'
@@ -11,15 +11,17 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BadgeCategory } from '@/integrations/supabase/database-types'
-import { ArrowLeft, Save, Upload, Bug } from 'lucide-react'
+import { ArrowLeft, Save, Upload, Bug, Shield, User } from 'lucide-react'
 import { toast } from 'sonner'
+import { AuthModal } from '@/components/AuthModal'
 
 export default function BadgeRegister() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user } = useAuthContext()
+  const { user, canAccessAdmin } = useAuthContext()
   const { createBadge } = useBadges()
   const { teams } = useTeams()
+  const [showAuth, setShowAuth] = useState(false)
   
   // Get all parameters from query string if coming from admin or analysis
   const prefilledImageUrl = searchParams.get('image_url') || ''
@@ -278,6 +280,11 @@ export default function BadgeRegister() {
           </Card>
         </div>
       </div>
+
+      <AuthModal 
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+      />
     </div>
   )
 }
