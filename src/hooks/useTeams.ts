@@ -230,6 +230,16 @@ export function useTeams() {
 
   const addUserToTeam = async (userId: string, teamId: string) => {
     try {
+      // Get team name first
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('name')
+        .eq('id', teamId)
+        .single()
+
+      if (teamError) throw teamError
+
+      // Add to team_members
       const { data, error } = await supabase
         .from('team_members')
         .insert({
@@ -245,6 +255,14 @@ export function useTeams() {
         .single()
 
       if (error) throw error
+
+      // Update profile.assigned_team
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ assigned_team: teamData.name })
+        .eq('id', userId)
+
+      if (profileError) throw profileError
 
       setTeamMembers(prev => [...prev, data])
       await fetchUsers() // Refresh users to update team assignments
@@ -275,6 +293,14 @@ export function useTeams() {
         .eq('team_id', teamId)
 
       if (error) throw error
+
+      // Clear profile.assigned_team
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ assigned_team: null })
+        .eq('id', userId)
+
+      if (profileError) throw profileError
 
       setTeamMembers(prev => prev.filter(member => 
         !(member.user_id === userId && member.team_id === teamId)
