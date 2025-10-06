@@ -5,12 +5,13 @@ import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Shield, Bug, Image, Settings, Users, Mail, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Shield, Bug, User, Image, Settings, Users, Mail, BarChart3 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTeams } from '@/hooks/useTeams'
 import { WebSearchTester } from '@/components/WebSearchTester'
 import { AdminAnalytics } from '@/components/AdminAnalytics'
 import { EmailTriggerTester } from '@/components/EmailTriggerTester'
+import { AuthModal } from '@/components/AuthModal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -89,6 +90,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
   const [activeTab, setActiveTab] = useState('badges')
+  const [showAuth, setShowAuth] = useState(false)
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -380,6 +382,17 @@ export default function Admin() {
             {isAdmin && (
               <AdminNotificationBell onNavigateToTab={setActiveTab} />
             )}
+            {canAccessAdmin && (
+              <Link to="/admin">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-orange-500 hover:text-orange-400"
+                >
+                  <Shield className="h-4 w-4" />
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -388,15 +401,17 @@ export default function Admin() {
             >
               <Bug className="h-4 w-4" />
             </Button>
-            <Link to="/">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowAuth(true)}
+              className="relative text-muted-foreground hover:text-foreground"
+            >
+              <User className="h-4 w-4" />
+              {user && (
+                <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
+              )}
+            </Button>
           </div>
         </div>
       </header>
@@ -418,16 +433,12 @@ export default function Admin() {
 
         <TooltipProvider>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${
-              isAdmin ? 'grid-cols-7' : 
-              canManageBadges && profile?.assigned_team ? 'grid-cols-3' : 
-              canManageBadges ? 'grid-cols-2' : 
-              'grid-cols-1'
-            }`}>
-              {isAdmin && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <TabsTrigger value="uploads" className="flex items-center gap-2">
+            <div className="overflow-x-auto">
+              <TabsList className="inline-flex w-auto min-w-full">
+                {isAdmin && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="uploads" className="flex items-center gap-2">
                       <Image className="h-4 w-4" />
                       {!isMobile && "Uploaded Images"}
                     </TabsTrigger>
@@ -558,7 +569,8 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-            </TabsList>
+              </TabsList>
+            </div>
 
             <TabsContent value="uploads" className="space-y-4">
               <UploadsManagement
@@ -647,6 +659,11 @@ export default function Admin() {
           </Tabs>
         </TooltipProvider>
       </div>
+
+      <AuthModal 
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+      />
     </div>
   )
 }

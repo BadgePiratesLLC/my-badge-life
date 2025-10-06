@@ -20,7 +20,7 @@ interface PendingRequest {
 }
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
-  const { user, profile, signInWithGoogle, signOut, getDisplayRole, isBadgeMaker } = useAuthContext();
+  const { user, profile, signInWithGoogle, signOut, getDisplayRole, isBadgeMaker, isAdmin } = useAuthContext();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
@@ -185,8 +185,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
-                {/* Only show team button and request option for non-admin users */}
-                {profile?.role !== 'admin' && profile?.assigned_team && (
+                {/* Only show team button for non-admin users who have an assigned team */}
+                {!isAdmin && profile?.assigned_team && (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -200,7 +200,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   </Button>
                 )}
 
-                {profile?.role !== 'admin' && !isBadgeMaker && pendingRequests.length > 0 && (
+                {/* Only show pending requests for non-admin, non-maker users */}
+                {!isAdmin && !isBadgeMaker && pendingRequests.length > 0 && (
                   <div className="space-y-2 p-3 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -218,8 +219,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   </div>
                 )}
                 
-                {/* Only show REQUEST TEAM MEMBERSHIP button if user is not admin, not a maker, and hasn't already requested */}
-                {profile?.role !== 'admin' && !isBadgeMaker && (
+                {/* Only show REQUEST TEAM MEMBERSHIP button for non-admin, non-maker users */}
+                {!isAdmin && !isBadgeMaker && (
                   <Button
                     variant="outline"
                     onClick={handleRequestMaker}
