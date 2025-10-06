@@ -27,21 +27,28 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
 
   const myTeam = teams.find(t => t.name === profile?.assigned_team);
   
-  // Filter team members: users who have this team in their teams array OR have assigned_team matching
+  // Filter team members: users who have this team in their teams array
   const teamMembers = users.filter(u => {
     const hasTeamInArray = u.teams?.includes(profile?.assigned_team || '');
     return hasTeamInArray;
   });
 
-  console.log('MyTeamManagement debug:', {
-    profileAssignedTeam: profile?.assigned_team,
-    myTeam,
-    allUsers: users,
-    teamMembers,
-    teams
-  });
+  // Debug logging
+  React.useEffect(() => {
+    if (profile?.assigned_team) {
+      console.log('MyTeamManagement mounted:', {
+        profileAssignedTeam: profile?.assigned_team,
+        teamsCount: teams.length,
+        myTeam: myTeam,
+        usersCount: users.length,
+        teamMembersCount: teamMembers.length,
+        teamMembersData: teamMembers
+      });
+    }
+  }, [profile?.assigned_team, teams.length, users.length, myTeam, teamMembers]);
 
-  if (!profile?.assigned_team || !myTeam) {
+  if (!profile?.assigned_team) {
+    console.log('No assigned team for profile:', profile);
     return (
       <Card>
         <CardHeader>
@@ -53,6 +60,28 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
             You are not currently assigned to a team.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!myTeam) {
+    console.log('Team not found:', { 
+      assignedTeam: profile.assigned_team,
+      availableTeams: teams.map(t => t.name)
+    });
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-mono">
+            <Users className="h-5 w-5" />
+            MY TEAM
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">
+            Team "{profile.assigned_team}" not found. Please contact an administrator.
           </p>
         </CardContent>
       </Card>

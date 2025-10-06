@@ -112,19 +112,26 @@ export function useTeams() {
           const { data: memberships } = await supabase
             .from('team_members')
             .select(`
-              teams:team_id (
+              team_id,
+              teams!inner (
                 name
               )
             `)
             .eq('user_id', profile.id)
 
-          const teamNames = memberships?.map(m => m.teams?.name).filter(Boolean) || []
+          const teamNames = (memberships || [])
+            .map(m => {
+              // Handle the nested structure correctly
+              const teams = m.teams as any;
+              return teams?.name;
+            })
+            .filter(Boolean) as string[];
 
           return {
             id: profile.id,
             email: profile.email,
             display_name: profile.display_name,
-            teams: teamNames as string[]
+            teams: teamNames
           }
         })
       )
