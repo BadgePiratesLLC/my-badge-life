@@ -6,11 +6,18 @@ import { Header } from '@/components/Header';
 import { AuthModal } from '@/components/AuthModal';
 
 const MyTeam = () => {
+  console.log('🔵 MyTeam COMPONENT RENDERING');
   const navigate = useNavigate();
   const { profile, user, loading } = useAuthContext();
   const [showAuth, setShowAuth] = useState(false);
 
-  console.log('MyTeam page loaded:', { profile, user, loading });
+  console.log('🔵 MyTeam state:', { 
+    hasProfile: !!profile, 
+    hasUser: !!user, 
+    loading,
+    profileEmail: profile?.email,
+    assignedTeam: profile?.assigned_team 
+  });
 
   if (loading) {
     return (

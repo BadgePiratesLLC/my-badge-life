@@ -11,6 +11,7 @@ import { useTeams } from '@/hooks/useTeams';
 import { toast } from 'sonner';
 
 export const MyTeamManagement = memo(function MyTeamManagement() {
+  console.log('🟢 MyTeamManagement COMPONENT RENDERING');
   const { profile } = useAuthContext();
   const { teams, users, updateTeam, refreshTeams, refreshUsers, loading } = useTeams();
   const [isEditing, setIsEditing] = useState(false);
@@ -19,9 +20,9 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
     website_url: '' 
   });
 
-  console.log('MyTeamManagement rendering:', { 
-    profile: profile?.email, 
-    assigned_team: profile?.assigned_team,
+  console.log('🟢 MyTeamManagement state:', { 
+    profileEmail: profile?.email, 
+    assignedTeam: profile?.assigned_team,
     teamsCount: teams.length,
     usersCount: users.length,
     loading 
