@@ -92,12 +92,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    // Get initial session - CRITICAL: Actually set the session!
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (!isMounted) return;
       console.log('🔐 Initial session check:', { hasSession: !!session, error, userId: session?.user?.id });
+      
       if (error) {
         console.error('🔐 Error getting initial session:', error);
+        setLoading(false);
+        setInitialized(true);
+        clearTimeout(maxLoadTime);
+        return;
+      }
+
+      // Actually set the session and user!
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+        
+        // Load profile and roles
+        await Promise.all([
+          fetchProfile(session.user.id),
+          fetchUserRoles(session.user.id)
+        ]);
+        console.log('🔐 Initial session loaded successfully');
         setLoading(false);
         setInitialized(true);
         clearTimeout(maxLoadTime);
