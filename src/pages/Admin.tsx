@@ -537,6 +537,7 @@ export default function Admin() {
                 <TeamManagement
                   teams={teams}
                   users={teamUsers}
+                  teamRequests={teamRequests}
                   onCreateTeam={createTeam}
                   onUpdateTeam={updateTeam}
                   onDeleteTeam={deleteTeam}
