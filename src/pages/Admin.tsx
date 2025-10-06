@@ -408,7 +408,8 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${
               isAdmin ? 'grid-cols-7' : 
-              canManageBadges ? 'grid-cols-2' : 
+              canManageBadges && profile?.assigned_team ? 'grid-cols-2' : 
+              canManageBadges ? 'grid-cols-1' : 
               'grid-cols-1'
             }`}>
               {isAdmin && (
@@ -422,6 +423,21 @@ export default function Admin() {
                   {isMobile && (
                     <TooltipContent>
                       <p>Uploaded Images</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              )}
+              {!isAdmin && canManageBadges && profile?.assigned_team && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="my-team" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      {!isMobile && "My Team"}
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  {isMobile && (
+                    <TooltipContent>
+                      <p>My Team</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
@@ -528,12 +544,13 @@ export default function Admin() {
               />
             </TabsContent>
 
-            <TabsContent value="badges" className="space-y-4">
-              {/* Show team info for badge makers */}
-              {!isAdmin && profile?.assigned_team && (
+            {!isAdmin && canManageBadges && profile?.assigned_team && (
+              <TabsContent value="my-team" className="space-y-4">
                 <MyTeamManagement />
-              )}
-              
+              </TabsContent>
+            )}
+
+            <TabsContent value="badges" className="space-y-4">
               <BadgeManagement
                 badges={badges}
                 teams={teams}
