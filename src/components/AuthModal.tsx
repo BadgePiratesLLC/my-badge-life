@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { X, LogIn, UserCheck, Crown, Clock, LogOut } from "lucide-react";
+import { X, LogIn, UserCheck, Crown, Clock, LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { MakerRequestModal } from "./MakerRequestModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface PendingRequest {
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const { user, profile, signInWithGoogle, signOut, getDisplayRole, isBadgeMaker } = useAuthContext();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showMakerRequest, setShowMakerRequest] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
@@ -183,6 +185,20 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
+                {profile?.assigned_team && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigate('/my-team');
+                      onClose();
+                    }}
+                    className="w-full"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    MY TEAM: {profile.assigned_team}
+                  </Button>
+                )}
+
                 {!isBadgeMaker && pendingRequests.length > 0 && (
                   <div className="space-y-2 p-3 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 text-sm font-medium">

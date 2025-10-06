@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { Footer } from "@/components/Footer";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
+import MyTeam from "./pages/MyTeam";
 import BadgeRegister from "./pages/BadgeRegister";
 import BadgeListMockup from "./pages/BadgeListMockup";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/my-team" element={<MyTeam />} />
                 <Route path="/badge/register" element={<BadgeRegister />} />
                 <Route path="/mockup/compact-list" element={<BadgeListMockup />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
