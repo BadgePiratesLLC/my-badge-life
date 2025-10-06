@@ -99,43 +99,49 @@ export function useTeams() {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles, error } = await supabase
+      // Single optimized query to get all users with their teams
+      const { data: teamMemberships, error: membershipsError } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          teams!inner (
+            name
+          )
+        `)
+
+      if (membershipsError) throw membershipsError
+
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, display_name')
         .order('display_name')
 
-      if (error) throw error
+      if (profilesError) throw profilesError
 
-      // Get team memberships for each user
-      const usersWithTeams: UserWithTeams[] = await Promise.all(
-        (profiles || []).map(async (profile) => {
-          const { data: memberships } = await supabase
-            .from('team_members')
-            .select(`
-              team_id,
-              teams!inner (
-                name
-              )
-            `)
-            .eq('user_id', profile.id)
-
-          const teamNames = (memberships || [])
-            .map(m => {
-              // Handle the nested structure correctly
-              const teams = m.teams as any;
-              return teams?.name;
-            })
-            .filter(Boolean) as string[];
-
-          return {
-            id: profile.id,
-            email: profile.email,
-            display_name: profile.display_name,
-            teams: teamNames
+      // Build user map with teams
+      const userTeamsMap = new Map<string, string[]>()
+      
+      teamMemberships?.forEach(membership => {
+        const userId = membership.user_id
+        const teamName = (membership.teams as any)?.name
+        
+        if (teamName) {
+          if (!userTeamsMap.has(userId)) {
+            userTeamsMap.set(userId, [])
           }
-        })
-      )
+          userTeamsMap.get(userId)!.push(teamName)
+        }
+      })
 
+      // Map profiles with their teams
+      const usersWithTeams: UserWithTeams[] = (profiles || []).map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        display_name: profile.display_name,
+        teams: userTeamsMap.get(profile.id) || []
+      }))
+
+      console.log('Fetched users with teams:', usersWithTeams)
       setUsers(usersWithTeams)
     } catch (error) {
       console.error('Error fetching users:', error)
