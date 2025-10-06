@@ -44,23 +44,35 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
           variant: "destructive",
         });
         return;
+      } else if (selectedTeam && selectedTeam !== "new") {
+        // User selected an existing team - create a team join request
+        const selectedTeamData = teams.find(t => t.id === selectedTeam);
+        if (selectedTeamData) {
+          await createTeamRequest(
+            selectedTeamData.name, 
+            `Request to join ${selectedTeamData.name}`,
+            selectedTeamData.website_url || undefined
+          );
+          
+          toast({
+            title: "Team Request Sent",
+            description: `Your request to join ${selectedTeamData.name} has been sent to admins for approval.`,
+          });
+        }
+      } else {
+        toast({
+          title: "Team Required",
+          description: "Please select a team or create a new one.",
+          variant: "destructive",
+        });
+        return;
       }
-      
-      // Request maker status (this will still require admin approval)
-      await requestMakerStatus();
-      
-      toast({
-        title: "Maker Request Sent",
-        description: selectedTeam === "new" 
-          ? "Your maker request and team creation request have been submitted for admin approval."
-          : "Your maker request has been sent to admins for approval.",
-      });
       
       onClose();
     } catch (error) {
       toast({
         title: "Request Failed",
-        description: "Failed to send maker request. Please try again.",
+        description: "Failed to send team request. Please try again.",
         variant: "destructive",
       });
     } finally {
