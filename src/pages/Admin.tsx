@@ -406,7 +406,11 @@ export default function Admin() {
 
         <TooltipProvider>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${canManageUsers && canManageTeams ? 'grid-cols-7' : 'grid-cols-5'}`}>
+            <TabsList className={`grid w-full ${
+              isAdmin ? 'grid-cols-7' : 
+              canManageBadges ? 'grid-cols-1' : 
+              'grid-cols-5'
+            }`}>
               {canAccessAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -467,7 +471,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canAccessAdmin && (
+              {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="search" className="flex items-center gap-2">
@@ -482,7 +486,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canAccessAdmin && (
+              {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="emails" className="flex items-center gap-2">
@@ -497,7 +501,7 @@ export default function Admin() {
                   )}
                 </Tooltip>
               )}
-              {canAccessAdmin && (
+              {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -531,15 +535,12 @@ export default function Admin() {
               )}
               
               <BadgeManagement
-                badges={badges.filter(badge => {
-                  // Admins see all badges, makers only see their team's badges
-                  if (isAdmin) return true;
-                  return badge.team_name === profile?.assigned_team;
-                })}
+                badges={badges}
                 teams={teams}
                 canEditBadge={canEditBadge}
                 onSaveBadge={saveBadgeEdit}
                 onDeleteBadge={deleteBadge}
+                userTeam={!isAdmin ? profile?.assigned_team : null}
               />
             </TabsContent>
 

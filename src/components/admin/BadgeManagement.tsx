@@ -40,6 +40,7 @@ interface BadgeManagementProps {
   canEditBadge: (teamName: string | null) => boolean
   onSaveBadge: (badgeId: string, updates: Partial<BadgeData>) => Promise<void>
   onDeleteBadge: (badge: BadgeData) => Promise<void>
+  userTeam?: string | null
 }
 
 export const BadgeManagement = memo(function BadgeManagement({
@@ -47,10 +48,12 @@ export const BadgeManagement = memo(function BadgeManagement({
   teams,
   canEditBadge,
   onSaveBadge,
-  onDeleteBadge
+  onDeleteBadge,
+  userTeam
 }: BadgeManagementProps) {
   const [editingBadge, setEditingBadge] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<BadgeData>>({})
+  const [teamFilter, setTeamFilter] = useState<string>(userTeam || 'all')
 
   const startEdit = useCallback((badge: BadgeData) => {
     setEditingBadge(badge.id)
@@ -77,19 +80,43 @@ export const BadgeManagement = memo(function BadgeManagement({
     setEditForm({})
   }, [editForm, onSaveBadge])
 
+  const filteredBadges = badges.filter(badge => {
+    if (teamFilter === 'all') return true
+    if (teamFilter === 'unassigned') return !badge.team_name
+    return badge.team_name === teamFilter
+  })
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-mono">
           <Settings className="h-5 w-5" />
-          BADGE MANAGEMENT ({badges.length})
+          BADGE MANAGEMENT ({filteredBadges.length} of {badges.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
+        <div className="mb-4 space-y-4">
           <ProcessEmbeddingsButton />
+          
+          <div>
+            <Label>Filter by Team</Label>
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Badges</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.name}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        {badges.length === 0 ? (
+        {filteredBadges.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No badges found</p>
         ) : (
           <div className="space-y-4">
