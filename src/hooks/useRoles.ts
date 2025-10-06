@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuthContext } from '@/contexts/AuthContext'
 
@@ -7,7 +7,27 @@ export type AppRole = 'admin' | 'moderator' | 'user'
 export function useRoles() {
   const [roles, setRoles] = useState<AppRole[]>([])
   const [loading, setLoading] = useState(true)
-  const { user } = useAuthContext()
+  const { user, profile } = useAuthContext()
+
+  const fetchUserRoles = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+      
+      const fetchedRoles = (data || []).map(r => r.role as AppRole)
+      setRoles(fetchedRoles)
+    } catch (error) {
+      console.error('Error fetching roles:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -16,54 +36,27 @@ export function useRoles() {
       setRoles([])
       setLoading(false)
     }
-  }, [user])
+  }, [user, fetchUserRoles])
 
-  const fetchUserRoles = async () => {
-    if (!user) return
-
-    try {
-      console.log('Fetching roles for user:', user.id)
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-
-      if (error) {
-        console.error('Error fetching roles:', error)
-      } else {
-        const fetchedRoles = (data || []).map(r => r.role as AppRole)
-        console.log('Roles fetched from database:', fetchedRoles)
-        setRoles(fetchedRoles)
-      }
-    } catch (error) {
-      console.error('Error fetching roles:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const hasRole = (role: AppRole): boolean => {
+  const hasRole = useCallback((role: AppRole): boolean => {
     return roles.includes(role)
-  }
+  }, [roles])
 
-  const isAdmin = (): boolean => hasRole('admin')
-  const isModerator = (): boolean => hasRole('moderator')
-  const isUser = (): boolean => hasRole('user')
+  const isAdmin = useCallback((): boolean => hasRole('admin'), [hasRole])
+  const isModerator = useCallback((): boolean => hasRole('moderator'), [hasRole])
+  const isUser = useCallback((): boolean => hasRole('user'), [hasRole])
 
-  const assignRole = async (userId: string, role: AppRole) => {
+  const assignRole = useCallback(async (userId: string, role: AppRole) => {
     if (!isAdmin()) throw new Error('Only admins can assign roles')
 
     const { error } = await supabase
       .from('user_roles')
       .insert({ user_id: userId, role })
 
-    if (error) {
-      console.error('Error assigning role:', error)
-      throw error
-    }
-  }
+    if (error) throw error
+  }, [isAdmin])
 
-  const removeRole = async (userId: string, role: AppRole) => {
+  const removeRole = useCallback(async (userId: string, role: AppRole) => {
     if (!isAdmin()) throw new Error('Only admins can remove roles')
 
     const { error } = await supabase
@@ -72,11 +65,63 @@ export function useRoles() {
       .eq('user_id', userId)
       .eq('role', role)
 
-    if (error) {
-      console.error('Error removing role:', error)
-      throw error
+    if (error) throw error
+  }, [isAdmin])
+
+  // Display role logic consolidated from useRoleDisplay
+  const getDisplayRole = useCallback(() => {
+    if (isAdmin()) return 'Admin'
+    
+    if (profile?.role === 'maker' && profile?.maker_approved) {
+      return 'Badge Maker'
     }
-  }
+    
+    if (profile?.role === 'maker' && !profile?.maker_approved) {
+      return 'Pending Badge Maker'
+    }
+    
+    if (roles.includes('moderator')) return 'Moderator'
+    
+    return 'User'
+  }, [isAdmin, profile, roles])
+
+  const getRoleVariant = useCallback(() => {
+    const role = getDisplayRole()
+    switch (role) {
+      case 'Admin': return 'destructive'
+      case 'Badge Maker': return 'default'
+      case 'Pending Badge Maker': return 'secondary'
+      case 'Moderator': return 'outline'
+      default: return 'outline'
+    }
+  }, [getDisplayRole])
+
+  const getAllUserRoles = useCallback((userProfile: any, userRoles: string[]) => {
+    const displayRoles = []
+    
+    if (userRoles.includes('admin')) {
+      displayRoles.push('Admin')
+    }
+    
+    if (userProfile?.role === 'maker') {
+      if (userProfile.maker_approved) {
+        displayRoles.push('Badge Maker')
+      } else {
+        displayRoles.push('Pending Badge Maker')
+      }
+    }
+    
+    userRoles.forEach(role => {
+      if (role === 'moderator') displayRoles.push('Moderator')
+      if (role === 'user' && displayRoles.length === 0) displayRoles.push('User')
+    })
+    
+    if (displayRoles.length === 0) {
+      displayRoles.push('User')
+    }
+    
+    return displayRoles
+  }, [])
 
   return {
     roles,
@@ -87,6 +132,10 @@ export function useRoles() {
     isUser,
     assignRole,
     removeRole,
-    refreshRoles: fetchUserRoles
+    refreshRoles: fetchUserRoles,
+    // Display helpers
+    getDisplayRole,
+    getRoleVariant,
+    getAllUserRoles,
   }
 }

@@ -13,17 +13,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onCameraClick, onMenuClick, isAuthenticated, onAuthClick }: HeaderProps) => {
-  console.log('🔧 Header rendering, isAuthenticated prop:', isAuthenticated);
-  
-  // Get auth state directly from context to avoid timing issues
   const { canAccessAdmin, loading, initialized } = useAuthContext();
-  
-  console.log('🔧 Header auth context:', {
-    canAccessAdmin,
-    loading,
-    initialized,
-    isAuthenticatedProp: isAuthenticated
-  });
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

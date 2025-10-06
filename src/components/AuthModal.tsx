@@ -20,7 +20,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [showSettings, setShowSettings] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
-  console.log('AuthModal render - isOpen:', isOpen, 'user:', user?.email || 'none');
+  
 
   if (!isOpen) return null;
 

@@ -1,4 +1,3 @@
-console.log('🔥 AuthContext file loading...');
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,7 +39,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  console.log('🚀 AuthProvider mounting...');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -53,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const maxLoadTime = setTimeout(() => {
       if (isMounted) {
-        console.log('🔐 Auth initialization timeout');
         setLoading(false);
         setInitialized(true);
       }
@@ -62,8 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
-
-        console.log('🔐 Auth state change:', event, !!session);
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -118,17 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (error) {
-        console.error('🔐 Error fetching profile:', error);
+        console.error('Error fetching profile:', error);
         setProfile(null);
       } else if (data) {
-        console.log('🔐 Profile fetched:', { role: data.role, maker_approved: data.maker_approved });
         setProfile(data as unknown as Profile);
       } else {
-        console.log('🔐 No profile found');
         setProfile(null);
       }
     } catch (error) {
-      console.error('🔐 Exception fetching profile:', error);
+      console.error('Exception fetching profile:', error);
       setProfile(null);
     }
   };
@@ -141,15 +134,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('🔐 Error fetching roles:', error);
+        console.error('Error fetching roles:', error);
         setRoles([]);
       } else {
         const fetchedRoles = (data || []).map(r => r.role as AppRole);
-        console.log('🔐 User roles fetched:', fetchedRoles);
         setRoles(fetchedRoles);
       }
     } catch (error) {
-      console.error('🔐 Exception fetching roles:', error);
+      console.error('Exception fetching roles:', error);
       setRoles([]);
     }
   };
@@ -269,17 +261,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isModerator) return 'Moderator';
     return 'User';
   };
-
-  console.log('🔐 AuthContext state:', {
-    loading,
-    initialized,
-    isAuthenticated,
-    isAdmin,
-    isMaker,
-    canAccessAdmin,
-    profileRole: profile?.role,
-    userRoles: roles
-  });
 
   const value: AuthContextType = {
     user,

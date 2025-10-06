@@ -103,8 +103,6 @@ export function useAnalyticsTracking() {
 
       if (error) {
         console.error('Failed to initialize analytics session:', error)
-      } else {
-        console.log('Analytics session initialized:', sessionId)
       }
     } catch (error) {
       console.error('Error initializing analytics session:', error)
@@ -153,17 +151,12 @@ export function useAnalyticsTracking() {
         created_at: new Date().toISOString()
       }
 
-      console.log('Tracking search with session ID:', currentSessionId)
-
       const { error } = await supabase
         .from('analytics_searches')
         .insert([searchData])
 
       if (error) {
         console.error('Failed to track search analytics:', error)
-        // Don't throw - analytics shouldn't break the main flow
-      } else {
-        console.log('Search analytics tracked successfully')
       }
     } catch (error) {
       console.error('Error tracking search analytics:', error)

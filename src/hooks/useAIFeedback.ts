@@ -17,7 +17,6 @@ export const useAIFeedback = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('Submitting AI feedback:', { searchQuery, feedbackType, sourceUrl });
       
       const { error } = await supabase
         .from('ai_search_feedback')
@@ -46,7 +45,6 @@ export const useAIFeedback = () => {
       };
 
       toast.success(feedbackMessages[feedbackType]);
-      console.log('AI feedback submitted successfully');
       
     } catch (error) {
       console.error('Error submitting AI feedback:', error);

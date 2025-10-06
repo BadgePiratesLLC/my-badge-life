@@ -26,11 +26,9 @@ export function useBadges() {
     
     if (badgesCache.length === 0 || (now - badgesCacheTime) > cacheExpiry) {
       if (!isFetching) {
-        console.log('Fetching badges (cache miss or expired)...')
         fetchBadges()
       }
     } else {
-      console.log('Using cached badges:', badgesCache.length)
       setBadges(badgesCache)
       setLoading(false)
     }
@@ -39,26 +37,18 @@ export function useBadges() {
   useEffect(() => {
     // Only fetch ownership if user is logged in
     if (user) {
-      console.log('User logged in, fetching ownership...')
       fetchOwnership()
     } else {
-      console.log('No user, clearing ownership...')
       setOwnership([]) // Clear ownership when not logged in
     }
   }, [user])
 
   const fetchBadges = async () => {
-    if (isFetching) {
-      console.log('Already fetching badges, skipping...')
-      return
-    }
+    if (isFetching) return
     
     isFetching = true
     
     try {
-      console.log('Starting fetchBadges function...')
-      
-      // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Query timeout')), 10000)
       )
@@ -76,21 +66,14 @@ export function useBadges() {
           )
         `)
         .order('created_at', { ascending: false })
-
-      console.log('About to execute query with timeout...')
       
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
-
-      console.log('Query completed!')
-      console.log('Error:', error)
-      console.log('Data:', data)
 
       if (error) {
         console.error('Supabase error fetching badges:', error)
         setBadges([])
         badgesCache = []
       } else {
-        console.log('Badges fetched successfully:', data?.length || 0, 'badges')
         const badgeData = (data as unknown as Badge[]) || []
         setBadges(badgeData)
         badgesCache = badgeData
@@ -99,19 +82,17 @@ export function useBadges() {
     } catch (error) {
       console.error('Error in fetchBadges:', error)
       
-        // Fallback: Try to use a direct REST call with all images
-        console.log('Trying fallback method...')
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/badges?select=*,badge_images!left(id,image_url,is_primary,display_order,caption)&order=created_at.desc`, {
-            headers: {
-              'apikey': SUPABASE_PUBLISHABLE_KEY,
-              'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-            }
-          })
+      // Fallback: Try to use a direct REST call with all images
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/badges?select=*,badge_images!left(id,image_url,is_primary,display_order,caption)&order=created_at.desc`, {
+          headers: {
+            'apikey': SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+          }
+        })
         
         if (response.ok) {
           const fallbackData = await response.json()
-          console.log('Fallback fetch successful:', fallbackData?.length || 0, 'badges')
           setBadges(fallbackData || [])
           badgesCache = fallbackData || []
           badgesCacheTime = Date.now()
@@ -126,7 +107,6 @@ export function useBadges() {
         badgesCache = []
       }
     } finally {
-      console.log('Setting loading to false')
       setLoading(false)
       isFetching = false
     }
@@ -225,12 +205,9 @@ export function useBadges() {
 
     // Auto-process embeddings for the new badge
     try {
-      console.log('Auto-processing embeddings after badge creation...')
       await supabase.functions.invoke('process-badge-embeddings')
-      console.log('Embeddings processed successfully after badge creation')
     } catch (embeddingError) {
       console.error('Failed to auto-process embeddings:', embeddingError)
-      // Don't throw error as badge was successfully created
     }
     
     return data

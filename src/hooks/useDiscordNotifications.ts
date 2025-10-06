@@ -33,7 +33,6 @@ export const useDiscordNotifications = () => {
         throw error;
       }
 
-      console.log('Discord notification sent:', result);
       return result;
     } catch (error) {
       console.error('Failed to send Discord notification:', error);

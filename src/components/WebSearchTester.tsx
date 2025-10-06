@@ -58,7 +58,6 @@ export const WebSearchTester = () => {
     const startTime = Date.now();
     
     try {
-      console.log(`Testing search source: ${source.name}`);
       
       const { data, error } = await supabase.functions.invoke('test-web-search', {
         body: {
@@ -119,7 +118,6 @@ export const WebSearchTester = () => {
       
       // Test each source sequentially to match real-world behavior
       for (const source of searchSources) {
-        console.log(`Testing source: ${source.name}`);
         const result = await testSingleSource(source, searchQuery);
         results.push(result);
         setTestResults([...results]); // Update UI with each result

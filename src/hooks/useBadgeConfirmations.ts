@@ -20,7 +20,6 @@ export const useBadgeConfirmations = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('Confirming badge match:', { badgeId, similarity, confidence });
       
       const { error } = await supabase
         .from('badge_confirmations')
@@ -41,7 +40,6 @@ export const useBadgeConfirmations = () => {
       }
 
       toast.success('Thanks for confirming! This helps improve our matching.');
-      console.log('Badge match confirmed successfully');
       
     } catch (error) {
       console.error('Error confirming badge match:', error);
