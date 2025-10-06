@@ -21,6 +21,7 @@ import { UserManagement } from '@/components/admin/UserManagement'
 import { TeamRequestsManagement } from '@/components/admin/TeamRequestsManagement'
 import { ApiKeysStatus } from '@/components/admin/ApiKeysStatus'
 import { AdminNotificationBell } from '@/components/admin/AdminNotificationBell'
+import { MyTeamManagement } from '@/components/admin/MyTeamManagement'
 
 interface BadgeData {
   id: string
@@ -524,8 +525,17 @@ export default function Admin() {
             </TabsContent>
 
             <TabsContent value="badges" className="space-y-4">
+              {/* Show team info for badge makers */}
+              {!isAdmin && profile?.assigned_team && (
+                <MyTeamManagement />
+              )}
+              
               <BadgeManagement
-                badges={badges}
+                badges={badges.filter(badge => {
+                  // Admins see all badges, makers only see their team's badges
+                  if (isAdmin) return true;
+                  return badge.team_name === profile?.assigned_team;
+                })}
                 teams={teams}
                 canEditBadge={canEditBadge}
                 onSaveBadge={saveBadgeEdit}

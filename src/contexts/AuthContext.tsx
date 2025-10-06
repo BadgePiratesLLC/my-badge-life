@@ -236,8 +236,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // SINGLE SOURCE OF TRUTH FOR ALL ROLE CHECKS
   const isAuthenticated = !!user;
   const isAdmin = roles.includes('admin') || profile?.role === 'admin';
+  // Note: 'moderator' in user_roles represents badge makers
   const isModerator = roles.includes('moderator');
-  const isMaker = profile?.role === 'maker' && profile?.maker_approved;
+  const isMaker = (profile?.role === 'maker' && profile?.maker_approved) || isModerator;
   const isBadgeMaker = isMaker; // alias
 
   // Admin access logic - consolidated and consistent
@@ -258,7 +259,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isAdmin) return 'Admin';
     if (isMaker) return 'Badge Maker';
     if (profile?.role === 'maker' && !profile?.maker_approved) return 'Pending Badge Maker';
-    if (isModerator) return 'Moderator';
     return 'User';
   };
 
