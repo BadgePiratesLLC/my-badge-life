@@ -1,27 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, UserCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { X, UserCheck, Clock } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useTeams } from "@/hooks/useTeams";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MakerRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface PendingRequest {
+  id: string;
+  team_name: string;
+  status: string;
+  created_at: string;
+}
+
 export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) => {
-  const { requestMakerStatus } = useAuthContext();
+  const { user } = useAuthContext();
   const { teams, createTeamRequest } = useTeams();
   const { toast } = useToast();
   
   const [selectedTeam, setSelectedTeam] = useState<string>("");
   const [newTeamName, setNewTeamName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchPendingRequests();
+    }
+  }, [isOpen, user]);
+
+  const fetchPendingRequests = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('team_requests')
+        .select('id, team_name, status, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -34,9 +68,13 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
         await createTeamRequest(newTeamName.trim());
         
         toast({
-          title: "Team Request Sent",
-          description: "Your team creation request has been sent to admins for approval.",
+          title: "Team Creation Request Sent",
+          description: `Your request to create "${newTeamName.trim()}" is awaiting admin approval.`,
         });
+        
+        await fetchPendingRequests();
+        setSelectedTeam("");
+        setNewTeamName("");
       } else if (selectedTeam === "new" && !newTeamName.trim()) {
         toast({
           title: "Team Name Required",
@@ -48,6 +86,20 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
         // User selected an existing team - create a team join request
         const selectedTeamData = teams.find(t => t.id === selectedTeam);
         if (selectedTeamData) {
+          // Check if they already have a pending request for this team
+          const hasPendingRequest = pendingRequests.some(
+            req => req.team_name === selectedTeamData.name
+          );
+          
+          if (hasPendingRequest) {
+            toast({
+              title: "Request Already Pending",
+              description: `You already have a pending request for ${selectedTeamData.name}.`,
+              variant: "destructive",
+            });
+            return;
+          }
+          
           await createTeamRequest(
             selectedTeamData.name, 
             `Request to join ${selectedTeamData.name}`,
@@ -55,9 +107,12 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
           );
           
           toast({
-            title: "Team Request Sent",
-            description: `Your request to join ${selectedTeamData.name} has been sent to admins for approval.`,
+            title: "Team Join Request Sent",
+            description: `Your request to join "${selectedTeamData.name}" is awaiting admin approval.`,
           });
+          
+          await fetchPendingRequests();
+          setSelectedTeam("");
         }
       } else {
         toast({
@@ -67,8 +122,6 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
         });
         return;
       }
-      
-      onClose();
     } catch (error) {
       toast({
         title: "Request Failed",
@@ -99,16 +152,43 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {pendingRequests.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Pending Requests</Label>
+              <div className="space-y-2">
+                {pendingRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{request.team_name}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      Awaiting Approval
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                You can request access to additional teams below
+              </p>
+            </div>
+          )}
+
           <div className="text-center space-y-2">
             <div className="p-3 rounded-full bg-primary/10 w-fit mx-auto">
               <UserCheck className="h-8 w-8 text-primary" />
             </div>
             <div>
               <p className="font-mono text-sm text-foreground">
-                Join as a Badge Maker
+                {pendingRequests.length > 0 ? 'Request Another Team' : 'Join as a Badge Maker'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Please select your team or create a new one
+                {pendingRequests.length > 0 
+                  ? 'Select another team to join' 
+                  : 'Please select your team or create a new one'}
               </p>
             </div>
           </div>
@@ -156,13 +236,25 @@ export const MakerRequestModal = ({ isOpen, onClose }: MakerRequestModalProps) =
                 {loading ? "Submitting..." : "SUBMIT REQUEST"}
               </Button>
               
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                className="w-full"
-              >
-                CANCEL
-              </Button>
+              {pendingRequests.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={handleClose}
+                  className="w-full"
+                >
+                  CLOSE
+                </Button>
+              )}
+              
+              {pendingRequests.length === 0 && (
+                <Button
+                  variant="outline"
+                  onClick={handleClose}
+                  className="w-full"
+                >
+                  CANCEL
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

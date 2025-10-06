@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, LogIn, UserCheck, Crown, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { X, LogIn, UserCheck, Crown, Settings, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { MakerRequestModal } from "./MakerRequestModal";
 import { UserSettingsModal } from "./UserSettingsModal";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface PendingRequest {
+  team_name: string;
 }
 
 export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
@@ -19,8 +25,31 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [showMakerRequest, setShowMakerRequest] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
 
-  
+  useEffect(() => {
+    if (isOpen && user && !isBadgeMaker) {
+      fetchPendingRequests();
+    }
+  }, [isOpen, user, isBadgeMaker]);
+
+  const fetchPendingRequests = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('team_requests')
+        .select('team_name')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -155,6 +184,24 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
+                {!isBadgeMaker && pendingRequests.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>Pending Team Requests</span>
+                    </div>
+                    {pendingRequests.map((request, index) => (
+                      <div key={index} className="flex items-center justify-between pl-6">
+                        <span className="text-sm text-muted-foreground">{request.team_name}</span>
+                        <Badge variant="secondary" className="text-xs">Awaiting Approval</Badge>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground pl-6 mt-2">
+                      You can request access to additional teams
+                    </p>
+                  </div>
+                )}
+                
                 {/* Only show REQUEST MAKER STATUS button if user is not a maker and hasn't already requested */}
                 {!isBadgeMaker && (
                   <Button
