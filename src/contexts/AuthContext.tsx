@@ -2,7 +2,7 @@ console.log('🔥 AuthContext file loading...');
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { Profile } from '@/lib/supabase';
+import type { Profile } from '@/integrations/supabase/database-types';
 
 export type AppRole = 'admin' | 'moderator' | 'user';
 

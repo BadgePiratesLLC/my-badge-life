@@ -4,8 +4,8 @@ let badgesCacheTime = 0
 let isFetching = false
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/integrations/supabase/client'
-import type { Badge, Ownership } from '@/lib/supabase'
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client'
+import type { Badge, Ownership } from '@/integrations/supabase/database-types'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { useDiscordNotifications } from './useDiscordNotifications'
@@ -102,10 +102,10 @@ export function useBadges() {
         // Fallback: Try to use a direct REST call with all images
         console.log('Trying fallback method...')
         try {
-          const response = await fetch(`https://zdegwavcldwlgzzandae.supabase.co/rest/v1/badges?select=*,badge_images!left(id,image_url,is_primary,display_order,caption)&order=created_at.desc`, {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/badges?select=*,badge_images!left(id,image_url,is_primary,display_order,caption)&order=created_at.desc`, {
             headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs',
-              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZWd3YXZjbGR3bGd6emFuZGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMDQ4MTQsImV4cCI6MjA2OTU4MDgxNH0.ariBt1m5qjyP7EFe-KnFOcqoA8Ih3ihiuWkevdP0Kvs'
+              'apikey': SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
             }
           })
         

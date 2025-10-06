@@ -1,30 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+// Database type definitions for Supabase tables
+// This file contains TypeScript interfaces for the database schema
 
-// Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-// Debug: Check what environment variables are available
-console.log('Supabase environment check:', {
-  url: supabaseUrl,
-  key: supabaseAnonKey ? 'provided' : 'missing',
-  all_env_keys: Object.keys(import.meta.env)
-})
-
-// Validate environment variables and create client
-let supabase: ReturnType<typeof createClient>;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Make sure your Supabase project is properly connected in Lovable.')
-  // Create a dummy client to prevent crashes
-  supabase = createClient('https://dummy.supabase.co', 'dummy-key')
-} else {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
-}
-
-export { supabase }
-
-// Database types
 export interface Profile {
   id: string
   email: string | null

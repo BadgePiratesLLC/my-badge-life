@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { BadgeCategory } from '@/lib/supabase'
+import { BadgeCategory } from '@/integrations/supabase/database-types'
 import { ArrowLeft, Save, Upload, Bug } from 'lucide-react'
 import { toast } from 'sonner'
 
