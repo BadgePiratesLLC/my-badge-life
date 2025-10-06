@@ -415,18 +415,30 @@ export function useTeams() {
 
       if (fetchError) throw fetchError
 
-      // Create the team
-      const { data: team, error: teamError } = await supabase
+      // Check if team already exists
+      const { data: existingTeam } = await supabase
         .from('teams')
-        .insert({
-          name: request.team_name,
-          description: request.team_description,
-          website_url: request.team_website_url
-        })
-        .select()
-        .single()
+        .select('id')
+        .eq('name', request.team_name)
+        .maybeSingle()
 
-      if (teamError) throw teamError
+      let team = existingTeam
+
+      // Only create team if it doesn't exist
+      if (!existingTeam) {
+        const { data: newTeam, error: teamError } = await supabase
+          .from('teams')
+          .insert({
+            name: request.team_name,
+            description: request.team_description,
+            website_url: request.team_website_url
+          })
+          .select()
+          .single()
+
+        if (teamError) throw teamError
+        team = newTeam
+      }
 
       // Add the user to the team
       const { error: memberError } = await supabase
@@ -437,6 +449,14 @@ export function useTeams() {
         })
 
       if (memberError) throw memberError
+
+      // Update the user's assigned_team
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ assigned_team: request.team_name })
+        .eq('id', request.user_id)
+
+      if (profileError) throw profileError
 
       // Update request status
       const { error: updateError } = await supabase
