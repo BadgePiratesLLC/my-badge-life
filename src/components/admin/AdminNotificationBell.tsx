@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,6 +20,11 @@ interface NotificationCounts {
   recentUsers: number;
 }
 
+interface DismissedNotifications {
+  uploads: boolean;
+  users: boolean;
+}
+
 interface AdminNotificationBellProps {
   onNavigateToTab?: (tab: string) => void;
 }
@@ -30,6 +35,10 @@ export const AdminNotificationBell: React.FC<AdminNotificationBellProps> = ({ on
     teamRequests: 0,
     newUploads: 0,
     recentUsers: 0
+  });
+  const [dismissed, setDismissed] = useState<DismissedNotifications>({
+    uploads: false,
+    users: false
   });
   const [loading, setLoading] = useState(true);
 
@@ -122,12 +131,19 @@ export const AdminNotificationBell: React.FC<AdminNotificationBellProps> = ({ on
     }
   };
 
-  const totalCount = counts.teamRequests + counts.newUploads + counts.recentUsers;
+  const visibleUploads = dismissed.uploads ? 0 : counts.newUploads;
+  const visibleUsers = dismissed.users ? 0 : counts.recentUsers;
+  const totalCount = counts.teamRequests + visibleUploads + visibleUsers;
 
   const handleItemClick = (tab: string) => {
     if (onNavigateToTab) {
       onNavigateToTab(tab);
     }
+  };
+
+  const handleDismiss = (type: 'uploads' | 'users', e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissed(prev => ({ ...prev, [type]: true }));
   };
 
   return (
@@ -171,26 +187,46 @@ export const AdminNotificationBell: React.FC<AdminNotificationBellProps> = ({ on
               </DropdownMenuItem>
             )}
             
-            {counts.newUploads > 0 && (
+            {visibleUploads > 0 && (
               <DropdownMenuItem 
                 onClick={() => handleItemClick('uploads')}
                 className="cursor-pointer"
               >
-                <div className="flex items-center justify-between w-full">
+                <div className="flex items-center justify-between w-full gap-2">
                   <span>New Badge Uploads (7d)</span>
-                  <Badge variant="secondary">{counts.newUploads}</Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary">{counts.newUploads}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => handleDismiss('uploads', e)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               </DropdownMenuItem>
             )}
             
-            {counts.recentUsers > 0 && (
+            {visibleUsers > 0 && (
               <DropdownMenuItem 
                 onClick={() => handleItemClick('users')}
                 className="cursor-pointer"
               >
-                <div className="flex items-center justify-between w-full">
+                <div className="flex items-center justify-between w-full gap-2">
                   <span>New User Registrations (7d)</span>
-                  <Badge variant="secondary">{counts.recentUsers}</Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary">{counts.recentUsers}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => handleDismiss('users', e)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               </DropdownMenuItem>
             )}

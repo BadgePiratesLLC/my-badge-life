@@ -132,7 +132,7 @@ export default function Admin() {
     try {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, display_name, assigned_team')
+        .select('id, email, display_name, assigned_team, created_at, last_login')
 
       if (profilesError) {
         setUsers([])
@@ -152,6 +152,8 @@ export default function Admin() {
         email: profile.email,
         display_name: profile.display_name,
         assigned_team: profile.assigned_team,
+        created_at: profile.created_at,
+        last_login: profile.last_login,
         roles: (rolesData || [])
           .filter(role => role.user_id === profile.id)
           .map(role => role.role)
