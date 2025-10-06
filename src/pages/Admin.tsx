@@ -19,6 +19,8 @@ import { BadgeManagement } from '@/components/admin/BadgeManagement'
 import { TeamManagement } from '@/components/admin/TeamManagement'
 import { UserManagement } from '@/components/admin/UserManagement'
 import { TeamRequestsManagement } from '@/components/admin/TeamRequestsManagement'
+import { ApiKeysStatus } from '@/components/admin/ApiKeysStatus'
+import { AdminNotificationBell } from '@/components/admin/AdminNotificationBell'
 
 interface BadgeData {
   id: string
@@ -84,6 +86,7 @@ export default function Admin() {
   const [badges, setBadges] = useState<BadgeData[]>([])
   const [loading, setLoading] = useState(true)
   const [usersFetched, setUsersFetched] = useState(false)
+  const [activeTab, setActiveTab] = useState('badges')
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -370,6 +373,9 @@ export default function Admin() {
           </div>
           
           <div className="flex items-center space-x-2">
+            {isAdmin && (
+              <AdminNotificationBell onNavigateToTab={setActiveTab} />
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -398,7 +404,7 @@ export default function Admin() {
         </div>
 
         <TooltipProvider>
-          <Tabs defaultValue="badges" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${canManageUsers && canManageTeams ? 'grid-cols-7' : 'grid-cols-5'}`}>
               {canAccessAdmin && (
                 <Tooltip>
@@ -558,6 +564,7 @@ export default function Admin() {
 
             {canAccessAdmin && (
               <TabsContent value="search" className="space-y-6">
+                <ApiKeysStatus />
                 <WebSearchTester />
               </TabsContent>
             )}
