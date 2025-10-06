@@ -587,6 +587,12 @@ export default function Admin() {
               <MyProfile />
             </TabsContent>
 
+            {/* My Team tab - available to non-admin users with assigned team */}
+            {!isAdmin && canManageBadges && profile?.assigned_team && (
+              <TabsContent value="my-team" className="space-y-4">
+                <MyTeamManagement />
+              </TabsContent>
+            )}
 
             <TabsContent value="badges" className="space-y-4">
               <BadgeManagement
