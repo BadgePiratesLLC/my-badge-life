@@ -185,7 +185,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
-                {profile?.assigned_team && (
+                {/* Only show team button and request option for non-admin users */}
+                {profile?.role !== 'admin' && profile?.assigned_team && (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -199,7 +200,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   </Button>
                 )}
 
-                {!isBadgeMaker && pendingRequests.length > 0 && (
+                {profile?.role !== 'admin' && !isBadgeMaker && pendingRequests.length > 0 && (
                   <div className="space-y-2 p-3 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -217,8 +218,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   </div>
                 )}
                 
-                {/* Only show REQUEST MAKER STATUS button if user is not a maker and hasn't already requested */}
-                {!isBadgeMaker && (
+                {/* Only show REQUEST TEAM MEMBERSHIP button if user is not admin, not a maker, and hasn't already requested */}
+                {profile?.role !== 'admin' && !isBadgeMaker && (
                   <Button
                     variant="outline"
                     onClick={handleRequestMaker}

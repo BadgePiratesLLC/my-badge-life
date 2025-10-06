@@ -12,15 +12,34 @@ import { toast } from 'sonner';
 
 export const MyTeamManagement = memo(function MyTeamManagement() {
   const { profile } = useAuthContext();
-  const { teams, users, updateTeam } = useTeams();
+  const { teams, users, updateTeam, refreshTeams, refreshUsers } = useTeams();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ 
     description: '', 
     website_url: '' 
   });
 
+  // Refresh data when component mounts
+  React.useEffect(() => {
+    refreshTeams();
+    refreshUsers();
+  }, [refreshTeams, refreshUsers]);
+
   const myTeam = teams.find(t => t.name === profile?.assigned_team);
-  const teamMembers = users.filter(u => u.teams.includes(profile?.assigned_team || ''));
+  
+  // Filter team members: users who have this team in their teams array OR have assigned_team matching
+  const teamMembers = users.filter(u => {
+    const hasTeamInArray = u.teams?.includes(profile?.assigned_team || '');
+    return hasTeamInArray;
+  });
+
+  console.log('MyTeamManagement debug:', {
+    profileAssignedTeam: profile?.assigned_team,
+    myTeam,
+    allUsers: users,
+    teamMembers,
+    teams
+  });
 
   if (!profile?.assigned_team || !myTeam) {
     return (
