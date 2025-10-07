@@ -435,7 +435,7 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="overflow-x-auto">
               <TabsList className="inline-flex w-auto min-w-full">
-                {isAdmin && (
+                {canManageBadges && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger value="uploads" className="flex items-center gap-2">
