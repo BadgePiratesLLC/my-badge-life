@@ -1,64 +1,153 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Users, ExternalLink, Edit, Save, X } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { useTeams } from '@/hooks/useTeams';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  website_url: string | null;
+}
+
+interface TeamMember {
+  display_name: string | null;
+  email: string | null;
+}
+
 export const MyTeamManagement = memo(function MyTeamManagement() {
-  console.log('🟢 MyTeamManagement COMPONENT RENDERING');
-  const { profile } = useAuthContext();
-  const { teams, users, updateTeam, refreshTeams, refreshUsers, loading } = useTeams();
+  const { profile, user } = useAuthContext();
+  const [myTeam, setMyTeam] = useState<Team | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ 
     description: '', 
     website_url: '' 
   });
+  const [loading, setLoading] = useState(true);
 
-  console.log('🟢 MyTeamManagement state:', { 
-    profileEmail: profile?.email, 
-    assignedTeam: profile?.assigned_team,
-    teamsCount: teams.length,
-    usersCount: users.length,
-    loading 
-  });
+  useEffect(() => {
+    if (user && profile?.assigned_team) {
+      fetchTeamData();
+    } else {
+      setLoading(false);
+    }
+  }, [user, profile?.assigned_team]);
 
-  // Refresh data when component mounts
-  React.useEffect(() => {
-    console.log('MyTeamManagement mounted, refreshing data...');
-    refreshTeams();
-    refreshUsers();
+  const fetchTeamData = async () => {
+    if (!profile?.assigned_team) return;
+    
+    try {
+      setLoading(true);
+      
+      // Fetch team info
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('name', profile.assigned_team)
+        .maybeSingle();
+
+      if (teamError) throw teamError;
+      
+      if (teamData) {
+        setMyTeam(teamData);
+        
+        // Fetch team members - get user IDs first
+        const { data: memberIds, error: membersError } = await supabase
+          .from('team_members')
+          .select('user_id')
+          .eq('team_id', teamData.id);
+
+        if (membersError) throw membersError;
+        
+        if (memberIds && memberIds.length > 0) {
+          const userIds = memberIds.map(m => m.user_id);
+          
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('display_name, email')
+            .in('id', userIds);
+            
+          if (profilesError) throw profilesError;
+          
+          setTeamMembers(profiles || []);
+        } else {
+          setTeamMembers([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching team data:', error);
+      toast.error('Failed to load team data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = useCallback(() => {
+    if (myTeam) {
+      setEditForm({
+        description: myTeam.description || '',
+        website_url: myTeam.website_url || ''
+      });
+      setIsEditing(true);
+    }
+  }, [myTeam]);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditForm({ description: '', website_url: '' });
   }, []);
 
-  const myTeam = teams.find(t => t.name === profile?.assigned_team);
-  
-  // Filter team members: users who have this team in their teams array
-  const teamMembers = users.filter(u => {
-    const hasTeamInArray = u.teams?.includes(profile?.assigned_team || '');
-    return hasTeamInArray;
-  });
+  const saveEdit = useCallback(async () => {
+    if (!myTeam) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .update({
+          description: editForm.description.trim() || null,
+          website_url: editForm.website_url.trim() || null
+        })
+        .eq('id', myTeam.id)
+        .select()
+        .single();
 
-  // Debug logging
-  React.useEffect(() => {
-    if (profile?.assigned_team) {
-      console.log('MyTeamManagement mounted:', {
-        profileAssignedTeam: profile?.assigned_team,
-        teamsCount: teams.length,
-        myTeam: myTeam,
-        usersCount: users.length,
-        teamMembersCount: teamMembers.length,
-        teamMembersData: teamMembers
-      });
+      if (error) throw error;
+      
+      setMyTeam(data);
+      setIsEditing(false);
+      toast.success('Team updated successfully!');
+    } catch (error) {
+      console.error('Error updating team:', error);
+      toast.error('Failed to update team');
     }
-  }, [profile?.assigned_team, teams.length, users.length, myTeam, teamMembers]);
+  }, [myTeam, editForm]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-mono">
+            <Users className="h-5 w-5" />
+            MY TEAM
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">
+            Loading...
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!profile?.assigned_team) {
-    console.log('No assigned team for profile:', profile);
     return (
       <Card>
         <CardHeader>
@@ -77,10 +166,6 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
   }
 
   if (!myTeam) {
-    console.log('Team not found:', { 
-      assignedTeam: profile.assigned_team,
-      availableTeams: teams.map(t => t.name)
-    });
     return (
       <Card>
         <CardHeader>
@@ -97,32 +182,6 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
       </Card>
     );
   }
-
-  const startEdit = useCallback(() => {
-    setEditForm({
-      description: myTeam.description || '',
-      website_url: myTeam.website_url || ''
-    });
-    setIsEditing(true);
-  }, [myTeam]);
-
-  const cancelEdit = useCallback(() => {
-    setIsEditing(false);
-    setEditForm({ description: '', website_url: '' });
-  }, []);
-
-  const saveEdit = useCallback(async () => {
-    try {
-      await updateTeam(myTeam.id, {
-        description: editForm.description.trim() || undefined,
-        website_url: editForm.website_url.trim() || undefined
-      });
-      setIsEditing(false);
-      toast.success('Team updated successfully!');
-    } catch (error) {
-      toast.error('Failed to update team');
-    }
-  }, [myTeam.id, editForm, updateTeam]);
 
   return (
     <Card>
@@ -201,9 +260,9 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
             TEAM MEMBERS ({teamMembers.length})
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {teamMembers.map((member) => (
+            {teamMembers.map((member, index) => (
               <div
-                key={member.id}
+                key={index}
                 className="flex items-center justify-between p-2 bg-muted rounded"
               >
                 <span className="text-sm">{member.display_name || member.email}</span>
