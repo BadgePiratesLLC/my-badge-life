@@ -185,8 +185,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
               </div>
 
               <div className="space-y-2">
-                {/* Only show team button for non-admin users who have an assigned team */}
-                {!isAdmin && profile?.assigned_team && (
+                {/* Only show team button for regular users (not admins or badge makers) */}
+                {!isAdmin && !isBadgeMaker && profile?.assigned_team && (
                   <Button
                     variant="outline"
                     onClick={() => {
