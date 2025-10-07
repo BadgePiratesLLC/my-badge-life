@@ -16,71 +16,98 @@ interface Team {
   website_url: string | null;
 }
 
+interface TeamWithMembers extends Team {
+  members: TeamMember[];
+}
+
 interface TeamMember {
   display_name: string | null;
   email: string | null;
 }
 
 export const MyTeamManagement = memo(function MyTeamManagement() {
-  const { profile, user } = useAuthContext();
-  const [myTeam, setMyTeam] = useState<Team | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const { user } = useAuthContext();
+  const [myTeams, setMyTeams] = useState<TeamWithMembers[]>([]);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ 
+    name: '',
     description: '', 
     website_url: '' 
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && profile?.assigned_team) {
-      fetchTeamData();
+    if (user) {
+      fetchAllTeams();
     } else {
       setLoading(false);
     }
-  }, [user, profile?.assigned_team]);
+  }, [user]);
 
-  const fetchTeamData = async () => {
-    if (!profile?.assigned_team) return;
+  const fetchAllTeams = async () => {
+    if (!user) return;
     
     try {
       setLoading(true);
       
-      // Fetch team info
-      const { data: teamData, error: teamError } = await supabase
+      // Fetch all teams user is a member of
+      const { data: memberData, error: memberError } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', user.id);
+
+      if (memberError) throw memberError;
+      
+      if (!memberData || memberData.length === 0) {
+        setMyTeams([]);
+        setLoading(false);
+        return;
+      }
+
+      const teamIds = memberData.map(m => m.team_id);
+
+      // Fetch team details for all teams
+      const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select('*')
-        .eq('name', profile.assigned_team)
-        .maybeSingle();
+        .in('id', teamIds);
 
-      if (teamError) throw teamError;
+      if (teamsError) throw teamsError;
       
-      if (teamData) {
-        setMyTeam(teamData);
-        
-        // Fetch team members - get user IDs first
-        const { data: memberIds, error: membersError } = await supabase
-          .from('team_members')
-          .select('user_id')
-          .eq('team_id', teamData.id);
+      // Fetch members for each team
+      const teamsWithMembers: TeamWithMembers[] = await Promise.all(
+        (teamsData || []).map(async (team) => {
+          const { data: memberIds, error: membersError } = await supabase
+            .from('team_members')
+            .select('user_id')
+            .eq('team_id', team.id);
 
-        if (membersError) throw membersError;
-        
-        if (memberIds && memberIds.length > 0) {
-          const userIds = memberIds.map(m => m.user_id);
+          if (membersError) {
+            console.error('Error fetching team members:', membersError);
+            return { ...team, members: [] };
+          }
           
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('display_name, email')
-            .in('id', userIds);
+          if (memberIds && memberIds.length > 0) {
+            const userIds = memberIds.map(m => m.user_id);
             
-          if (profilesError) throw profilesError;
+            const { data: profiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('display_name, email')
+              .in('id', userIds);
+              
+            if (profilesError) {
+              console.error('Error fetching profiles:', profilesError);
+              return { ...team, members: [] };
+            }
+            
+            return { ...team, members: profiles || [] };
+          }
           
-          setTeamMembers(profiles || []);
-        } else {
-          setTeamMembers([]);
-        }
-      }
+          return { ...team, members: [] };
+        })
+      );
+
+      setMyTeams(teamsWithMembers);
     } catch (error) {
       console.error('Error fetching team data:', error);
       toast.error('Failed to load team data');
@@ -89,45 +116,46 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
     }
   };
 
-  const startEdit = useCallback(() => {
-    if (myTeam) {
-      setEditForm({
-        description: myTeam.description || '',
-        website_url: myTeam.website_url || ''
-      });
-      setIsEditing(true);
-    }
-  }, [myTeam]);
-
-  const cancelEdit = useCallback(() => {
-    setIsEditing(false);
-    setEditForm({ description: '', website_url: '' });
+  const startEdit = useCallback((team: TeamWithMembers) => {
+    setEditForm({
+      name: team.name,
+      description: team.description || '',
+      website_url: team.website_url || ''
+    });
+    setEditingTeamId(team.id);
   }, []);
 
-  const saveEdit = useCallback(async () => {
-    if (!myTeam) return;
-    
+  const cancelEdit = useCallback(() => {
+    setEditingTeamId(null);
+    setEditForm({ name: '', description: '', website_url: '' });
+  }, []);
+
+  const saveEdit = useCallback(async (teamId: string) => {
     try {
       const { data, error } = await supabase
         .from('teams')
         .update({
+          name: editForm.name.trim(),
           description: editForm.description.trim() || null,
           website_url: editForm.website_url.trim() || null
         })
-        .eq('id', myTeam.id)
+        .eq('id', teamId)
         .select()
         .single();
 
       if (error) throw error;
       
-      setMyTeam(data);
-      setIsEditing(false);
+      // Update local state
+      setMyTeams(prev => prev.map(t => 
+        t.id === teamId ? { ...t, ...data } : t
+      ));
+      setEditingTeamId(null);
       toast.success('Team updated successfully!');
     } catch (error) {
       console.error('Error updating team:', error);
       toast.error('Failed to update team');
     }
-  }, [myTeam, editForm]);
+  }, [editForm]);
 
   if (loading) {
     return (
@@ -147,36 +175,18 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
     );
   }
 
-  if (!profile?.assigned_team) {
+  if (myTeams.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono">
             <Users className="h-5 w-5" />
-            MY TEAM
+            MY TEAMS
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
-            You are not currently assigned to a team.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!myTeam) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono">
-            <Users className="h-5 w-5" />
-            MY TEAM
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-8">
-            Team "{profile.assigned_team}" not found. Please contact an administrator.
+            You are not currently a member of any teams.
           </p>
         </CardContent>
       </Card>
@@ -184,100 +194,114 @@ export const MyTeamManagement = memo(function MyTeamManagement() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-mono">
-          <Users className="h-5 w-5" />
-          MY TEAM
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold font-mono mb-2">{myTeam.name}</h3>
-            
-            {isEditing ? (
-              <div className="space-y-3 mb-4">
-                <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Team description"
-                    rows={2}
-                  />
+    <div className="space-y-4">
+      {myTeams.map((team) => {
+        const isEditing = editingTeamId === team.id;
+        
+        return (
+          <Card key={team.id}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-mono">
+                <Users className="h-5 w-5" />
+                {isEditing ? 'EDIT TEAM' : team.name.toUpperCase()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  {isEditing ? (
+                    <div className="space-y-3 mb-4">
+                      <div>
+                        <Label>Team Name</Label>
+                        <Input
+                          value={editForm.name}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Team name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Textarea
+                          value={editForm.description}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Team description"
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label>Website URL</Label>
+                        <Input
+                          type="url"
+                          value={editForm.website_url}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, website_url: e.target.value }))}
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => saveEdit(team.id)}>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEdit}>
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {team.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{team.description}</p>
+                      )}
+                      {team.website_url && (
+                        <a
+                          href={team.website_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          {team.website_url}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div>
-                  <Label>Website URL</Label>
-                  <Input
-                    type="url"
-                    value={editForm.website_url}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, website_url: e.target.value }))}
-                    placeholder="https://example.com"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={saveEdit}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
+                
+                {!isEditing && (
+                  <Button size="sm" variant="outline" onClick={() => startEdit(team)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
                   </Button>
-                  <Button size="sm" variant="outline" onClick={cancelEdit}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3 font-mono">
+                  TEAM MEMBERS ({team.members.length})
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {team.members.map((member, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-muted rounded"
+                    >
+                      <span className="text-sm">{member.display_name || member.email}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ) : (
-              <>
-                {myTeam.description && (
-                  <p className="text-sm text-muted-foreground mb-2">{myTeam.description}</p>
-                )}
-                {myTeam.website_url && (
-                  <a
-                    href={myTeam.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    {myTeam.website_url}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-              </>
-            )}
-          </div>
-          
-          {!isEditing && (
-            <Button size="sm" variant="outline" onClick={startEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          )}
-        </div>
 
-        <div className="border-t pt-4">
-          <h4 className="font-medium mb-3 font-mono">
-            TEAM MEMBERS ({teamMembers.length})
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {teamMembers.map((member, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-2 bg-muted rounded"
-              >
-                <span className="text-sm">{member.display_name || member.email}</span>
+              <div className="border-t pt-4 bg-muted/30 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> You can manage badges for your team ({team.name}) in the Badge Management tab. 
+                  Only badges assigned to your team will be editable.
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border-t pt-4 bg-muted/30 p-4 rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> You can manage badges for your team ({myTeam.name}) in the Badge Management tab. 
-            Only badges assigned to your team will be editable.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 });
