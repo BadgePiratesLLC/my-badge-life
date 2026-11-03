@@ -1,5 +1,12 @@
 project_id = "zdegwavcldwlgzzandae"
 
+# Platform-level JWT check: the Authorization header must contain a validly
+# signed JWT (this already rejects malformed/missing tokens). It does NOT by
+# itself reject the anon key, since the anon key is itself a validly signed
+# JWT — that extra check is done inside supabase/functions/send-email/index.ts.
+[functions.send-email]
+verify_jwt = true
+
 [functions.process-badge-embeddings]
 verify_jwt = false
 
